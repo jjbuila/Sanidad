@@ -1,5 +1,6 @@
-/* Service worker de Sanidad Palma: permite abrir la aplicación y ver mapas sin conexión. */
-const APP='sanidad-palma-app-v4';
+/* Service worker de Sanidad Palma 2.0: permite abrir la aplicación y ver mapas sin conexión.
+   Las llamadas a la API de GitHub no se guardan en caché. */
+const APP='sanidad-palma-app-v5';
 const TESELAS='teselas-v1';
 const ARCHIVOS=['./','./index.html','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
 
@@ -15,7 +16,6 @@ function esTesela(u){
 self.addEventListener('fetch',e=>{
   const req=e.request;if(req.method!=='GET')return;
   const u=new URL(req.url);
-  // Mapas base: primero la copia guardada; si no existe, internet (y se guarda).
   if(esTesela(u)){
     e.respondWith(caches.open(TESELAS).then(async c=>{
       const m=await c.match(req.url,{ignoreVary:true});if(m)return m;
@@ -24,7 +24,6 @@ self.addEventListener('fetch',e=>{
     }));
     return;
   }
-  // Aplicación: responde desde la copia local y la actualiza en segundo plano cuando hay internet.
   if(u.origin===self.location.origin){
     e.respondWith(caches.open(APP).then(async c=>{
       const m=await c.match(req,{ignoreSearch:true})||(req.mode==='navigate'?await c.match('./index.html'):null);
