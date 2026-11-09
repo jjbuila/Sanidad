@@ -31,6 +31,27 @@
     "iv": "A9gokKaCioe+tQUw",
     "ct": "mYirjcL1qeE55HidOEVurTwL+sptES4Da/XxmEJAODjqSvRmejL1c6R1bO10SmSEBRREkTziiuU="
    }
+  },
+  {
+   "u": "lacuenu",
+   "salt": "6QGp0BLGEmB+9TrHqPRZng==",
+   "iv": "8POBqzYMpKscBVpE",
+   "ct": "+giD2HW6KHYVHv2kfILnW9xT14oPNT3SDm3ybbbVCANixOb+7pncfVgZOEu6ZP3f",
+   "meta": {
+    "iv": "0ndHdbFN9/USuQmG",
+    "ct": "ulaFJqj4lk1+ovZeyHZsyt/EJC3mE3ZzHjZVZ/H1E25XxrRVABZnGl1Q6xplzTzepeczOMVfLmA="
+   }
+  },
+  {
+   "u": "kaestacio",
+   "salt": "16PiYZ2btV/w21LTExbWTg==",
+   "iv": "v7lS5kj4plFnrFA7",
+   "ct": "JCp5AzkG5ZeYglqCdIPDEawde8ZQD2zfJGzy+VfK4GQAgy0tYBHhnPQ7EJy8QVQv",
+   "meta": {
+    "iv": "KgTCY3Kjf2aMajX6",
+    "ct": "rKUayN3SavbHVe5ZJAnXxbuB3Zs006/WyNduyD8YtQbCnjV69ZnIhAcuf2301mfg2UofYSSdG/UrMg=="
+   }
   }
- ]
+ ],
+ "modificado": "2026-11-09T16:44:21.723650Z"
 }
