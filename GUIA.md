@@ -89,29 +89,31 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 
 ## 7. Sincronización y bloqueo
 
-- **Automática con WiFi:** la aplicación sincroniza en cuanto detecta WiFi. Con datos móviles no lo hace, salvo que el usuario pulse **Sincronizar ahora** y lo confirme.
-- **Tiempo de corrección:** cada diagnóstico espera **2 minutos** después de guardado antes de enviarse, para poder corregirlo. Este tiempo se ajusta en *Configuración*; con 0 se envía de inmediato.
-- **Bloqueo:** una vez sincronizado, el diagnóstico queda **🔒 bloqueado**: no se puede editar ni eliminar. Tampoco se pueden borrar los datos del dispositivo mientras haya pendientes.
-- **Estado en la cabecera:** el indicador superior muestra «Al día», el número de pendientes o un error. Al tocarlo se ve el detalle.
+**Regla: una jornada, una sincronización.**
+- **Durante la jornada no se envía nada.** Los diagnósticos se pueden corregir mientras la jornada no se haya sincronizado.
+- **Al finalizar la jornada**, en cuanto el celular tenga **WiFi**, se envía la **jornada completa** en un solo envío. Con datos móviles solo se envía si el usuario pulsa **Sincronizar ahora** y lo confirma.
+- **Escalonamiento:** para que los 120 celulares no envíen al mismo tiempo, cada uno espera un **turno aleatorio de 0 a 10 minutos**. El botón *Sincronizar ahora* envía de inmediato.
+- **Pausas de GitHub:** si GitHub pide esperar por exceso de solicitudes, la aplicación respeta la pausa y **reintenta sola**. El indicador de la cabecera muestra «Espera».
+- **Bloqueo:** una vez enviada, la jornada queda **🔒 bloqueada**: sus diagnósticos no se pueden editar ni eliminar.
+
+**Capacidad:** cada jornada usa **5 escrituras** en GitHub (4 si no tiene fotos). Con 120 operarios son unas 600 escrituras al día. El escalonamiento y los reintentos las distribuyen dentro del límite de GitHub de 500 por hora.
 
 ### Qué queda en GitHub
 
 ```
 SanidadData/
-├── cartografia/
-│   ├── lotes.geojson
-│   └── palmas.zip
 └── jornadas/
-    └── 2026-11-07/
-        └── 20261107-0816-5aec06/          ← una carpeta por jornada
-            ├── registros.geojson          ← diagnósticos (puntos con todos los atributos)
-            ├── recorrido.geojson          ← track (línea con tiempos y precisión de cada vértice)
-            ├── jornada.json               ← evaluador, lotes, rangos, inicio, fin, km
-            └── fotos/<id>.jpg
+    └── 2026-11-09/
+        ├── 20261109-0816-5aec06.geojson      ← jornada completa (un solo archivo)
+        └── 20261109-0816-5aec06_fotos.zip    ← todas las fotos de la jornada
 ```
 
-- **Campos de `registros.geojson`:** `palma_id`, `lote`, `linea`, `palma`, `estado`, `problemas`, `p_PC`… (1/0), `grado_pc`, `severidad`, `sintomas`, `accion`, `observaciones`, `fotos`, `gps_precision_m`, `dist_gps_palma_m`, `evaluador`, `creado`, `sincronizado`, entre otros.
-- **Uso en QGIS:** los GeoJSON se abren directamente. Para consolidar, clone el repositorio con `git clone https://github.com/jjbuila/SanidadData.git` y combine los `registros.geojson` con *Vectorial → Herramientas de gestión de datos → Combinar capas vectoriales*.
+**Contenido del `.geojson`:**
+- Encabezado `"jornada"`: evaluador, usuario, dispositivo, inicio, fin, km, lotes y rangos de líneas, número de diagnósticos y de fotos, nombre del ZIP de fotos y versión de la aplicación.
+- **Puntos** con `tipo = diagnostico`. Cada uno lleva `palma_id`, `lote`, `linea`, `palma`, `estado`, `problemas`, `p_PC`… (1/0), `grado_pc`, `severidad`, `sintomas`, `accion`, `observaciones`, `fotos` (nombres dentro del ZIP), `gps_precision_m`, `dist_gps_palma_m`, `creado` y `sincronizado`.
+- **Línea** con `tipo = recorrido`: el track, con la hora y la precisión de cada vértice.
+
+**Uso en QGIS:** al abrir el `.geojson`, QGIS ofrece dos subcapas, una de puntos (diagnósticos) y otra de líneas (recorrido). Para consolidar varias jornadas, use *Vectorial → Herramientas de gestión de datos → Combinar capas vectoriales*.
 
 ## 8. Actualizar la cartografía
 

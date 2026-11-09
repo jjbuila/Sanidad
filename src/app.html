@@ -359,7 +359,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='2.1.1';
+const VERSION='2.2.0';
 
 /* ---------- Catálogos del formulario ---------- */
 const ESTADOS=[
@@ -844,7 +844,7 @@ async function finalizarJornada(){
       <div class="stat"><b>${(j.km||0).toFixed(2)}</b><span>Km</span></div>
       <div class="stat"><b>${num(regs.length)}</b><span>Diagnósticos</span></div>
     </div>
-    <p class="tenue">Censadas ${num(c.hec)} de ${num(c.tot)} palmas seleccionadas. La información se sincronizará con GitHub en cuanto haya WiFi; después quedará bloqueada.</p>
+    <p class="tenue">Censadas ${num(c.hec)} de ${num(c.tot)} palmas seleccionadas. La jornada completa se sincronizará con GitHub en cuanto haya WiFi; después quedará bloqueada.</p>
     <button class="btn prim ancho" id="fPlay">${IC.play} Ver el recorrido del día</button>
     <button class="btn ancho" id="fSync">${IC.sync} Sincronizar ahora</button>`);
   $('#fPlay').onclick=()=>abrirPlay(j.id);
@@ -1020,7 +1020,7 @@ async function guardarRegistro(frm){
   repintarPalma(r.palma_id);actualizarCenso();estadoSync();F=null;
   toast('✅ Diagnóstico guardado en el dispositivo.');
   if(S.idx.has(r.palma_id))abrirPalma(r.palma_id);else cerrarHoja();
-  refrescarBD();programarSync(((Number(S.cfg.esperaSync)||0)*60000)+2000);
+  refrescarBD();
 }
 function liberarUrls(){if(F&&F.urls)F.urls.forEach(u=>URL.revokeObjectURL(u));}
 async function borrarRegistro(id){
@@ -1287,7 +1287,12 @@ async function ghFetch(ruta,{method='GET',body,accept='application/vnd.github+js
     headers:{'Authorization':'Bearer '+g.token,'Accept':accept,'X-GitHub-Api-Version':'2022-11-28',...(body?{'Content-Type':'application/json'}:{})},
     body:body?JSON.stringify(body):undefined});}
   catch(e){throw new Error('No hay conexión con GitHub.');}
-  if(!r.ok){let m='';try{m=(await r.json()).message||'';}catch(e){}const e=new Error(errorGH(r.status,m));e.status=r.status;throw e;}
+  if(!r.ok){let m='';try{m=(await r.json()).message||'';}catch(e){}
+    const limite=r.status===429||(r.status===403&&(/rate limit/i.test(m)||r.headers.get('x-ratelimit-remaining')==='0'));
+    const e=new Error(limite?'GitHub pidió esperar por exceso de solicitudes; se reintentará automáticamente.':errorGH(r.status,m));e.status=r.status;e.limite=limite;
+    if(limite){const ra=Number(r.headers.get('retry-after'));const rs=Number(r.headers.get('x-ratelimit-reset'));
+      e.esperaSeg=ra>0?ra:(rs>0?Math.max(60,rs-Date.now()/1000):0);}
+    throw e;}
   return r;
 }
 const rutaGH=p=>p.split('/').map(encodeURIComponent).join('/');
@@ -1304,14 +1309,14 @@ async function ghCommit(archivos,mensaje){
     const arbol=await (await ghFetch('/git/trees',{method:'POST',body:{base_tree:com.tree.sha,tree}})).json();
     const nuevo=await (await ghFetch('/git/commits',{method:'POST',body:{message:mensaje,tree:arbol.sha,parents:[base]}})).json();
     try{await ghFetch(`/git/refs/heads/${rama}`,{method:'PATCH',body:{sha:nuevo.sha,force:false}});return nuevo.sha;}
-    catch(e){if(e.status!==422||intento>=3)throw e;await esperar(1500*(intento+1));}
+    catch(e){if(e.status!==422||intento>=6)throw e;await esperar((1000+Math.random()*3000)*(intento+1));}
   }
 }
 function planos(r){
   const o={id:r.id,jornada_id:r.jornada_id,palma_id:r.palma_id,lote:r.lote,linea:r.linea,palma:r.numero,fecha:r.fecha,creado:r.creado,modificado:r.modificado,
     evaluador:r.evaluador,estado:r.estado,estado_nombre:(estadoDe(r.estado)||{}).n||'',problemas:(r.problemas||[]).join('|'),grado_pc:r.grado_pc,
     severidad:r.severidad,sintomas:(r.sintomas||[]).join('|'),accion:r.accion,observaciones:r.observaciones,n_fotos:(r.fotos||[]).length,
-    fotos:(r.fotos||[]).map(f=>'fotos/'+f+'.jpg').join('|'),lat:r.lat,lng:r.lng,gps_lat:r.gps_lat,gps_lng:r.gps_lng,gps_precision_m:r.gps_acc,
+    fotos:(r.fotos||[]).map(f=>f+'.jpg').join('|'),lat:r.lat,lng:r.lng,gps_lat:r.gps_lat,gps_lng:r.gps_lng,gps_precision_m:r.gps_acc,
     dist_gps_palma_m:r.dist_gps,dispositivo:S.cfg.dispositivo,sincronizado:r.sync_fecha||null};
   PROBLEMAS.forEach(p=>o['p_'+p.id]=(r.problemas||[]).includes(p.id)?1:0);
   return o;
@@ -1323,55 +1328,69 @@ function geoRecorrido(j,pts){
   return {type:'FeatureCollection',name:'recorrido',features:pts.length?[{type:'Feature',properties:props,
     geometry:pts.length>1?{type:'LineString',coordinates:pts.map(p=>[p.lng,p.lat])}:{type:'Point',coordinates:[pts[0].lng,pts[0].lat]}}]:[]};
 }
-const SYNC={activo:false,ultimo:0,ultimoCommit:0,error:null,t:null};
+const SYNC={activo:false,ultimo:0,ultimoCommit:0,error:null,t:null,turno:0,pausaHasta:0,fallos:0};
 function tipoRed(){if(!navigator.onLine)return 'sin';const c=navigator.connection;return c&&c.type?c.type:'desconocida';}
 function redPermitida(){const t=tipoRed();if(t==='sin'||t==='none')return false;if(!S.cfg.soloWifi)return true;return t==='wifi'||t==='ethernet'||t==='desconocida';}
-const listoSync=r=>Date.now()-Date.parse(r.modificado||r.creado||0)>=(Number(S.cfg.esperaSync)||0)*60000;
 function programarSync(ms){clearTimeout(SYNC.t);SYNC.t=setTimeout(()=>sincronizar(false),ms||3000);}
+async function jornadasPorSincronizar(){return (await dbAll('jornadas')).filter(j=>j.estado==='finalizada'&&j.sync!=='sincronizado').sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));}
+/* Un solo archivo GeoJSON por jornada: diagnósticos (puntos) + recorrido (línea) + datos de la jornada. */
+function geoJornada(j,regs,pts,ahora,archivoFotos){
+  const sel=regs.map(r=>({...r,sync:'sincronizado',sync_fecha:ahora}));
+  const feats=sel.filter(r=>r.lat!=null).map(r=>{const f=featReg(r);f.properties={tipo:'diagnostico',...f.properties};return f;});
+  if(pts.length)feats.push({type:'Feature',properties:{tipo:'recorrido',jornada_id:j.id,evaluador:j.evaluador,inicio:j.inicio,fin:j.fin,km:+(j.km||0).toFixed(3),
+    n_puntos:pts.length,tiempos:pts.map(p=>new Date(p.t).toISOString()),precision_m:pts.map(p=>p.acc)},
+    geometry:pts.length>1?{type:'LineString',coordinates:pts.map(p=>[p.lng,p.lat])}:{type:'Point',coordinates:[pts[0].lng,pts[0].lat]}});
+  return {type:'FeatureCollection',name:'jornada_'+j.id,
+    jornada:{id:j.id,evaluador:j.evaluador,usuario:j.usuario||'',dispositivo:j.dispositivo||S.cfg.dispositivo,inicio:j.inicio,fin:j.fin,
+      km:+(j.km||0).toFixed(3),lotes:j.seleccion,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
+      archivo_fotos:archivoFotos||null,cartografia:j.carto_version||'',app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
+    features:feats};
+}
 async function sincronizar(manual){
   if(SYNC.activo)return;
   if(!S.cfg.gh.token){if(manual)toast('Inicie sesión para sincronizar.');return;}
   if(!navigator.onLine){if(manual)toast('Sin conexión a internet.');estadoSync();return;}
+  if(Date.now()<SYNC.pausaHasta){if(manual)toast(`GitHub pidió esperar. Se reintentará a las ${fmtHora(SYNC.pausaHasta).slice(0,5)}.`,4000);programarSync(SYNC.pausaHasta-Date.now()+1000);estadoSync();return;}
   if(!manual&&!redPermitida()){estadoSync();return;}
+  const lista=await jornadasPorSincronizar();
+  if(!lista.length){SYNC.turno=0;estadoSync();if(manual)toast(S.jornada?'La jornada en curso se sincronizará completa al finalizarla.':'✓ Todo está sincronizado.',3500);return;}
   if(manual&&!redPermitida()&&!confirm('No está conectado a WiFi. ¿Desea sincronizar usando datos móviles?'))return;
-  SYNC.activo=true;estadoSync();
+  if(!manual){ // escalonamiento: cada celular espera un turno aleatorio (0 a 10 min) para no coincidir con los demás
+    if(!SYNC.turno){SYNC.turno=Date.now()+Math.random()*10*60000;estadoSync();programarSync(SYNC.turno-Date.now());return;}
+    if(Date.now()<SYNC.turno){programarSync(SYNC.turno-Date.now());return;}
+  }
+  SYNC.activo=true;estadoSync();let n=0,nd=0;
   try{
-    const regs=S.registros.filter(r=>r.sync!=='sincronizado'&&(manual||listoSync(r)));
-    const ptsPend=await dbIndice('track','s',0);
-    const jornadas=await dbAll('jornadas');
-    const sucias=jornadas.filter(j=>j.sync==='pendiente'&&(manual||j.estado==='finalizada'||!j.sync_fecha));
-    if(!regs.length&&!sucias.length&&(!ptsPend.length||(!manual&&Date.now()-SYNC.ultimoCommit<10*60000))){SYNC.ultimo=Date.now();SYNC.error=null;if(manual)toast('✓ Todo está sincronizado.');return;}
-    const ids=new Set([...regs.map(r=>r.jornada_id),...ptsPend.map(p=>p.j),...sucias.map(j=>j.id)]);
-    const idsRegs=new Set(regs.map(r=>r.id));const ahora=new Date().toISOString();
-    const archivos=[];
-    for(const jid of ids){
-      const j=jornadas.find(x=>x.id===jid);if(!j)continue;
-      const base=`jornadas/${fechaLocal(j.inicio)}/${j.id}`;
-      const incl=S.registros.filter(r=>r.jornada_id===jid&&(r.sync==='sincronizado'||idsRegs.has(r.id)));
-      const pts=await puntosTrack(jid);
-      const marcados=incl.map(r=>idsRegs.has(r.id)?{...r,sync:'sincronizado',sync_fecha:ahora}:r);
-      archivos.push({path:base+'/registros.geojson',texto:JSON.stringify({type:'FeatureCollection',name:'registros',features:marcados.map(featReg)})});
-      archivos.push({path:base+'/recorrido.geojson',texto:JSON.stringify(geoRecorrido(j,pts))});
-      archivos.push({path:base+'/jornada.json',texto:JSON.stringify({...j,sync:undefined,diagnosticos:incl.length,puntos_recorrido:pts.length,
-        sincronizado:ahora,dispositivo:S.cfg.dispositivo,app:'Sanidad Vegetal '+VERSION},null,1)});
-      for(const r of regs)if(r.jornada_id===jid)for(const fid of r.fotos||[]){const f=await dbGet('fotos',fid);if(f)archivos.push({path:`${base}/fotos/${fid}.jpg`,b64:aB64(f.buf)});}
+    for(const j of lista){
+      const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
+      const ahora=new Date().toISOString();const base=`jornadas/${fechaLocal(j.inicio)}/${j.id}`;
+      const archivos=[];let nombreZip=null;
+      const ids=regs.flatMap(r=>r.fotos||[]);
+      if(ids.length){const z=new JSZip();for(const fid of ids){const f=await dbGet('fotos',fid);if(f)z.file(fid+'.jpg',f.buf);}
+        nombreZip=j.id+'_fotos.zip';archivos.push({path:`jornadas/${fechaLocal(j.inicio)}/${nombreZip}`,b64:aB64(await z.generateAsync({type:'uint8array',compression:'STORE'}))});}
+      archivos.unshift({path:base+'.geojson',texto:JSON.stringify(geoJornada(j,regs,pts,ahora,nombreZip))});
+      const sha=await ghCommit(archivos,`Sanidad Vegetal · ${j.evaluador} · jornada ${fechaLocal(j.inicio)} · ${regs.length} diagnóstico(s)`);
+      regs.forEach(r=>{r.sync='sincronizado';r.sync_fecha=ahora;r.sync_commit=sha;});if(regs.length)await dbPutVarios('registros',regs);
+      pts.forEach(p=>p.s=1);if(pts.length)await dbPutVarios('track',pts);
+      j.sync='sincronizado';j.sync_fecha=ahora;j.sync_commit=sha;await dbPut('jornadas',j);
+      n++;nd+=regs.length;
     }
-    const sha=await ghCommit(archivos,`Sanidad Vegetal · ${S.cfg.evaluador||'evaluador'} · ${regs.length} diagnóstico(s) · ${fmtFecha(Date.now())}`);
-    for(const r of regs){r.sync='sincronizado';r.sync_fecha=ahora;r.sync_commit=sha;}
-    await dbPutVarios('registros',regs);
-    if(ptsPend.length){ptsPend.forEach(p=>p.s=1);await dbPutVarios('track',ptsPend);}
-    for(const jid of ids){const j=jornadas.find(x=>x.id===jid);if(!j)continue;
-      const act=S.jornada&&S.jornada.id===jid?S.jornada:j;
-      act.sync=act.estado==='finalizada'?'sincronizado':'parcial';act.sync_fecha=ahora;await dbPut('jornadas',act);}
-    SYNC.ultimo=SYNC.ultimoCommit=Date.now();SYNC.error=null;
-    S.registros=await dbAll('registros');recalcUltimo();if(S.jornada){S.hechos.clear();S.registros.forEach(r=>{if(r.jornada_id===S.jornada.id)S.hechos.set(r.palma_id,r);});}
-    if(manual||regs.length)toast(`✅ Sincronizado con GitHub: ${regs.length} diagnóstico(s). Quedaron bloqueados.`,4000);
-  }catch(e){SYNC.error=e.message;if(manual)alert('No se pudo sincronizar:\n'+e.message);}
-  finally{SYNC.activo=false;estadoSync();refrescarBD();}
+    SYNC.ultimo=SYNC.ultimoCommit=Date.now();SYNC.error=null;SYNC.fallos=0;SYNC.turno=0;
+  }catch(e){
+    SYNC.error=e.message;SYNC.fallos++;
+    const espera=e.limite?(e.esperaSeg||60*Math.min(30,2**SYNC.fallos)):60*Math.min(30,2**SYNC.fallos);
+    SYNC.pausaHasta=Date.now()+espera*1000;programarSync(espera*1000+Math.random()*30000);
+    if(manual)alert('No se pudo completar la sincronización:\n'+e.message+(n?`\n\nSe alcanzaron a enviar ${n} jornada(s).`:''));
+  }finally{
+    SYNC.activo=false;
+    if(n){S.registros=await dbAll('registros');recalcUltimo();toast(`✅ ${n} jornada(s) sincronizada(s) con GitHub: ${nd} diagnóstico(s) bloqueados.`,4500);}
+    estadoSync();refrescarBD();
+  }
 }
 function estadoSync(){
   const b=$('#chSync');const pend=S.registros.filter(r=>r.sync!=='sincronizado').length;
   if(SYNC.activo){b.className='chip gira';b.innerHTML=IC.sync+'<span>Sync…</span>';return;}
+  if(Date.now()<SYNC.pausaHasta&&pend){b.className='chip med';b.innerHTML='<span class="led"></span>'+`<span>Espera ${pend}</span>`;return;}
   if(!S.cfg.gh.token){b.className='chip mal';b.innerHTML='<span class="led"></span><span>Sin sesión</span>';return;}
   if(SYNC.error){b.className='chip mal';b.innerHTML=IC.alerta+`<span>${pend||'!'}</span>`;return;}
   if(pend){b.className='chip pend';b.innerHTML=IC.nube+`<span>${pend}</span>`;return;}
@@ -1386,13 +1405,17 @@ function panelSync(){
     <div class="ficha" style="margin-top:8px">
       <div><b>Repositorio:</b> ${esc(S.cfg.gh.owner)}/${esc(S.cfg.gh.repo)} (${esc(S.cfg.gh.rama)})</div>
       <div><b>Última sincronización:</b> ${SYNC.ultimoCommit?fmtFecha(SYNC.ultimoCommit):'—'}</div>
-      <div><b>Modo:</b> ${S.cfg.soloWifi?'automático solo con WiFi':'automático con cualquier red'}${Number(S.cfg.esperaSync)?` · espera de ${S.cfg.esperaSync} min tras guardar`:''}</div>
+      <div><b>Modo:</b> una sincronización por jornada, al finalizarla · ${S.cfg.soloWifi?'automática solo con WiFi':'automática con cualquier red'}</div>
+      <div><b>Jornadas finalizadas por enviar:</b> <span id="sJor">…</span>${S.jornada?' · <b>1 jornada en curso</b> (se enviará al finalizarla)':''}</div>
+      ${SYNC.turno&&!SYNC.activo?`<div><b>Turno automático:</b> ${fmtHora(SYNC.turno).slice(0,5)}</div>`:''}
+      ${Date.now()<SYNC.pausaHasta?`<div style="color:var(--ambar)"><b>Reintento:</b> ${fmtHora(SYNC.pausaHasta).slice(0,5)}</div>`:''}
       ${SYNC.error?`<div style="color:var(--rojo)"><b>Último error:</b> ${esc(SYNC.error)}</div>`:''}
     </div>
-    <div class="candado">🔒 Cada diagnóstico sincronizado queda bloqueado: no se puede editar ni eliminar. En GitHub se guarda por jornada: registros.geojson, recorrido.geojson, jornada.json y las fotos.</div>
+    <div class="candado">🔒 Al sincronizar, la jornada completa queda bloqueada: no se puede editar ni eliminar. En GitHub se guarda un solo archivo por jornada (<b>.geojson</b> con diagnósticos y recorrido) y un solo <b>_fotos.zip</b>.</div>
     <button class="btn prim ancho grande" id="sAhora">${IC.sync} SINCRONIZAR AHORA</button>
     `);
   $('#sAhora').onclick=async()=>{await sincronizar(true);panelSync();};
+  jornadasPorSincronizar().then(l=>{const e=$('#sJor');if(e)e.textContent=l.length;});
 }
 window.addEventListener('online',()=>{estadoSync();programarSync(2000);});
 window.addEventListener('offline',estadoSync);
@@ -1493,7 +1516,7 @@ async function abrirConfig(){
     <button class="btn ancho" id="cSalir">${IC.candado} Cerrar sesión</button>
     ${adm?`<h3>Sincronización</h3>
     <label class="chip-op" style="display:inline-block"><input type="checkbox" id="cWifi" ${S.cfg.soloWifi?'checked':''}><span>Sincronizar automáticamente solo con WiFi</span></label>
-    <label class="campo">Esperar antes de sincronizar un diagnóstico (minutos, para corregir errores)</label><input type="number" id="cEsp" min="0" max="120" value="${esc(S.cfg.esperaSync)}">`:''}
+    <p class="tenue">Cada jornada se envía completa una sola vez, después de finalizarla.</p>`:''}
     <h3>Cartografía</h3>
     <div class="ficha">Versión <b>${esc(CARTO.paquete||CARTO.version||'—')}</b> · ${S.lotes?S.lotes.features.length:0} lotes · ${num(totalPalmasCarto())} palmas<br><span class="tenue">Origen: ${esc(CARTO.origen||'—')} · ${CARTO.fecha?fmtFecha(CARTO.fecha):''}</span></div>
     ${adm?`<button class="btn ancho" id="cCartoArch">Cargar cartografía desde archivos (administrador)</button>`:''}
@@ -1515,7 +1538,7 @@ async function abrirConfig(){
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#cSalir',cerrarSesion);
   $('#cOk').onclick=async()=>{
-    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.esperaSync=Math.max(0,Number($('#cEsp').value)||0);}
+    if(adm){S.cfg.soloWifi=$('#cWifi').checked;}
     S.cfg.base=$('#cBase').value;S.cfg.urlPropia=$('#cUrl').value.trim();S.cfg.zmaxPropia=Number($('#cZmax').value)||20;
     S.cfg.umbralVoz=Number($('#cUmbral').value)||4;S.cfg.precisionVoz=Number($('#cPrec').value)||15;S.cfg.velocidadVoz=Number($('#cVel').value)||1;S.cfg.precisionTrack=Number($('#cPTrack').value)||30;
     await guardarCfg();ponerBase();estadoSync();cerrarHoja();toast('Configuración guardada.');programarSync(1500);};
