@@ -704,6 +704,15 @@ button{cursor:pointer}
 .carga{width:min(70vw,280px);height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}
 .carga i{display:block;height:100%;width:40%;background:linear-gradient(90deg,transparent,var(--acento),transparent);animation:barrido 1.2s infinite}
 @keyframes barrido{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+#lgInstalar{margin-top:4px;border-color:rgba(238,118,51,.6);color:#ffd2b8}
+#instalar{position:fixed;inset:0;z-index:6500;background:rgba(3,10,8,.82);display:flex;align-items:center;justify-content:center;padding:16px}
+#instalar .caja{width:min(94vw,440px);max-height:90vh;overflow:auto;border-radius:22px;padding:16px 18px;background:rgba(7,22,17,.97)}
+#instalar ol{padding-left:22px;line-height:1.7;font-size:15px}
+#instalar ol b{color:var(--acento)}
+#bannerInst{position:fixed;left:10px;right:10px;bottom:calc(var(--dock) + var(--inf) + 12px);z-index:1100;border-radius:16px;padding:10px 10px 10px 14px;display:flex;align-items:center;gap:10px}
+#bannerInst .txt{flex:1;font-size:13.5px;line-height:1.35}
+#bannerInst .txt b{font-family:var(--t);font-size:16px;letter-spacing:.5px;display:block}
+@media(min-width:900px){#bannerInst{left:auto;width:420px}}
 #splashVer,#lgVer2{font-family:var(--t);font-weight:700;letter-spacing:2px;font-size:14px;color:var(--acento);text-align:center}
 #splashMsg{color:var(--tenue);font-size:13px;min-height:18px;text-align:center}
 
@@ -934,7 +943,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261109:1249</div>
+  <div id="splashVer">VERSIÓN 20261109:1251</div>
 </div>
 
 <div id="login" hidden>
@@ -948,7 +957,8 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261109:1249</div>
+  <div id="lgVer2">VERSIÓN 20261109:1251</div>
+  <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
 
 <header id="hud">
@@ -1017,6 +1027,9 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="play-pie"><span>Transcurrido <b id="plTrans">00:00:00</b></span><span>Distancia <b id="plDist">0.00 km</b></span><span>Diagnósticos <b id="plDiag">0</b></span><label><input type="checkbox" id="plSeguir" checked> Seguir</label></div>
 </section>
 
+<div id="bannerInst" class="glass" hidden><span style="font-size:26px">📲</span><div class="txt"><b>Instale Sanidad Vegetal</b>Quedará como una aplicación en este celular y funcionará sin internet.</div>
+  <button class="btn nar" id="biOk" style="padding:10px 12px;font-size:14px">INSTALAR</button><button class="icono" id="biNo" aria-label="Cerrar">✕</button></div>
+<div id="instalar" hidden><div class="caja glass"><div style="display:flex;align-items:center;gap:8px"><h2 class="tit" style="flex:1;margin:0;font-size:21px;letter-spacing:1px">📲 Instalar en el celular</h2><button class="icono" id="instCerrar" aria-label="Cerrar">✕</button></div><div id="instCuerpo"></div></div></div>
 <div id="toast"></div>
 <div id="visor"><img alt=""></div>
 <input type="file" id="inFoto" accept="image/*" capture="environment" multiple hidden>
@@ -1048,7 +1061,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261109:1249';
+const VERSION='20261109:1251';
 
 /* ---------- Catálogos del formulario ---------- */
 const ESTADOS=[
@@ -2328,8 +2341,50 @@ async function guardarZona(){
 /* =====================================================================
    MENÚ Y CONFIGURACIÓN
    ===================================================================== */
+/* ---------- Instalación en el celular (PWA) ---------- */
 let eventoInstalar=null;
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();eventoInstalar=e;});
+const estaInstalada=()=>{try{return matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||navigator.standalone===true;}catch(e){return false;}};
+function plataforma(){const u=navigator.userAgent;
+  if(/iPhone|iPad|iPod/i.test(u)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1))return 'ios';
+  if(/SamsungBrowser/i.test(u))return 'samsung';if(/Android/i.test(u))return /Firefox/i.test(u)?'android-firefox':'android';return 'escritorio';}
+function refrescarInstalar(){
+  const inst=estaInstalada();
+  $('#lgInstalar').hidden=inst;
+  if(inst)$('#bannerInst').hidden=true;
+}
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();eventoInstalar=e;refrescarInstalar();});
+window.addEventListener('appinstalled',()=>{eventoInstalar=null;$('#bannerInst').hidden=true;$('#lgInstalar').hidden=true;$('#instalar').hidden=true;toast('✅ Sanidad Vegetal quedó instalada. Ábrala desde el ícono de la pantalla de inicio.',5000);});
+function pasosInstalar(){
+  const pf=plataforma();const https=location.protocol==='https:'||location.hostname==='localhost';
+  const comun='<p class="tenue">Después ábrala siempre desde el ícono <b>Sanidad Vegetal</b> de la pantalla de inicio. La primera vez hágalo con internet; luego funciona sin conexión.</p>';
+  if(!https)return '<div class="aviso">Para instalarla, abra la aplicación desde su dirección <b>https://jjbuila.github.io/Sanidad/</b>.</div>';
+  if(pf==='ios')return `<ol><li>Abra esta página en <b>Safari</b>.</li><li>Toque el botón <b>Compartir</b> (cuadro con flecha hacia arriba), abajo en el centro.</li>
+    <li>Deslice y toque <b>Agregar a pantalla de inicio</b>.</li><li>Toque <b>Agregar</b>, arriba a la derecha.</li></ol>${comun}`;
+  if(pf==='samsung')return `<ol><li>Toque el menú <b>☰</b> (abajo a la derecha).</li><li>Toque <b>Agregar página a</b> y luego <b>Pantalla de inicio</b>.</li><li>Confirme con <b>Agregar</b>.</li></ol>
+    <p class="tenue">Recomendado: use <b>Google Chrome</b>, donde la instalación es directa.</p>${comun}`;
+  if(pf==='android-firefox')return `<ol><li>Toque el menú <b>⋮</b>.</li><li>Toque <b>Instalar</b> o <b>Agregar a pantalla de inicio</b>.</li></ol><p class="tenue">Recomendado: use <b>Google Chrome</b>.</p>${comun}`;
+  if(pf==='android')return `<ol><li>Toque el menú <b>⋮</b> de Chrome (arriba a la derecha).</li><li>Toque <b>Instalar aplicación</b> o <b>Agregar a la pantalla principal</b>.</li><li>Confirme con <b>Instalar</b>.</li></ol>
+    <p class="tenue">Si no aparece la opción, recargue la página con internet y espere unos segundos.</p>${comun}`;
+  return `<ol><li>En Chrome o Edge, pulse el ícono <b>Instalar</b> (⊕) al final de la barra de direcciones, o el menú <b>⋮ → Instalar Sanidad Vegetal</b>.</li></ol>
+    <p class="tenue">En el celular, abra <b>https://jjbuila.github.io/Sanidad/</b> en Chrome y use esta misma opción.</p>`;
+}
+async function instalarApp(){
+  if(estaInstalada()){toast('La aplicación ya está instalada en este dispositivo.');return;}
+  if(eventoInstalar){try{eventoInstalar.prompt();const r=await eventoInstalar.userChoice;eventoInstalar=null;if(r&&r.outcome==='accepted'){$('#bannerInst').hidden=true;return;}}catch(e){}}
+  $('#instCuerpo').innerHTML=pasosInstalar();$('#instalar').hidden=false;
+}
+$('#instCerrar').onclick=()=>{$('#instalar').hidden=true;};
+$('#instalar').onclick=e=>{if(e.target.id==='instalar')$('#instalar').hidden=true;};
+$('#lgInstalar').onclick=instalarApp;
+$('#biOk').onclick=()=>{$('#bannerInst').hidden=true;instalarApp();};
+$('#biNo').onclick=()=>{$('#bannerInst').hidden=true;try{localStorage.setItem('sv_banner_inst',String(Date.now()));}catch(e){}};
+function ofrecerInstalacion(){
+  if(estaInstalada())return;
+  let ult=0;try{ult=Number(localStorage.getItem('sv_banner_inst'))||0;}catch(e){}
+  if(Date.now()-ult<3*86400000)return;
+  setTimeout(()=>{if(!estaInstalada()&&!PLAY.on)$('#bannerInst').hidden=false;},2500);
+}
+refrescarInstalar();
 $('#btMenu').onclick=()=>{if(!PLAY.on)menu();};
 function menu(){
   const mos=(id,ic,t,s)=>`<button class="mosaico" id="${id}">${IC[ic]}<b>${t}</b><small>${s}</small></button>`;
@@ -2345,14 +2400,14 @@ function menu(){
       ${mos('mZona','mapa','Mapa sin conexión','Guardar la zona visible')}
       ${mos('mCfg','config','Configuración',SES&&SES.rol==='admin'?'Mapa, voz, cartografía':'Mapa y voz')}
       ${mos('mSalir','candado','Cerrar sesión',SES?esc(SES.nombre):'')}
-      ${eventoInstalar?mos('mInst','instalar','Instalar app','En este dispositivo'):''}
+      ${estaInstalada()?'':mos('mInst','instalar','Instalar app','En este celular')}
     </div>
     <p class="tenue" style="text-align:center;margin-top:16px">Sanidad Vegetal · versión ${VERSION} · Cartografía ${esc(CARTO.version||'—')}<br>Palmas de Tumaco S.A.S.</p>`);
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#mJor',()=>S.jornada?panelJornada():abrirPlanificador('nueva'));
   on('#mBD',()=>{cerrarHoja();abrirBD('diag');});on('#mRec',()=>{cerrarHoja();abrirBD('jor');});on('#mRes',()=>{cerrarHoja();abrirBD('res');});
   on('#mSync',panelSync);on('#mSalir',cerrarSesion);on('#mExp',menuExportar);on('#mZona',()=>{cerrarHoja();setTimeout(guardarZona,300);});on('#mCfg',abrirConfig);
-  on('#mInst',async()=>{eventoInstalar.prompt();await eventoInstalar.userChoice;eventoInstalar=null;cerrarHoja();});
+  on('#mInst',()=>{cerrarHoja();instalarApp();});
 }
 async function abrirConfig(){
   const info=await infoAlmacen();const adm=SES&&SES.rol==='admin';
@@ -2536,6 +2591,7 @@ async function despuesDeIngresar(){
   if(S.jornada)encuadrar(S.jornada.seleccion.map(s=>s.lote));else encuadrar();
   iniciarGPS();ocultarSplash();
   if(SES)toast(`Bienvenido, ${SES.nombre}.`);
+  ofrecerInstalacion();
   programarSync(5000);
 }
 </script>
