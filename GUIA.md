@@ -1,4 +1,4 @@
-# Sanidad Vegetal 2.3 — Guía de instalación y uso
+# Sanidad Vegetal 2.4 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -92,6 +92,17 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 - **Ajustes:** la densidad y el buffer los define el administrador en *Configuración* y se aplican a las jornadas nuevas.
 - **Saltos del GPS:** los tramos con saltos de más de 50 m no se cuentan como área recorrida.
 
+### Paradas (tiempos de espera)
+- **Qué es una parada:** se registra **automáticamente** cuando el operario permanece **5 minutos o más dentro de un radio de 20 m**. El radio absorbe el error normal del GPS.
+- **Datos de cada parada:** hora de inicio y fin, **duración**, lote, ubicación y **tipo**:
+  - 🔵 **con diagnóstico:** se registraron diagnósticos durante la parada, es decir, trabajo en una palma.
+  - 🟠 **sin actividad:** detenido sin registrar diagnósticos.
+  - ⚪ **sin señal GPS:** no llegaron puntos durante varios minutos y el operario reapareció en el mismo sitio, por ejemplo con la pantalla apagada.
+- **En vivo:** el panel superior muestra el número de paradas y el tiempo acumulado. Mientras el operario está detenido, el panel se resalta en **ámbar** con «⏸ minutos».
+- **En el mapa:** las paradas aparecen como marcadores con su duración; al tocarlos se ve el detalle. También aparecen en la **reproducción del recorrido**.
+- **En el resumen:** la jornada muestra la **tabla de paradas** y el tiempo **en paradas** frente al tiempo **en movimiento**. La tabla por lote incluye las paradas y sus minutos.
+- **Ajustes:** el radio y el tiempo mínimo los define el administrador en *Configuración*.
+
 ### Base de datos y recorridos
 - **DATOS → Diagnósticos**: tabla con filtros por jornada, lote, estado y sincronización, búsqueda y orden por columna. 🔒 indica sincronizado y ⏳ pendiente.
 - **DATOS → Jornadas y recorridos**: cada jornada con su duración, kilómetros, puntos y diagnósticos. El botón **▶ Reproducir recorrido** muestra el track animado con hora, distancia y diagnósticos que aparecen en el momento en que se registraron. Tiene velocidades de ×10 a ×300 y una barra para adelantar o retroceder.
@@ -119,9 +130,10 @@ SanidadData/
 ```
 
 **Contenido del `.geojson`:**
-- Encabezado `"jornada"`: evaluador, usuario, dispositivo, **fecha, hora_inicio, hora_fin, duracion_min**, km, **ha_recorridas, palmas_visitadas, densidad_palmas_ha, buffer_m**, número de diagnósticos y de fotos, nombre del ZIP de fotos y versión de la aplicación. Incluye también **`por_lote`**, con lote, palmas_visitadas, palmas_existentes, sitios_vacios, ha, diagnosticos e ids_palmas_visitadas.
+- Encabezado `"jornada"`: evaluador, usuario, dispositivo, **fecha, hora_inicio, hora_fin, duracion_min**, km, **ha_recorridas, palmas_visitadas, densidad_palmas_ha, buffer_m, n_paradas, minutos_paradas, minutos_movimiento**, número de diagnósticos y de fotos, nombre del ZIP de fotos y versión de la aplicación. Incluye también **`por_lote`**, con lote, palmas_visitadas, palmas_existentes, sitios_vacios, ha, diagnosticos e ids_palmas_visitadas.
 - **Puntos** con `tipo = diagnostico`. Cada uno lleva `palma_id`, `lote`, `linea`, `palma`, `estado`, `problemas`, `p_PC`… (1/0), `grado_pc`, `severidad`, `sintomas`, `accion`, `observaciones`, `fotos` (nombres dentro del ZIP), `gps_precision_m`, `dist_gps_palma_m`, `creado` y `sincronizado`.
 - **Línea** con `tipo = recorrido`: el track, con la hora y la precisión de cada vértice.
+- **Puntos** con `tipo = parada`: n, hora_inicio, hora_fin, duracion_min, lote, clase (con diagnóstico / sin actividad / sin señal GPS) y diagnosticos.
 
 **Uso en QGIS:** al abrir el `.geojson`, QGIS ofrece dos subcapas, una de puntos (diagnósticos) y otra de líneas (recorrido). Para consolidar varias jornadas, use *Vectorial → Herramientas de gestión de datos → Combinar capas vectoriales*.
 

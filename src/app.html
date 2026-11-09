@@ -91,7 +91,10 @@ button{cursor:pointer}
 #pj{border-radius:16px;padding:9px 12px 10px;cursor:pointer}
 .pj-fila{display:flex;align-items:center;gap:10px;font-family:var(--t);font-weight:700;font-size:18px;letter-spacing:.5px}
 .pj-fila .sep{width:1px;height:18px;background:var(--borde)}
-.pj-fila.pj2{font-size:15.5px;margin-top:5px}
+.pj-fila.pj2{font-size:14.5px;margin-top:5px;flex-wrap:wrap;row-gap:2px}
+#pj.parado{border-color:var(--ambar);box-shadow:0 0 0 1px rgba(255,197,61,.55),0 0 22px rgba(255,197,61,.3)}
+#pj.parado #pjPar{color:var(--ambar)}
+.etq-parada{background:rgba(255,159,28,.92);color:#fff;border-color:#fff;font-size:11.5px;padding:0 5px}
 .pj-fila small{font-size:12px;color:var(--tenue);font-weight:600;letter-spacing:1px;margin-right:2px}
 .rec{width:11px;height:11px;border-radius:50%;background:var(--rojo);box-shadow:0 0 0 0 rgba(255,93,93,.7);animation:latido 1.6s infinite;flex:none}
 @keyframes latido{0%{box-shadow:0 0 0 0 rgba(255,93,93,.7)}70%{box-shadow:0 0 0 10px rgba(255,93,93,0)}100%{box-shadow:0 0 0 0 rgba(255,93,93,0)}}
@@ -295,7 +298,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 <div id="superior">
   <div id="pj" class="glass" hidden>
     <div class="pj-fila"><span class="rec"></span><span id="pjTiempo">00:00:00</span><span class="sep"></span><span><small>KM</small><span id="pjKm">0.00</span></span><span class="sep"></span><span><small>CENSO</small><span id="pjCenso">0 / 0</span></span></div>
-    <div class="pj-fila pj2"><span><small>INICIO</small><span id="pjIni">--:--</span></span><span class="sep"></span><span><small>VISITADAS</small><span id="pjVis">0</span></span><span class="sep"></span><span><small>HA</small><span id="pjHa">0.00</span></span></div>
+    <div class="pj-fila pj2"><span><small>INICIO</small><span id="pjIni">--:--</span></span><span class="sep"></span><span><small>VISITADAS</small><span id="pjVis">0</span></span><span class="sep"></span><span><small>HA</small><span id="pjHa">0.00</span></span><span class="sep"></span><span><small>PARADAS</small><span id="pjPar">0</span></span></div>
     <div class="barra"><i id="pjBarra"></i></div>
   </div>
   <div id="guia" class="glass" hidden><div class="txt"><div id="guiaTxt">—</div><div id="guiaSub"></div></div><button class="redondo" id="guiaRepetir" aria-label="Repetir" data-ic="repetir"></button></div>
@@ -361,7 +364,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='2.3.0';
+const VERSION='2.4.0';
 
 /* ---------- Catálogos del formulario ---------- */
 const ESTADOS=[
@@ -469,7 +472,7 @@ const S={
   lotes:null,palmas:null,idx:new Map(),registros:[],ultimo:new Map(),hechos:new Map(),marcadores:new Map(),
   gps:null,seguir:false,jornada:null,plan:[],planAbierto:false,planModo:'nueva',
   cfg:{evaluador:'',dispositivo:'',base:'esri',urlPropia:'teselas/{z}/{x}/{y}.png',zmaxPropia:20,
-    umbralVoz:4,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:10,soloWifi:true,esperaSync:2,jornadaActiva:null,
+    umbralVoz:4,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:10,paradaRadio:20,paradaMin:5,soloWifi:true,esperaSync:2,jornadaActiva:null,
     gh:{owner:'jjbuila',repo:'Sanidad-datos',rama:'main',token:''}}
 };
 let CARTO={version:'',lotes:{}};
@@ -614,6 +617,8 @@ function pintarLeyenda(){
   $('#leyenda').innerHTML=ESTADOS.map(e=>`<div><span class="punto" style="background:${e.c}"></span>${esc(e.n)}</div>`).join('')+
   `<div><span class="punto" style="background:${SIN_EVALUAR}"></span>Pendiente por censar</div>
    <div><span class="punto" style="background:#4dd0e1"></span>Visitada por el recorrido (sin diagnóstico)</div>
+   <div><span class="punto" style="background:#ff9f1c;border:2px solid #fff"></span>Parada sin actividad</div>
+   <div><span class="punto" style="background:#2f93d5;border:2px solid #fff"></span>Parada con diagnóstico</div>
    <div><span class="punto" style="background:transparent;border-color:#b0bec5"></span>Sitio sin palma (cartografía)</div>
    <div><span class="punto" style="border-radius:3px;background:transparent;border:2px solid #22d39a"></span>Lote de la jornada</div>
    <div><span class="punto" style="border-radius:3px;background:transparent;border:2px solid #90cdf1"></span>Otros lotes</div>
@@ -783,9 +788,9 @@ async function confirmarPlan(){
 function idJornada(){const d=new Date();return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}-${uid().slice(0,6)}`;}
 async function iniciarJornada(sel,evaluador){
   const j={id:idJornada(),inicio:new Date().toISOString(),fin:null,evaluador,usuario:SES?SES.u:'',dispositivo:S.cfg.dispositivo,seleccion:sel,estado:'activa',
-    km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||10};
+    km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||10,paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=evaluador;await guardarCfg();
-  TRACK.ultimo=null;TRACK.n=0;prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer);
+  TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer);PAR.lista=[];capaParadas.clearLayers();
   await cargarPalmasJornada();iniciarGPS();pantallaEncendida(true);actualizarJornadaUI();dibujarLotes();encuadrar(sel.map(s=>s.lote));
   if(VOZ.activa)hablar('Jornada iniciada.');
   toast(`▶ Jornada iniciada: ${sel.length} lote(s). Se está guardando el recorrido.`,4000);
@@ -807,7 +812,7 @@ function actualizarJornadaUI(){
   const a=!!S.jornada;$('#pj').hidden=!a;
   $('#btJornada').classList.toggle('activa',a);
   $('#btJornadaIc').innerHTML=a?IC.ruta:IC.play;$('#btJornadaTxt').textContent=a?'Jornada':'Iniciar';
-  if(a){actualizarCenso();relojJornada();actualizarVisitaUI();}actualizarCab();
+  if(a){actualizarCenso();relojJornada();actualizarVisitaUI();actualizarParadas();}else $('#pj').classList.remove('parado');actualizarCab();
 }
 function relojJornada(){if(!S.jornada)return;$('#pjIni').textContent=hhmm(S.jornada.inicio);$('#pjTiempo').textContent=fmtDur(Date.now()-Date.parse(S.jornada.inicio));$('#pjKm').textContent=(S.jornada.km||0).toFixed(2);}
 setInterval(relojJornada,1000);
@@ -817,7 +822,7 @@ function panelJornada(){
   const j=S.jornada;if(!j)return;
   const filas=j.seleccion.map(it=>{const c=censoLote(it.lote);const p=c.tot?c.hec/c.tot*100:0;
     return `<div class="prog-lote"><b>${esc(it.lote)}</b><div class="barra" style="margin:0"><i style="width:${p}%"></i></div><span class="tenue">${num(c.hec)}/${num(c.tot)} · L${it.desde??'?'}–${it.hasta??'?'}</span></div>`;}).join('');
-  const regs=S.registros.filter(r=>r.jornada_id===j.id);const res=resumenVisita(VIS||nuevoEstadoVisita(j.densidad,j.buffer),regs);
+  const regs=S.registros.filter(r=>r.jornada_id===j.id);actualizarParadas();const res=paradasEnLotes(resumenVisita(VIS||nuevoEstadoVisita(j.densidad,j.buffer),regs),PAR.lista);
   abrirHoja('Jornada en curso',`
     <div class="stats">
       <div class="stat"><b>${hhmm(j.inicio)}</b><span>Hora de inicio</span></div>
@@ -829,6 +834,7 @@ function panelJornada(){
     </div>
     <p class="tenue">Evaluador: <b>${esc(j.evaluador)}</b> · ${num(TRACK.n)} puntos de recorrido</p>
     <h3>Recorrido por lote</h3>${tablaLotes(res,j)}
+    <h3>Paradas</h3>${tablaParadas(PAR.lista,resumenParadas(PAR.lista,j))}
     <h3>Avance del censo (diagnósticos)</h3>${filas}
     <button class="btn ancho" id="jAgregar">${IC.mas} Agregar lotes</button>
     <button class="btn ancho" id="jVer">${IC.play} Ver recorrido hasta ahora</button>
@@ -843,10 +849,11 @@ async function finalizarJornada(){
   if(!confirm(`¿Finalizar la jornada?\n\nCensadas: ${c.hec} de ${c.tot} palmas.\nSe detendrá el registro del recorrido.`))return;
   j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
-  const E=await calcularVisita(pts,j.densidad,j.buffer);j.visita=resumenVisita(E,regs,true);
+  const E=await calcularVisita(pts,j.densidad,j.buffer);const par=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);
+  j.paradas=par;j.resumen_paradas=resumenParadas(par,j);j.visita=paradasEnLotes(resumenVisita(E,regs,true),par);
   await dbPut('jornadas',j);
   S.jornada=null;S.cfg.jornadaActiva=null;await guardarCfg();VIS=null;
-  S.palmas=null;S.hechos.clear();indexar();dibujarPalmas();capaTrack.clearLayers();TRACK.linea=null;
+  S.palmas=null;S.hechos.clear();indexar();dibujarPalmas();capaTrack.clearLayers();TRACK.linea=null;TRACK.pts=[];PAR.lista=[];capaParadas.clearLayers();
   if(VOZ.activa)alternarVoz();pantallaEncendida(false);actualizarJornadaUI();dibujarLotes();
   const res=j.visita;
   abrirHoja('Jornada finalizada',`
@@ -859,6 +866,7 @@ async function finalizarJornada(){
       <div class="stat"><b>${num(regs.length)}</b><span>Diagnósticos</span></div>
     </div>
     <h3>Recorrido por lote</h3>${tablaLotes(res,j)}
+    <h3>Paradas</h3>${tablaParadas(par,j.resumen_paradas)}
     <p class="tenue">Censadas ${num(c.hec)} de ${num(c.tot)} palmas seleccionadas. La jornada completa se sincronizará con GitHub en cuanto haya WiFi; después quedará bloqueada.</p>
     <button class="btn prim ancho" id="fPlay">${IC.play} Ver el recorrido del día</button>
     <button class="btn ancho" id="fSync">${IC.sync} Sincronizar ahora</button>`);
@@ -884,9 +892,10 @@ async function registrarPunto(g){
     if(dt>0&&d/dt>15)return; // salto del GPS (>54 km/h)
     if(d<500)S.jornada.km=(S.jornada.km||0)+d/1000;}
   const p={j:S.jornada.id,t,lat:+g.lat.toFixed(7),lng:+g.lng.toFixed(7),acc:Math.round(g.acc*10)/10,s:0};
-  TRACK.ultimo=p;TRACK.n++;
+  TRACK.ultimo=p;TRACK.n++;(TRACK.pts||(TRACK.pts=[])).push(p);
   if(TRACK.linea){TRACK.linea.addLatLng([p.lat,p.lng]);TRACK.brillo.addLatLng([p.lat,p.lng]);}
   if(VIS){try{const nv=await visitarTramo(VIS,p);if(nv.length){nv.forEach(repintarPalma);actualizarVisitaUI();}}catch(e){}}
+  try{actualizarParadas();}catch(e){}
   try{await dbPut('track',p);if(TRACK.n%10===0)await dbPut('jornadas',S.jornada);}catch(e){}
 }
 async function puntosTrack(jid){return (await dbIndice('track','j',jid)).sort((a,b)=>a.t-b.t);}
@@ -943,9 +952,74 @@ const hhmm=t=>t?fmtHora(t).slice(0,5):'—';
 function tablaLotes(res,j){
   const sel=j&&j.seleccion?new Map(j.seleccion.map(s=>[s.lote,s])):new Map();
   const filas=res.por_lote.map(x=>`<tr><td><b>${esc(x.lote)}</b>${sel.has(x.lote)?'':' <span class="tenue">(fuera de selección)</span>'}</td><td>${num(x.palmas_visitadas)}</td><td><b>${x.ha.toFixed(2)}</b></td><td>${num(x.diagnosticos)}</td></tr>`).join('');
-  return `<table class="res"><thead><tr><th>Lote</th><th>Palmas visitadas</th><th>Ha</th><th>Diagnósticos</th></tr></thead><tbody>${filas||'<tr><td colspan="4" class="tenue">Aún sin recorrido.</td></tr>'}
-    ${res.por_lote.length>1?`<tr><td><b>TOTAL</b></td><td><b>${num(res.palmas_visitadas)}</b></td><td><b>${res.ha_recorridas.toFixed(2)}</b></td><td><b>${num(res.por_lote.reduce((a,x)=>a+x.diagnosticos,0))}</b></td></tr>`:''}</tbody></table>
+  const cp=res.por_lote.some(x=>x.paradas!=null);
+  const filas2=res.por_lote.map(x=>`<tr><td><b>${esc(x.lote)}</b>${sel.has(x.lote)?'':' <span class="tenue">(fuera de selección)</span>'}</td><td>${num(x.palmas_visitadas)}</td><td><b>${x.ha.toFixed(2)}</b></td><td>${num(x.diagnosticos)}</td>${cp?`<td>${x.paradas||0}${x.minutos_paradas?` (${x.minutos_paradas}′)`:''}</td>`:''}</tr>`).join('');
+  return `<table class="res"><thead><tr><th>Lote</th><th>Palmas visitadas</th><th>Ha</th><th>Diag.</th>${cp?'<th>Paradas</th>':''}</tr></thead><tbody>${filas2||'<tr><td colspan="5" class="tenue">Aún sin recorrido.</td></tr>'}
+    ${res.por_lote.length>1?`<tr><td><b>TOTAL</b></td><td><b>${num(res.palmas_visitadas)}</b></td><td><b>${res.ha_recorridas.toFixed(2)}</b></td><td><b>${num(res.por_lote.reduce((a,x)=>a+x.diagnosticos,0))}</b></td>${cp?`<td><b>${res.por_lote.reduce((a,x)=>a+(x.paradas||0),0)}</b></td>`:''}</tr>`:''}</tbody></table>
     <p class="tenue">Palmas visitadas = sitios a ${res.buffer_m} m o menos del recorrido (dos líneas por calle). Ha = palmas visitadas ÷ ${res.densidad_palmas_ha} palmas/ha.</p>`;
+}
+
+/* ---------- Paradas (tiempos de espera) ----------
+   Parada = el operario permanece dentro de un radio (20 m) durante un tiempo mínimo (5 min).
+   Se detecta sobre los puntos del recorrido; también cubre vacíos de señal en un mismo sitio. */
+function detectarParadas(pts,R,Tmin,regs,ahora){
+  const T=(Number(Tmin)||5)*60000,Rm=Number(R)||20,out=[],n=pts.length;let i=0;
+  while(i<n){
+    let j=i+1;while(j<n&&dist(pts[i].lat,pts[i].lng,pts[j].lat,pts[j].lng)<=Rm)j++;
+    const enCurso=!!ahora&&j===n;const fin=enCurso?Math.max(pts[j-1].t,ahora):pts[j-1].t;
+    if(fin-pts[i].t>=T){
+      let la=0,lo=0,hueco=0;for(let k=i;k<j;k++){la+=pts[k].lat;lo+=pts[k].lng;if(k>i)hueco=Math.max(hueco,pts[k].t-pts[k-1].t);}
+      out.push({inicio:pts[i].t,fin,lat:+(la/(j-i)).toFixed(7),lng:+(lo/(j-i)).toFixed(7),puntos:j-i,en_curso:enCurso,sin_senal_min:Math.round(hueco/60000)});
+      i=j;
+    }else i++;
+  }
+  out.forEach((p,k)=>{p.n=k+1;p.duracion_min=Math.round((p.fin-p.inicio)/60000);p.lote=loteDe(p.lat,p.lng)||'';
+    p.diagnosticos=(regs||[]).filter(r=>{const t=Date.parse(r.creado);return t>=p.inicio-60000&&t<=p.fin+60000;}).length;
+    p.tipo=p.diagnosticos?'con diagnóstico':(p.sin_senal_min>=Math.max(3,(Number(Tmin)||5)-1)?'sin señal GPS':'sin actividad');});
+  return out;
+}
+function resumenParadas(lista,j){
+  const min=lista.reduce((a,p)=>a+p.duracion_min,0);
+  const dur=j&&j.inicio?Math.round(((j.fin?Date.parse(j.fin):Date.now())-Date.parse(j.inicio))/60000):0;
+  return {parada_radio_m:Number(j&&j.paradaRadio)||20,parada_minimo_min:Number(j&&j.paradaMin)||5,n_paradas:lista.length,
+    minutos_paradas:min,minutos_movimiento:Math.max(0,dur-min)};
+}
+function paradasEnLotes(res,lista){
+  if(!res)return res;
+  for(const x of res.por_lote){x.paradas=0;x.minutos_paradas=0;}
+  for(const p of lista){let x=res.por_lote.find(y=>y.lote===(p.lote||'—'));
+    if(!x){x={lote:p.lote||'—',palmas_visitadas:0,palmas_existentes:0,sitios_vacios:0,ha:0,diagnosticos:0,paradas:0,minutos_paradas:0};res.por_lote.push(x);}
+    x.paradas++;x.minutos_paradas+=p.duracion_min;}
+  res.por_lote.sort((a,b)=>ordenNat(a.lote,b.lote));return res;
+}
+const durHM=m=>`${Math.floor(m/60)}:${pad(m%60)}`;
+const PAR={lista:[]};
+const capaParadas=L.layerGroup().addTo(mapa);
+function marcadorParada(p,capa){
+  const col=p.tipo==='con diagnóstico'?'#2f93d5':p.tipo==='sin señal GPS'?'#9e9e9e':'#ff9f1c';
+  return L.circleMarker([p.lat,p.lng],{radius:7+Math.min(9,p.duracion_min/6),color:'#fff',weight:2,fillColor:col,fillOpacity:.9})
+    .bindTooltip(`⏸ ${p.duracion_min} min`,{permanent:true,direction:'top',offset:[0,-8],className:'etq-lote etq-parada'})
+    .bindPopup(`<b>Parada ${p.n}</b><br>${hhmm(p.inicio)} – ${p.en_curso?'en curso':hhmm(p.fin)} · <b>${p.duracion_min} min</b><br>${p.lote?'Lote '+esc(p.lote)+' · ':''}${esc(p.tipo)}${p.diagnosticos?` (${p.diagnosticos})`:''}`)
+    .addTo(capa);
+}
+function dibujarParadas(){capaParadas.clearLayers();PAR.lista.forEach(p=>marcadorParada(p,capaParadas));}
+function actualizarParadas(){
+  if(!S.jornada||!TRACK.pts){PAR.lista=[];return;}
+  const regs=S.registros.filter(r=>r.jornada_id===S.jornada.id);
+  const vivo=S.gps&&Date.now()-(S.gps.t||0)<120000?Date.now():null;
+  const prev=JSON.stringify(PAR.lista.map(p=>[p.inicio,p.duracion_min,p.diagnosticos]));
+  PAR.lista=detectarParadas(TRACK.pts,S.jornada.paradaRadio,S.jornada.paradaMin,regs,vivo);
+  if(JSON.stringify(PAR.lista.map(p=>[p.inicio,p.duracion_min,p.diagnosticos]))!==prev)dibujarParadas();
+  const min=PAR.lista.reduce((a,p)=>a+p.duracion_min,0),act=PAR.lista.find(p=>p.en_curso);
+  $('#pjPar').textContent=act?`⏸ ${act.duracion_min}′`:`${PAR.lista.length} · ${durHM(min)}`;
+  $('#pj').classList.toggle('parado',!!act);
+}
+setInterval(()=>{if(S.jornada)actualizarParadas();},30000);
+function tablaParadas(lista,res){
+  if(!lista.length)return '<p class="tenue">Sin paradas registradas.</p>';
+  return `<table class="res"><thead><tr><th>#</th><th>Hora</th><th>Min</th><th>Lote</th><th>Tipo</th></tr></thead><tbody>
+    ${lista.map(p=>`<tr><td>${p.n}</td><td>${hhmm(p.inicio)}–${p.en_curso?'…':hhmm(p.fin)}</td><td><b>${p.duracion_min}</b></td><td>${esc(p.lote||'—')}</td><td>${esc(p.tipo)}${p.diagnosticos?` (${p.diagnosticos})`:''}</td></tr>`).join('')}</tbody></table>
+    ${res?`<p class="tenue">Tiempo en paradas <b>${durHM(res.minutos_paradas)}</b> · en movimiento <b>${durHM(res.minutos_movimiento)}</b>. Parada = ${res.parada_minimo_min} min o más dentro de un radio de ${res.parada_radio_m} m.</p>`:''}`;
 }
 
 /* ---------- Ficha de palma ---------- */
@@ -1253,7 +1327,8 @@ async function pintarJornadas(){
     cards.push(`<div class="jor-card"><div class="cab"><b>${esc(fmtFecha(j.inicio).slice(0,10))} · ${hhmm(j.inicio)} – ${j.fin?hhmm(j.fin):'en curso'}</b>${est}</div>
       <div class="met"><span>Evaluador <b>${esc(j.evaluador)}</b></span><span>Duración <b>${fmtDur(dur).slice(0,5)}</b></span><span>Recorrido <b>${(j.km||0).toFixed(2)} km</b></span>
       ${res?`<span>Ha recorridas <b>${res.ha_recorridas.toFixed(2)}</b></span><span>Palmas visitadas <b>${num(res.palmas_visitadas)}</b></span>`:''}
-      <span>Diagnósticos <b>${num(regs.length)}</b></span><span>Puntos GPS <b>${num(n)}</b></span></div>
+      <span>Diagnósticos <b>${num(regs.length)}</b></span><span>Puntos GPS <b>${num(n)}</b></span>
+      ${j.resumen_paradas?`<span>Paradas <b>${j.resumen_paradas.n_paradas} (${durHM(j.resumen_paradas.minutos_paradas)})</b></span><span>En movimiento <b>${durHM(j.resumen_paradas.minutos_movimiento)}</b></span>`:(S.jornada&&S.jornada.id===j.id?`<span>Paradas <b>${PAR.lista.length}</b></span>`:'')}</div>
       ${res&&res.por_lote.length?`<div class="met">${res.por_lote.map(x=>`<span><b>${esc(x.lote)}</b>: ${num(x.palmas_visitadas)} palmas · ${x.ha.toFixed(2)} ha · ${num(x.diagnosticos)} diag.</span>`).join('')}</div>`:''}
       <div class="fila"><button class="btn prim" data-play="${esc(j.id)}">${IC.play} Reproducir recorrido</button><button class="btn" data-ver="${esc(j.id)}">Ver diagnósticos</button></div></div>`);
   }
@@ -1307,9 +1382,10 @@ async function abrirPlay(jid){
   PLAY.brillo=L.polyline([],{color:'#22d39a',weight:12,opacity:.2,interactive:false}).addTo(PLAY.capa);
   PLAY.estela=L.polyline([],{color:'#22d39a',weight:4.5,opacity:1,interactive:false}).addTo(PLAY.capa);
   PLAY.regs=S.registros.filter(r=>r.jornada_id===jid&&r.lat!=null).map(r=>({t:Date.parse(r.creado),m:L.circleMarker([r.lat,r.lng],{radius:7,color:'#fff',weight:2,fillColor:(estadoDe(r.estado)||{c:'#999'}).c,fillOpacity:1}).bindTooltip(`${etiquetaReg(r)} · ${(estadoDe(r.estado)||{}).n||''} · ${fmtHora(Date.parse(r.creado))}`),on:false})).sort((a,b)=>a.t-b.t);
+  PLAY.paradas=(j.paradas||detectarParadas(pts,j.paradaRadio,j.paradaMin,S.registros.filter(r=>r.jornada_id===jid))).map(p=>({t:p.inicio,p,m:null}));
   PLAY.marca=L.circleMarker([pts[0].lat,pts[0].lng],{radius:9,color:'#fff',weight:3,fillColor:'#ee7633',fillOpacity:1,interactive:false}).addTo(PLAY.capa);
   $('#plTit').textContent='Recorrido · '+fmtFecha(j.inicio).slice(0,10);
-  $('#plSub').textContent=`${j.evaluador} · ${fmtHora(PLAY.t0)} – ${fmtHora(PLAY.t1)} · ${(PLAY.acum[PLAY.acum.length-1]/1000).toFixed(2)} km · ${PLAY.regs.length} diagnósticos`;
+  $('#plSub').textContent=`${j.evaluador} · ${fmtHora(PLAY.t0)} – ${fmtHora(PLAY.t1)} · ${(PLAY.acum[PLAY.acum.length-1]/1000).toFixed(2)} km · ${PLAY.regs.length} diagnósticos · ${(PLAY.paradas||[]).length} paradas`;
   $('#play').hidden=false;$('#dock').hidden=true;$('#superior').hidden=true;$('#flot').hidden=true;$('#btLeyenda').hidden=true;$('#leyenda').hidden=true;
   abrirCapa('play');S.seguir=false;$('#btUbic').classList.remove('on');
   mapa.fitBounds(L.latLngBounds(pts.map(p=>[p.lat,p.lng])),{padding:[40,40],maxZoom:18});
@@ -1322,6 +1398,7 @@ function pintarPlay(){
   const lat=a.lat+(b.lat-a.lat)*k,lng=a.lng+(b.lng-a.lng)*k;
   const ll=P.slice(0,i+1).map(p=>[p.lat,p.lng]);ll.push([lat,lng]);
   PLAY.estela.setLatLngs(ll);PLAY.brillo.setLatLngs(ll);PLAY.marca.setLatLng([lat,lng]);
+  for(const q of PLAY.paradas||[]){const v=q.t<=PLAY.t;if(v&&!q.m)q.m=marcadorParada(q.p,PLAY.capa);else if(!v&&q.m){PLAY.capa.removeLayer(q.m);q.m=null;}}
   let n=0;for(const r of PLAY.regs){const v=r.t<=PLAY.t;if(v)n++;if(v&&!r.on){r.m.addTo(PLAY.capa);r.on=true;}else if(!v&&r.on){PLAY.capa.removeLayer(r.m);r.on=false;}}
   const dkm=(PLAY.acum[i]+(i+1<P.length?dist(a.lat,a.lng,lat,lng):0))/1000;
   $('#plReloj').textContent=fmtHora(PLAY.t);$('#plTrans').textContent=fmtDur(PLAY.t-PLAY.t0);$('#plDist').textContent=dkm.toFixed(2)+' km';$('#plDiag').textContent=n;
@@ -1416,10 +1493,13 @@ function geoJornada(j,regs,pts,ahora,archivoFotos){
   if(pts.length)feats.push({type:'Feature',properties:{tipo:'recorrido',jornada_id:j.id,evaluador:j.evaluador,inicio:j.inicio,fin:j.fin,km:+(j.km||0).toFixed(3),
     n_puntos:pts.length,tiempos:pts.map(p=>new Date(p.t).toISOString()),precision_m:pts.map(p=>p.acc)},
     geometry:pts.length>1?{type:'LineString',coordinates:pts.map(p=>[p.lng,p.lat])}:{type:'Point',coordinates:[pts[0].lng,pts[0].lat]}});
+  for(const p of j.paradas||[])feats.push({type:'Feature',geometry:{type:'Point',coordinates:[p.lng,p.lat]},
+    properties:{tipo:'parada',n:p.n,inicio:new Date(p.inicio).toISOString(),fin:new Date(p.fin).toISOString(),hora_inicio:hhmm(p.inicio),hora_fin:hhmm(p.fin),
+      duracion_min:p.duracion_min,lote:p.lote,clase:p.tipo,diagnosticos:p.diagnosticos,sin_senal_min:p.sin_senal_min,puntos:p.puntos}});
   return {type:'FeatureCollection',name:'jornada_'+j.id,
     jornada:{id:j.id,evaluador:j.evaluador,usuario:j.usuario||'',dispositivo:j.dispositivo||S.cfg.dispositivo,fecha:fechaLocal(j.inicio),
       hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),duracion_min:j.fin?Math.round((Date.parse(j.fin)-Date.parse(j.inicio))/60000):null,inicio:j.inicio,fin:j.fin,
-      km:+(j.km||0).toFixed(3),...(j.visita||{}),lotes_seleccionados:j.seleccion,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
+      km:+(j.km||0).toFixed(3),...(j.visita||{}),...(j.resumen_paradas||{}),lotes_seleccionados:j.seleccion,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
       archivo_fotos:archivoFotos||null,cartografia:j.carto_version||'',app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
     features:feats};
 }
@@ -1440,7 +1520,8 @@ async function sincronizar(manual){
   try{
     for(const j of lista){
       const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
-      if(!j.visita){const E=await calcularVisita(pts,j.densidad,j.buffer);j.visita=resumenVisita(E,regs,true);}
+      if(!j.paradas){j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);}
+      if(!j.visita){const E=await calcularVisita(pts,j.densidad,j.buffer);j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);}
       const ahora=new Date().toISOString();const base=`jornadas/${fechaLocal(j.inicio)}/${j.id}`;
       const archivos=[];let nombreZip=null;
       const ids=regs.flatMap(r=>r.fotos||[]);
@@ -1518,8 +1599,10 @@ async function zipCompleto(){
   for(const j of js){const pts=await puntosTrack(j.id);lineas.push(...geoRecorrido(j,pts).features);}
   z.file('recorridos.geojson',JSON.stringify({type:'FeatureCollection',features:lineas}));
   z.file('jornadas.json',JSON.stringify(js,null,1));
-  const filasJL=[];for(const j of js){const v=j.visita;if(!v)continue;for(const x of v.por_lote)filasJL.push([j.id,fechaLocal(j.inicio),j.evaluador,hhmm(j.inicio),hhmm(j.fin),(j.km||0).toFixed(3),x.lote,x.palmas_visitadas,x.palmas_existentes,x.sitios_vacios,x.ha,x.diagnosticos]);}
-  z.file('jornadas_por_lote.csv','\ufeff'+aCSV(['jornada_id','fecha','evaluador','hora_inicio','hora_fin','km_jornada','lote','palmas_visitadas','palmas_existentes','sitios_vacios','ha_recorridas','diagnosticos'],filasJL));
+  const filasJL=[];for(const j of js){const v=j.visita;if(!v)continue;for(const x of v.por_lote)filasJL.push([j.id,fechaLocal(j.inicio),j.evaluador,hhmm(j.inicio),hhmm(j.fin),(j.km||0).toFixed(3),x.lote,x.palmas_visitadas,x.palmas_existentes,x.sitios_vacios,x.ha,x.diagnosticos,x.paradas||0,x.minutos_paradas||0]);}
+  const filasP=[];for(const j of js)for(const q of j.paradas||[])filasP.push([j.id,fechaLocal(j.inicio),j.evaluador,q.n,hhmm(q.inicio),hhmm(q.fin),q.duracion_min,q.lote,q.tipo,q.diagnosticos,q.lat,q.lng]);
+  z.file('paradas.csv','\ufeff'+aCSV(['jornada_id','fecha','evaluador','parada','hora_inicio','hora_fin','duracion_min','lote','tipo','diagnosticos','lat','lng'],filasP));
+  z.file('jornadas_por_lote.csv','\ufeff'+aCSV(['jornada_id','fecha','evaluador','hora_inicio','hora_fin','km_jornada','lote','palmas_visitadas','palmas_existentes','sitios_vacios','ha_recorridas','diagnosticos','paradas','minutos_paradas'],filasJL));
   for(const r of rs)for(const fid of (r.fotos||[])){const f=await dbGet('fotos',fid);if(f)z.file('fotos/'+fid+'.jpg',f.buf);}
   return await z.generateAsync({type:'blob',compression:'DEFLATE'});
 }
@@ -1600,6 +1683,9 @@ async function abrirConfig(){
     <h3>Cálculo de hectáreas recorridas</h3>
     <div class="fila"><div><label class="campo">Densidad (palmas/ha)</label><input type="number" id="cDens" min="50" max="250" value="${esc(S.cfg.densidad)}"></div>
       <div><label class="campo">Buffer del recorrido (m)</label><input type="number" id="cBuf" min="3" max="30" step="0.5" value="${esc(S.cfg.bufferVisita)}"></div></div>
+    <h3>Paradas</h3>
+    <div class="fila"><div><label class="campo">Radio de parada (m)</label><input type="number" id="cPRad" min="5" max="100" value="${esc(S.cfg.paradaRadio)}"></div>
+      <div><label class="campo">Tiempo mínimo de parada (min)</label><input type="number" id="cPMin" min="1" max="60" value="${esc(S.cfg.paradaMin)}"></div></div>
     <p class="tenue">Se aplica a las jornadas que se inicien después de guardar.</p>`:''}
     <h3>Cartografía</h3>
     <div class="ficha">Versión <b>${esc(CARTO.paquete||CARTO.version||'—')}</b> · ${S.lotes?S.lotes.features.length:0} lotes · ${num(totalPalmasCarto())} palmas<br><span class="tenue">Origen: ${esc(CARTO.origen||'—')} · ${CARTO.fecha?fmtFecha(CARTO.fecha):''}</span></div>
@@ -1622,7 +1708,7 @@ async function abrirConfig(){
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#cSalir',cerrarSesion);
   $('#cOk').onclick=async()=>{
-    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||10;}
+    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||10;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
     S.cfg.base=$('#cBase').value;S.cfg.urlPropia=$('#cUrl').value.trim();S.cfg.zmaxPropia=Number($('#cZmax').value)||20;
     S.cfg.umbralVoz=Number($('#cUmbral').value)||4;S.cfg.precisionVoz=Number($('#cPrec').value)||15;S.cfg.velocidadVoz=Number($('#cVel').value)||1;S.cfg.precisionTrack=Number($('#cPTrack').value)||30;
     await guardarCfg();ponerBase();estadoSync();cerrarHoja();toast('Configuración guardada.');programarSync(1500);};
@@ -1759,7 +1845,7 @@ async function despuesDeIngresar(){
           j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';await dbPut('jornadas',j);S.cfg.jornadaActiva=null;await guardarCfg();}
         else{ocultarSplash();await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};await mostrarLogin('Ingrese con el usuario '+j.usuario+' para continuar su jornada.');return despuesDeIngresar();}
       }else{S.jornada=j;const pts=await puntosTrack(j.id);TRACK.ultimo=pts[pts.length-1]||null;TRACK.n=pts.length;prepararTrack(pts.map(p=>[p.lat,p.lng]));
-        VIS=await calcularVisita(pts,j.densidad,j.buffer);
+        VIS=await calcularVisita(pts,j.densidad,j.buffer);TRACK.pts=pts;
         await cargarPalmasJornada();pantallaEncendida(true);toast('Jornada en curso recuperada. El recorrido continúa.',4000);}}
     else{S.cfg.jornadaActiva=null;await guardarCfg();}}
   actualizarJornadaUI();estadoSync();dibujarLotes();
