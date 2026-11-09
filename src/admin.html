@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Administración · Sanidad Palma</title>
+<title>Administración · Sanidad Vegetal</title>
 <link rel="icon" href="icons/icon-192.png">
 <style>/*FUENTES*/</style>
 <style>
@@ -54,7 +54,7 @@ code{background:rgba(255,255,255,.08);padding:1px 6px;border-radius:6px}
 <div class="contenedor">
   <header>
     <div class="logo"><img src="__LOGO__" alt="Palmas de Tumaco"></div>
-    <h1>SANIDAD PALMA<small>ADMINISTRACIÓN DE ACCESOS</small></h1>
+    <h1>SANIDAD VEGETAL<small>ADMINISTRACIÓN DE ACCESOS</small></h1>
   </header>
   <div class="aviso">Todo el cifrado ocurre en este navegador: el token y las contraseñas no se envían a ningún servidor. Los archivos que genere se publican en la carpeta <code>datos/</code> del repositorio de la aplicación.</div>
   <div class="tabs" id="tabs"><button data-t="crear" class="on">Crear paquete nuevo</button><button data-t="editar">Modificar paquete existente</button></div>
@@ -164,7 +164,7 @@ async function cifrarCarto(dk,files){
   const fl=files.find(f=>/\.(geo)?json$/i.test(f.name)),fz=files.find(f=>/\.zip$/i.test(f.name));
   if(!fl||!fz)throw new Error('Seleccione los dos archivos: lotes.geojson y palmas.zip.');
   const gj=JSON.parse(await fl.text());if(!gj.features||!gj.features.length)throw new Error('lotes.geojson no contiene polígonos.');
-  const zp=await JSZip.loadAsync(await fz.arrayBuffer());if(!zp.file('indice.json'))throw new Error('palmas.zip no contiene indice.json (formato de Sanidad Palma).');
+  const zp=await JSZip.loadAsync(await fz.arrayBuffer());if(!zp.file('indice.json'))throw new Error('palmas.zip no contiene indice.json (formato de Sanidad Vegetal).');
   const z=new JSZip();z.file('lotes.geojson',await fl.text(),{compression:'DEFLATE'});z.file('palmas.zip',await fz.arrayBuffer(),{compression:'STORE'});
   const plano=await z.generateAsync({type:'uint8array'});
   const iv=rnd(12);const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},dk,plano));
@@ -218,7 +218,7 @@ function mostrarResultado(cont,archivos,lista){
     Súbalos al repositorio <b>Sanidad</b> dentro de la carpeta <code>datos/</code> (reemplazando los anteriores). Los celulares los tomarán la próxima vez que abran la aplicación con internet.</div>
     ${lista.length?`<button class="btn" id="dlCred">Descargar credenciales para entregar (CSV)</button>
     <p class="tenue">⚠️ El CSV contiene contraseñas en texto plano: entréguelas de forma personal y elimínelo después.</p>`:''}`;
-  const b=cont.querySelector('#dlCred');if(b)b.onclick=()=>descargar(csvCredenciales(lista),'credenciales_sanidad_palma.csv','text/csv');
+  const b=cont.querySelector('#dlCred');if(b)b.onclick=()=>descargar(csvCredenciales(lista),'credenciales_sanidad_vegetal.csv','text/csv');
 }
 
 /* ---------- Pestañas ---------- */
@@ -258,7 +258,7 @@ $('#eAbrir').onclick=async()=>{
   const msg=$('#eAbrirMsg');msg.textContent='';
   try{
     const f=$('#eArchivo').files[0];if(!f)throw new Error('Seleccione el archivo acceso.json.');
-    const a=JSON.parse(await f.text());if(a.formato!==FORMATO)throw new Error('El archivo no es un paquete de acceso de Sanidad Palma.');
+    const a=JSON.parse(await f.text());if(a.formato!==FORMATO)throw new Error('El archivo no es un paquete de acceso de Sanidad Vegetal.');
     const u=$('#eUser').value.trim().toLowerCase();const e=a.usuarios.find(x=>x.u===u);if(!e)throw new Error('Usuario o contraseña incorrectos.');
     $('#eAbrir').disabled=true;$('#eAbrir').textContent='Verificando…';
     const k=await kek($('#eClave').value,deB64(e.salt));let dkRaw;

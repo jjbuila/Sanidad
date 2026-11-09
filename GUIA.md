@@ -1,4 +1,4 @@
-# Sanidad Palma 2.1 — Guía de instalación y uso
+# Sanidad Vegetal 2.1 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -24,7 +24,7 @@
 1. Pulse su foto (arriba a la derecha) y luego **Settings**.
 2. Entre a **Developer settings**, luego **Personal access tokens**, **Fine-grained tokens** y pulse **Generate new token**.
 3. Complete los campos:
-   - *Name*: `Sanidad Palma celulares`.
+   - *Name*: `Sanidad Vegetal celulares`.
    - *Expiration*: por ejemplo, 1 año.
    - *Repository access*: **Only select repositories** → **`jjbuila/SanidadData`**.
    - *Permissions*: **Contents** con **Read and write**.

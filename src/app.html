@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Sanidad Palma · Palmas de Tumaco</title>
+<title>Sanidad Vegetal · Palmas de Tumaco</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -262,14 +262,14 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 <body>
 <div id="splash">
   <div class="tarjeta-logo"><img src="__LOGO__" alt="Palmas de Tumaco"></div>
-  <div class="tit">SANIDAD PALMA<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
+  <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
 </div>
 
 <div id="login" hidden>
   <div class="tarjeta-logo"><img src="__LOGO__" alt="Palmas de Tumaco"></div>
-  <div class="tit">SANIDAD PALMA<small>INGRESO DE OPERARIOS</small></div>
+  <div class="tit">SANIDAD VEGETAL<small>INGRESO DE OPERARIOS</small></div>
   <form id="frmLogin" class="glass" autocomplete="off">
     <label class="campo">Usuario</label><input type="text" id="lgUsuario" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" required>
     <label class="campo">Contraseña</label>
@@ -282,7 +282,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 
 <header id="hud">
   <span class="insignia"><img src="__ISO__" alt=""></span>
-  <div class="marca"><b>SANIDAD PALMA</b><small id="sub">Palmas de Tumaco</small></div>
+  <div class="marca"><b>SANIDAD VEGETAL</b><small id="sub">Palmas de Tumaco</small></div>
   <div class="chips-hud">
     <button class="chip" id="chGps" title="Precisión del GPS"><span class="led"></span><span id="chGpsTxt">GPS</span></button>
     <button class="chip" id="chSync" title="Sincronización"></button>
@@ -355,11 +355,11 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 <script>
 'use strict';
 /* =====================================================================
-   SANIDAD PALMA 2.0 — Palmas de Tumaco S.A.S.
+   SANIDAD VEGETAL 2.0 — Palmas de Tumaco S.A.S.
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='2.1.0';
+const VERSION='2.1.1';
 
 /* ---------- Catálogos del formulario ---------- */
 const ESTADOS=[
@@ -1353,10 +1353,10 @@ async function sincronizar(manual){
       archivos.push({path:base+'/registros.geojson',texto:JSON.stringify({type:'FeatureCollection',name:'registros',features:marcados.map(featReg)})});
       archivos.push({path:base+'/recorrido.geojson',texto:JSON.stringify(geoRecorrido(j,pts))});
       archivos.push({path:base+'/jornada.json',texto:JSON.stringify({...j,sync:undefined,diagnosticos:incl.length,puntos_recorrido:pts.length,
-        sincronizado:ahora,dispositivo:S.cfg.dispositivo,app:'Sanidad Palma '+VERSION},null,1)});
+        sincronizado:ahora,dispositivo:S.cfg.dispositivo,app:'Sanidad Vegetal '+VERSION},null,1)});
       for(const r of regs)if(r.jornada_id===jid)for(const fid of r.fotos||[]){const f=await dbGet('fotos',fid);if(f)archivos.push({path:`${base}/fotos/${fid}.jpg`,b64:aB64(f.buf)});}
     }
-    const sha=await ghCommit(archivos,`Sanidad Palma · ${S.cfg.evaluador||'evaluador'} · ${regs.length} diagnóstico(s) · ${fmtFecha(Date.now())}`);
+    const sha=await ghCommit(archivos,`Sanidad Vegetal · ${S.cfg.evaluador||'evaluador'} · ${regs.length} diagnóstico(s) · ${fmtFecha(Date.now())}`);
     for(const r of regs){r.sync='sincronizado';r.sync_fecha=ahora;r.sync_commit=sha;}
     await dbPutVarios('registros',regs);
     if(ptsPend.length){ptsPend.forEach(p=>p.s=1);await dbPutVarios('track',ptsPend);}
@@ -1428,8 +1428,8 @@ function menuExportar(){
     <button class="btn ancho" id="eZipC">📤 Compartir paquete (WhatsApp, correo, Drive…)</button>
     <button class="btn ancho" id="eCsv">📄 Tabla CSV (Excel)</button>
     <button class="btn ancho" id="eGeo">🗺️ GeoJSON de diagnósticos (QGIS)</button>`);
-  $('#eZip').onclick=async()=>{toast('Preparando paquete…',8000);descargar(await zipCompleto(),`sanidad_palma_${n}.zip`);};
-  $('#eZipC').onclick=async()=>{toast('Preparando paquete…',8000);compartir(await zipCompleto(),`sanidad_palma_${n}.zip`);};
+  $('#eZip').onclick=async()=>{toast('Preparando paquete…',8000);descargar(await zipCompleto(),`sanidad_vegetal_${n}.zip`);};
+  $('#eZipC').onclick=async()=>{toast('Preparando paquete…',8000);compartir(await zipCompleto(),`sanidad_vegetal_${n}.zip`);};
   $('#eCsv').onclick=()=>descargar(new Blob([csvRegs(S.registros)],{type:'text/csv'}),`registros_${n}.csv`);
   $('#eGeo').onclick=()=>descargar(new Blob([JSON.stringify({type:'FeatureCollection',features:S.registros.filter(r=>r.lat!=null).map(featReg)})],{type:'application/geo+json'}),`registros_${n}.geojson`);
 }
@@ -1477,7 +1477,7 @@ function menu(){
       ${mos('mSalir','candado','Cerrar sesión',SES?esc(SES.nombre):'')}
       ${eventoInstalar?mos('mInst','instalar','Instalar app','En este dispositivo'):''}
     </div>
-    <p class="tenue" style="text-align:center;margin-top:16px">Sanidad Palma v${VERSION} · Cartografía ${esc(CARTO.version||'—')}<br>Palmas de Tumaco S.A.S.</p>`);
+    <p class="tenue" style="text-align:center;margin-top:16px">Sanidad Vegetal v${VERSION} · Cartografía ${esc(CARTO.version||'—')}<br>Palmas de Tumaco S.A.S.</p>`);
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#mJor',()=>S.jornada?panelJornada():abrirPlanificador('nueva'));
   on('#mBD',()=>{cerrarHoja();abrirBD('diag');});on('#mRec',()=>{cerrarHoja();abrirBD('jor');});on('#mRes',()=>{cerrarHoja();abrirBD('res');});
