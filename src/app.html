@@ -42,6 +42,15 @@ button{cursor:pointer}
 @keyframes barrido{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
 #splashMsg{color:var(--tenue);font-size:13px;min-height:18px;text-align:center}
 
+/* ---------- Ingreso ---------- */
+#login{position:fixed;inset:0;z-index:4500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px 16px;overflow:auto;
+  background:radial-gradient(120% 80% at 50% 0%,#0d3a2a 0%,#06140f 60%)}
+#login .tit{font-size:24px;letter-spacing:6px;font-weight:700;text-align:center}
+#login .tit small{display:block;font-size:12.5px;letter-spacing:2px;color:var(--tenue);font-weight:600;margin-top:4px}
+#frmLogin{width:min(92vw,380px);border-radius:22px;padding:6px 18px 18px}
+#lgMsg{min-height:20px;text-align:center;margin:8px 0 0}
+#lgRed{font-size:12.5px;color:var(--tenue);text-align:center}
+
 /* ---------- Cabecera ---------- */
 #hud{position:fixed;top:0;left:0;right:0;z-index:1000;padding:calc(var(--sup) + 8px) 10px 8px;display:flex;align-items:center;gap:9px;
   background:linear-gradient(180deg,rgba(6,20,15,.96),rgba(6,20,15,.78));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--borde)}
@@ -258,6 +267,19 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div id="splashMsg">Iniciando…</div>
 </div>
 
+<div id="login" hidden>
+  <div class="tarjeta-logo"><img src="__LOGO__" alt="Palmas de Tumaco"></div>
+  <div class="tit">SANIDAD PALMA<small>INGRESO DE OPERARIOS</small></div>
+  <form id="frmLogin" class="glass" autocomplete="off">
+    <label class="campo">Usuario</label><input type="text" id="lgUsuario" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" required>
+    <label class="campo">Contraseña</label>
+    <div class="fila" style="flex-wrap:nowrap"><input type="password" id="lgClave" autocomplete="current-password" required style="flex:1"><button type="button" class="btn" id="lgVer" style="flex:none" aria-label="Mostrar contraseña">👁</button></div>
+    <button class="btn prim ancho grande" id="lgOk" style="margin-top:16px">INGRESAR</button>
+    <p class="tenue" id="lgMsg"></p>
+  </form>
+  <p id="lgRed"></p>
+</div>
+
 <header id="hud">
   <span class="insignia"><img src="__ISO__" alt=""></span>
   <div class="marca"><b>SANIDAD PALMA</b><small id="sub">Palmas de Tumaco</small></div>
@@ -337,7 +359,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='2.0.0';
+const VERSION='2.1.0';
 
 /* ---------- Catálogos del formulario ---------- */
 const ESTADOS=[
@@ -449,7 +471,7 @@ const S={
     gh:{owner:'jjbuila',repo:'Sanidad-datos',rama:'main',token:''}}
 };
 let CARTO={version:'',lotes:{}};
-async function guardarCfg(){await dbPut('config',{clave:'cfg',v:S.cfg});actualizarCab();}
+async function guardarCfg(){await dbPut('config',{clave:'cfg',v:{...S.cfg,gh:{...S.cfg.gh,token:''}}});actualizarCab();}
 
 /* ---------- Capas de interfaz y botón «atrás» de Android ---------- */
 const PILA=[];let guardia=false;
@@ -475,7 +497,8 @@ function verFoto(url){$('#visor img').src=url;$('#visor').classList.add('ver');}
 
 /* ---------- Pantalla de inicio ---------- */
 function avance(m){const s=$('#splash');if(s&&!s.classList.contains('fuera'))$('#splashMsg').textContent=m;else toast(m,6000);}
-function ocultarSplash(){const s=$('#splash');s.classList.add('fuera');setTimeout(()=>s.hidden=true,450);}
+function ocultarSplash(){const s=$('#splash');clearTimeout(ocultarSplash.t);s.classList.add('fuera');ocultarSplash.t=setTimeout(()=>s.hidden=true,450);}
+function mostrarSplash(){const s=$('#splash');clearTimeout(ocultarSplash.t);s.hidden=false;s.classList.remove('fuera');}
 
 /* ---------- Mapa ---------- */
 const mapa=L.map('mapa',{preferCanvas:true,zoomControl:false,maxZoom:22,attributionControl:true}).setView([1.6,-78.75],11);
@@ -621,23 +644,12 @@ async function procesarCartografia(lotesTxt,zipBuf,extra){
   await dbPut('config',{clave:'carto',v:CARTO});
   dibujarLotes();actualizarCab();
 }
-async function descargarCartografia(forzar){
-  avance('Consultando la cartografía en GitHub…');
-  const lista=await (await ghFetch(`/contents/cartografia?ref=${encodeURIComponent(S.cfg.gh.rama)}`)).json();
-  const fl=Array.isArray(lista)&&lista.find(x=>x.name==='lotes.geojson'),fz=Array.isArray(lista)&&lista.find(x=>x.name==='palmas.zip');
-  if(!fl||!fz)throw new Error('En el repositorio de datos debe existir la carpeta «cartografia» con lotes.geojson y palmas.zip.');
-  if(!forzar&&CARTO.shaZip===fz.sha&&CARTO.shaLotes===fl.sha)return false;
-  avance('Descargando lotes…');const lt=await (await ghRaw('cartografia/lotes.geojson')).text();
-  avance(`Descargando palmas (${(fz.size/1048576).toFixed(1)} MB)…`);const zb=await (await ghRaw('cartografia/palmas.zip')).arrayBuffer();
-  await procesarCartografia(lt,zb,{shaZip:fz.sha,shaLotes:fl.sha,origen:'GitHub'});
-  return true;
-}
 function cartoDesdeArchivos(){
   const inp=$('#inCarto');inp.value='';
   inp.onchange=async()=>{const fs=Array.from(inp.files||[]);
     const fl=fs.find(f=>/\.(geo)?json$/i.test(f.name)),fz=fs.find(f=>/\.zip$/i.test(f.name));
     if(!fl||!fz){alert('Seleccione los dos archivos a la vez: lotes.geojson y palmas.zip.');return;}
-    try{await procesarCartografia(await fl.text(),await fz.arrayBuffer(),{origen:'archivo'});toast(`Cartografía cargada: ${S.lotes.features.length} lotes.`);cerrarHoja();encuadrar();}
+    try{await procesarCartografia(await fl.text(),await fz.arrayBuffer(),{origen:'archivo',paquete:ACCESO&&ACCESO.carto?ACCESO.carto.version:''});toast(`Cartografía cargada: ${S.lotes.features.length} lotes.`);cerrarHoja();encuadrar();}
     catch(e){alert('No se pudo cargar la cartografía:\n'+e.message);}};
   inp.click();
 }
@@ -710,7 +722,7 @@ function alternarPlan(l){
 }
 async function contarItem(it){const d=await leerChunk(it.lote);let n=0;for(const a of d)if(a[3]!==0&&enRango(a[1],it.desde,it.hasta))n++;return n;}
 function abrirPlanificador(modo){
-  if(!S.lotes){configInicial();return;}
+  if(!S.lotes){toast('La cartografía aún no está cargada.');return;}
   S.planModo=modo;if(modo==='agregar')S.plan=[];
   abrirHoja(modo==='agregar'?'Agregar lotes a la jornada':'Planificar jornada',`
     <div class="pasos"><span><b>1</b>Toque los lotes en el mapa o búsquelos</span><span><b>2</b>Ajuste las líneas</span><span><b>3</b>${modo==='agregar'?'Agregue':'Inicie la jornada'}</span></div>
@@ -719,7 +731,7 @@ function abrirPlanificador(modo){
     <h3>Lotes y palmas seleccionados</h3>
     <div id="plSel"></div>
     <div class="ficha" id="plTotal" style="margin-top:8px"></div>
-    ${modo==='nueva'?`<label class="campo">Evaluador <i>*</i></label><input type="text" id="plEval" value="${esc(S.cfg.evaluador)}" placeholder="Nombre y apellido">`:''}
+    ${modo==='nueva'?`<div class="ficha" style="margin-top:8px">Evaluador: <b>${esc(SES?SES.nombre:'')}</b> <span class="tenue">(${esc(SES?SES.u:'')})</span></div>`:''}
     <button class="btn nar ancho grande" id="plOk" style="margin-top:14px">${modo==='agregar'?IC.mas+' AGREGAR A LA JORNADA':IC.play+' INICIAR JORNADA'}</button>
     <p class="tenue">${modo==='agregar'?'Si elige un lote que ya está en la jornada, se reemplaza su rango de líneas.':'Al iniciar, comienza a guardarse el recorrido (track) y se cargan solo las palmas elegidas.'}</p>`,
     {media:true,alCerrar:()=>{S.planAbierto=false;dibujarLotes();}});
@@ -760,13 +772,13 @@ async function confirmarPlan(){
     S.jornada.seleccion=sel.sort((a,b)=>ordenNat(a.lote,b.lote));S.jornada.sync='pendiente';await dbPut('jornadas',S.jornada);
     S.plan=[];cerrarHoja();await cargarPalmasJornada();dibujarLotes();actualizarJornadaUI();toast('Lotes agregados a la jornada.');
   }else{
-    const ev=($('#plEval').value||'').trim();if(!ev){alert('Escriba el nombre del evaluador.');$('#plEval').focus();return;}
-    const sel=S.plan.map(p=>({...p}));S.plan=[];cerrarHoja();await iniciarJornada(sel,ev);
+    if(!SES){alert('Inicie sesión para iniciar una jornada.');return;}
+    const sel=S.plan.map(p=>({...p}));S.plan=[];cerrarHoja();await iniciarJornada(sel,SES.nombre);
   }
 }
 function idJornada(){const d=new Date();return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}-${uid().slice(0,6)}`;}
 async function iniciarJornada(sel,evaluador){
-  const j={id:idJornada(),inicio:new Date().toISOString(),fin:null,evaluador,dispositivo:S.cfg.dispositivo,seleccion:sel,estado:'activa',
+  const j={id:idJornada(),inicio:new Date().toISOString(),fin:null,evaluador,usuario:SES?SES.u:'',dispositivo:S.cfg.dispositivo,seleccion:sel,estado:'activa',
     km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version};
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=evaluador;await guardarCfg();
   TRACK.ultimo=null;TRACK.n=0;prepararTrack([]);
@@ -1318,7 +1330,7 @@ const listoSync=r=>Date.now()-Date.parse(r.modificado||r.creado||0)>=(Number(S.c
 function programarSync(ms){clearTimeout(SYNC.t);SYNC.t=setTimeout(()=>sincronizar(false),ms||3000);}
 async function sincronizar(manual){
   if(SYNC.activo)return;
-  if(!S.cfg.gh.token){if(manual)abrirConfig();return;}
+  if(!S.cfg.gh.token){if(manual)toast('Inicie sesión para sincronizar.');return;}
   if(!navigator.onLine){if(manual)toast('Sin conexión a internet.');estadoSync();return;}
   if(!manual&&!redPermitida()){estadoSync();return;}
   if(manual&&!redPermitida()&&!confirm('No está conectado a WiFi. ¿Desea sincronizar usando datos móviles?'))return;
@@ -1360,7 +1372,7 @@ async function sincronizar(manual){
 function estadoSync(){
   const b=$('#chSync');const pend=S.registros.filter(r=>r.sync!=='sincronizado').length;
   if(SYNC.activo){b.className='chip gira';b.innerHTML=IC.sync+'<span>Sync…</span>';return;}
-  if(!S.cfg.gh.token){b.className='chip mal';b.innerHTML='<span class="led"></span><span>Sin config.</span>';return;}
+  if(!S.cfg.gh.token){b.className='chip mal';b.innerHTML='<span class="led"></span><span>Sin sesión</span>';return;}
   if(SYNC.error){b.className='chip mal';b.innerHTML=IC.alerta+`<span>${pend||'!'}</span>`;return;}
   if(pend){b.className='chip pend';b.innerHTML=IC.nube+`<span>${pend}</span>`;return;}
   b.className='chip ok';b.innerHTML='<span class="led"></span><span>Al día</span>';
@@ -1379,8 +1391,8 @@ function panelSync(){
     </div>
     <div class="candado">🔒 Cada diagnóstico sincronizado queda bloqueado: no se puede editar ni eliminar. En GitHub se guarda por jornada: registros.geojson, recorrido.geojson, jornada.json y las fotos.</div>
     <button class="btn prim ancho grande" id="sAhora">${IC.sync} SINCRONIZAR AHORA</button>
-    <button class="btn ancho" id="sCfg">${IC.config} Configuración de GitHub</button>`);
-  $('#sAhora').onclick=async()=>{await sincronizar(true);panelSync();};$('#sCfg').onclick=abrirConfig;
+    `);
+  $('#sAhora').onclick=async()=>{await sincronizar(true);panelSync();};
 }
 window.addEventListener('online',()=>{estadoSync();programarSync(2000);});
 window.addEventListener('offline',estadoSync);
@@ -1461,40 +1473,30 @@ function menu(){
       ${mos('mSync','sync','Sincronizar','Enviar a GitHub')}
       ${mos('mExp','descarga','Exportar','Respaldo local')}
       ${mos('mZona','mapa','Mapa sin conexión','Guardar la zona visible')}
-      ${mos('mCfg','config','Configuración','GitHub, mapa, voz')}
+      ${mos('mCfg','config','Configuración',SES&&SES.rol==='admin'?'Mapa, voz, cartografía':'Mapa y voz')}
+      ${mos('mSalir','candado','Cerrar sesión',SES?esc(SES.nombre):'')}
       ${eventoInstalar?mos('mInst','instalar','Instalar app','En este dispositivo'):''}
     </div>
     <p class="tenue" style="text-align:center;margin-top:16px">Sanidad Palma v${VERSION} · Cartografía ${esc(CARTO.version||'—')}<br>Palmas de Tumaco S.A.S.</p>`);
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#mJor',()=>S.jornada?panelJornada():abrirPlanificador('nueva'));
   on('#mBD',()=>{cerrarHoja();abrirBD('diag');});on('#mRec',()=>{cerrarHoja();abrirBD('jor');});on('#mRes',()=>{cerrarHoja();abrirBD('res');});
-  on('#mSync',panelSync);on('#mExp',menuExportar);on('#mZona',()=>{cerrarHoja();setTimeout(guardarZona,300);});on('#mCfg',abrirConfig);
+  on('#mSync',panelSync);on('#mSalir',cerrarSesion);on('#mExp',menuExportar);on('#mZona',()=>{cerrarHoja();setTimeout(guardarZona,300);});on('#mCfg',abrirConfig);
   on('#mInst',async()=>{eventoInstalar.prompt();await eventoInstalar.userChoice;eventoInstalar=null;cerrarHoja();});
 }
-function camposGH(){const g=S.cfg.gh;return `
-  <div class="fila"><div><label class="campo">Usuario u organización</label><input type="text" id="gOwner" value="${esc(g.owner)}"></div>
-  <div><label class="campo">Repositorio de datos</label><input type="text" id="gRepo" value="${esc(g.repo)}"></div></div>
-  <div class="fila"><div><label class="campo">Rama</label><input type="text" id="gRama" value="${esc(g.rama)}"></div>
-  <div style="flex:2"><label class="campo">Token de acceso (fine-grained)</label><input type="password" id="gToken" value="${esc(g.token)}" placeholder="github_pat_…" autocomplete="off"></div></div>`;}
-function leerGH(){S.cfg.gh={owner:$('#gOwner').value.trim(),repo:$('#gRepo').value.trim(),rama:$('#gRama').value.trim()||'main',token:$('#gToken').value.trim()};}
-async function probarGH(){
-  const r=await (await ghFetch('')).json();
-  if(r.private===false&&!confirm('Advertencia: el repositorio de datos es PÚBLICO y cualquiera podría ver la cartografía y los diagnósticos. ¿Continuar de todos modos?'))throw new Error('Configuración cancelada.');
-  if(r.permissions&&r.permissions.push===false)throw new Error('El token solo tiene permiso de lectura. Debe tener Contents: Read and write.');
-  return r;
-}
 async function abrirConfig(){
-  const info=await infoAlmacen();
+  const info=await infoAlmacen();const adm=SES&&SES.rol==='admin';
   abrirHoja('Configuración',`
-    <label class="campo">Evaluador predeterminado</label><input type="text" id="cEval" value="${esc(S.cfg.evaluador)}">
-    <h3>Sincronización con GitHub</h3>
-    ${camposGH()}
-    <label class="chip-op" style="display:inline-block;margin-top:10px"><input type="checkbox" id="cWifi" ${S.cfg.soloWifi?'checked':''}><span>Sincronizar automáticamente solo con WiFi</span></label>
-    <label class="campo">Esperar antes de sincronizar un diagnóstico (minutos, para corregir errores)</label><input type="number" id="cEsp" min="0" max="120" value="${esc(S.cfg.esperaSync)}">
-    <div class="fila" style="margin-top:8px"><button class="btn" id="cProbar">Probar conexión</button><button class="btn" id="cEnlace">🔗 Enlace de configuración</button></div>
+    <h3>Sesión</h3>
+    <div class="ficha"><b>${esc(SES?SES.nombre:'')}</b> · usuario <b>${esc(SES?SES.u:'')}</b> · ${adm?'Administrador':'Operario'}<br>
+      <span class="tenue">Datos: ${esc(S.cfg.gh.owner)}/${esc(S.cfg.gh.repo)} (${esc(S.cfg.gh.rama)}) · token cifrado en el paquete de acceso</span></div>
+    <button class="btn ancho" id="cSalir">${IC.candado} Cerrar sesión</button>
+    ${adm?`<h3>Sincronización</h3>
+    <label class="chip-op" style="display:inline-block"><input type="checkbox" id="cWifi" ${S.cfg.soloWifi?'checked':''}><span>Sincronizar automáticamente solo con WiFi</span></label>
+    <label class="campo">Esperar antes de sincronizar un diagnóstico (minutos, para corregir errores)</label><input type="number" id="cEsp" min="0" max="120" value="${esc(S.cfg.esperaSync)}">`:''}
     <h3>Cartografía</h3>
-    <div class="ficha">Versión <b>${esc(CARTO.version||'—')}</b> · ${S.lotes?S.lotes.features.length:0} lotes · ${num(totalPalmasCarto())} palmas<br><span class="tenue">Origen: ${esc(CARTO.origen||'—')} · ${CARTO.fecha?fmtFecha(CARTO.fecha):''}</span></div>
-    <div class="fila" style="margin-top:8px"><button class="btn" id="cCarto">${IC.descarga} Actualizar desde GitHub</button><button class="btn" id="cCartoArch">Cargar desde archivos</button></div>
+    <div class="ficha">Versión <b>${esc(CARTO.paquete||CARTO.version||'—')}</b> · ${S.lotes?S.lotes.features.length:0} lotes · ${num(totalPalmasCarto())} palmas<br><span class="tenue">Origen: ${esc(CARTO.origen||'—')} · ${CARTO.fecha?fmtFecha(CARTO.fecha):''}</span></div>
+    ${adm?`<button class="btn ancho" id="cCartoArch">Cargar cartografía desde archivos (administrador)</button>`:''}
     <h3>Mapa base</h3>
     <select id="cBase">${Object.entries(BASES).map(([k,b])=>`<option value="${k}" ${S.cfg.base===k?'selected':''}>${esc(b.n)}</option>`).join('')}</select>
     <div id="cPropia"><label class="campo">Dirección de las teselas de la ortofoto</label><input type="text" id="cUrl" value="${esc(S.cfg.urlPropia)}">
@@ -1508,46 +1510,114 @@ async function abrirConfig(){
     <button class="btn prim ancho grande" id="cOk" style="margin-top:14px">GUARDAR</button>
     <h3>Dispositivo</h3>
     <p class="tenue">ID: ${esc(S.cfg.dispositivo)}<br>${esc(info)}</p>
-    <button class="btn peligro ancho" id="cBorrar">Borrar datos de este dispositivo</button>`);
+    ${adm?'<button class="btn peligro ancho" id="cBorrar">Borrar datos de este dispositivo</button>':''}`);
   const vis=()=>$('#cPropia').style.display=$('#cBase').value==='propia'?'':'none';$('#cBase').onchange=vis;vis();
-  const leer=()=>{leerGH();S.cfg.evaluador=$('#cEval').value.trim();S.cfg.soloWifi=$('#cWifi').checked;S.cfg.esperaSync=Math.max(0,Number($('#cEsp').value)||0);
+  const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
+  on('#cSalir',cerrarSesion);
+  $('#cOk').onclick=async()=>{
+    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.esperaSync=Math.max(0,Number($('#cEsp').value)||0);}
     S.cfg.base=$('#cBase').value;S.cfg.urlPropia=$('#cUrl').value.trim();S.cfg.zmaxPropia=Number($('#cZmax').value)||20;
-    S.cfg.umbralVoz=Number($('#cUmbral').value)||4;S.cfg.precisionVoz=Number($('#cPrec').value)||15;S.cfg.velocidadVoz=Number($('#cVel').value)||1;S.cfg.precisionTrack=Number($('#cPTrack').value)||30;};
-  $('#cOk').onclick=async()=>{leer();await guardarCfg();ponerBase();estadoSync();cerrarHoja();toast('Configuración guardada.');programarSync(1500);};
-  $('#cProbar').onclick=async()=>{leer();try{const r=await probarGH();await guardarCfg();estadoSync();alert(`✅ Conexión correcta con ${r.full_name} (${r.private?'privado':'público'}).`);}catch(e){alert('❌ '+e.message);}};
-  $('#cEnlace').onclick=async()=>{leer();await guardarCfg();const u=location.origin+location.pathname+'#cfg='+textoB64(JSON.stringify(S.cfg.gh));
-    if(!confirm('El enlace incluye el token de acceso. Compártalo solo con evaluadores de confianza y por un canal privado. ¿Continuar?'))return;
-    try{if(navigator.share){await navigator.share({title:'Configuración Sanidad Palma',url:u});return;}}catch(e){if(e.name==='AbortError')return;}
-    try{await navigator.clipboard.writeText(u);toast('Enlace copiado al portapapeles.');}catch(e){prompt('Copie el enlace:',u);}};
-  $('#cCarto').onclick=async()=>{leer();await guardarCfg();try{const n=await descargarCartografia(true);toast(n?'Cartografía actualizada.':'La cartografía ya estaba al día.');if(S.jornada)await cargarPalmasJornada();abrirConfig();}catch(e){alert('No se pudo descargar:\n'+e.message);}};
-  $('#cCartoArch').onclick=cartoDesdeArchivos;
-  $('#cProbarVoz').onclick=()=>{S.cfg.velocidadVoz=Number($('#cVel').value)||1;elegirVoz();hablar('Lote '+paraVoz('IT43')+', línea 3, palma 14.');};
-  $('#cBorrar').onclick=async()=>{
+    S.cfg.umbralVoz=Number($('#cUmbral').value)||4;S.cfg.precisionVoz=Number($('#cPrec').value)||15;S.cfg.velocidadVoz=Number($('#cVel').value)||1;S.cfg.precisionTrack=Number($('#cPTrack').value)||30;
+    await guardarCfg();ponerBase();estadoSync();cerrarHoja();toast('Configuración guardada.');programarSync(1500);};
+  on('#cCartoArch',cartoDesdeArchivos);
+  on('#cProbarVoz',()=>{S.cfg.velocidadVoz=Number($('#cVel').value)||1;elegirVoz();hablar('Lote '+paraVoz('IT43')+', línea 3, palma 14.');});
+  on('#cBorrar',async()=>{
     const pend=S.registros.filter(r=>r.sync!=='sincronizado').length;
     if(pend){alert(`Hay ${pend} diagnósticos sin sincronizar. Sincronice antes de borrar los datos.`);return;}
     if(S.jornada){alert('Finalice la jornada en curso antes de borrar los datos.');return;}
     if(prompt('Se borrarán diagnósticos, fotos y recorridos ya sincronizados de este dispositivo (la cartografía se conserva). Escriba BORRAR para confirmar')!=='BORRAR')return;
-    for(const s of ['registros','fotos','jornadas','track'])await dbClear(s);S.registros=[];recalcUltimo();estadoSync();cerrarHoja();toast('Datos borrados del dispositivo.');};
+    for(const s of ['registros','fotos','jornadas','track'])await dbClear(s);S.registros=[];recalcUltimo();estadoSync();cerrarHoja();toast('Datos borrados del dispositivo.');});
 }
 async function infoAlmacen(){
   let t='';try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();t=`Espacio usado: ${(e.usage/1048576).toFixed(1)} MB de ${(e.quota/1048576).toFixed(0)} MB.`;}
     if(navigator.storage&&navigator.storage.persisted)t+=(await navigator.storage.persisted())?' Almacenamiento protegido ✔':' Instale la app para proteger el almacenamiento.';}catch(e){}
   return t;
 }
-function configInicial(msg){
-  abrirHoja('Configuración inicial',`
-    <div class="logo-menu"><img src="__LOGO__" alt="Palmas de Tumaco"></div>
-    ${msg?`<div class="aviso">${esc(msg)}</div>`:''}
-    <p>Conecte la aplicación con el repositorio privado de datos en GitHub. Desde allí se descargan los lotes y las palmas, y allí se sincronizan los diagnósticos y recorridos.</p>
-    <label class="campo">Su nombre (evaluador)</label><input type="text" id="cEval" value="${esc(S.cfg.evaluador)}">
-    ${camposGH()}
-    <button class="btn prim ancho grande" id="iOk" style="margin-top:14px">CONECTAR Y DESCARGAR CARTOGRAFÍA</button>
-    <button class="btn ancho" id="iArch">Cargar cartografía desde archivos (sin internet)</button>`);
-  $('#iOk').onclick=async()=>{leerGH();S.cfg.evaluador=$('#cEval').value.trim();
-    const b=$('#iOk');b.disabled=true;b.textContent='Conectando…';
-    try{await probarGH();await guardarCfg();await descargarCartografia(true);estadoSync();cerrarHoja();encuadrar();toast(`✅ Cartografía lista: ${S.lotes.features.length} lotes y ${num(totalPalmasCarto())} palmas.`,4500);}
-    catch(e){alert('❌ '+e.message);b.disabled=false;b.textContent='CONECTAR Y DESCARGAR CARTOGRAFÍA';}};
-  $('#iArch').onclick=async()=>{leerGH();S.cfg.evaluador=$('#cEval').value.trim();await guardarCfg();cartoDesdeArchivos();};
+/* =====================================================================
+   ACCESO CIFRADO, INGRESO Y SESIÓN
+   El token de GitHub y la cartografía viajan cifrados (AES-256-GCM) en
+   datos/acceso.json y datos/carto.enc. La contraseña de cada usuario
+   (PBKDF2-SHA256) descifra en el dispositivo la llave de datos.
+   ===================================================================== */
+const ENC=new TextEncoder(),DEC=new TextDecoder();
+const deB64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+let ACCESO=null,SES=null;
+async function kekDe(clave,salt,iter){const base=await crypto.subtle.importKey('raw',ENC.encode(clave),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['decrypt']);}
+async function aesDes(llave,iv,ct){return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv},llave,ct));}
+const desObj=(llave,o)=>aesDes(llave,deB64(o.iv),deB64(o.ct));
+async function cargarAcceso(){
+  let a=null;
+  try{const r=await fetch('datos/acceso.json',{cache:'no-store'});if(r.ok){const j=await r.json();if(j.formato==='sanidad-acceso-1')a=j;}}catch(e){}
+  if(a)await dbPut('config',{clave:'acceso',v:a});
+  else{const r=await dbGet('config','acceso');a=r?r.v:null;}
+  ACCESO=a;return a;
+}
+async function llaveDispositivo(){
+  const r=await dbGet('config','llaveDisp');if(r&&r.v)return r.v;
+  const k=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  await dbPut('config',{clave:'llaveDisp',v:k});return k;
+}
+async function abrirSesion(u,dkRaw,guardar){
+  const e=ACCESO.usuarios.find(x=>x.u===u);if(!e)throw new Error('El usuario ya no está autorizado.');
+  const dk=await crypto.subtle.importKey('raw',dkRaw,{name:'AES-GCM'},false,['decrypt']);
+  const meta=JSON.parse(DEC.decode(await desObj(dk,e.meta)));
+  const token=DEC.decode(await desObj(dk,ACCESO.token));
+  SES={u,nombre:meta.nombre,rol:meta.rol||'operario',dk};
+  S.cfg.gh={...ACCESO.repo,token};S.cfg.evaluador=meta.nombre;
+  if(guardar){const k=await llaveDispositivo();const iv=crypto.getRandomValues(new Uint8Array(12));
+    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,ENC.encode(JSON.stringify({u,dk:aB64(dkRaw),paquete:ACCESO.id})));
+    await dbPut('config',{clave:'sesion',v:{iv,ct}});}
+}
+async function restaurarSesion(){
+  const r=await dbGet('config','sesion');if(!r||!ACCESO)return false;
+  try{const k=await llaveDispositivo();const p=JSON.parse(DEC.decode(await aesDes(k,r.v.iv,r.v.ct)));
+    if(p.paquete!==ACCESO.id||!ACCESO.usuarios.some(x=>x.u===p.u)){await dbDel('config','sesion');return false;}
+    await abrirSesion(p.u,deB64(p.dk),false);return true;}
+  catch(e){return false;}
+}
+async function ingresar(usuario,clave){
+  const u=usuario.trim().toLowerCase();const e=ACCESO.usuarios.find(x=>x.u===u);
+  const kek=await kekDe(clave,deB64(e?e.salt:'AAAAAAAAAAAAAAAAAAAAAA=='),ACCESO.kdf.iter);
+  if(!e)throw new Error('Usuario o contraseña incorrectos.');
+  let dkRaw;try{dkRaw=await aesDes(kek,deB64(e.iv),deB64(e.ct));}catch(_){throw new Error('Usuario o contraseña incorrectos.');}
+  await abrirSesion(u,dkRaw,true);
+}
+let intentos=0,bloqueoHasta=0,resolverLogin=null;
+function mostrarLogin(msg){
+  const L1=$('#login');L1.hidden=false;$('#lgMsg').textContent=msg||'';$('#lgMsg').style.color=msg?'var(--ambar)':'';
+  $('#lgRed').textContent=navigator.onLine?'En línea':'Sin conexión: el ingreso funciona igual, se verifica en este dispositivo.';
+  $('#lgOk').disabled=!ACCESO;if(ACCESO)setTimeout(()=>$('#lgUsuario').focus(),300);
+  return new Promise(r=>{resolverLogin=r;});
+}
+$('#lgVer').onclick=()=>{const i=$('#lgClave');i.type=i.type==='password'?'text':'password';};
+$('#frmLogin').onsubmit=async e=>{
+  e.preventDefault();const m=$('#lgMsg'),b=$('#lgOk');
+  if(Date.now()<bloqueoHasta){m.style.color='var(--rojo)';m.textContent=`Demasiados intentos. Espere ${Math.ceil((bloqueoHasta-Date.now())/1000)} s.`;return;}
+  b.disabled=true;b.textContent='VERIFICANDO…';m.textContent='';
+  try{await ingresar($('#lgUsuario').value,$('#lgClave').value);intentos=0;$('#lgClave').value='';$('#login').hidden=true;
+    if(resolverLogin){const r=resolverLogin;resolverLogin=null;r();}}
+  catch(err){intentos++;if(intentos>=5){bloqueoHasta=Date.now()+30000;intentos=0;}m.style.color='var(--rojo)';m.textContent=err.message;}
+  finally{b.disabled=false;b.textContent='INGRESAR';}
+};
+async function cerrarSesion(){
+  if(S.jornada){alert('Finalice la jornada en curso antes de cerrar la sesión.');return;}
+  const pend=S.registros.filter(r=>r.sync!=='sincronizado').length;
+  if(!confirm(`¿Cerrar la sesión de ${SES.nombre}?`+(pend?`\n\nHay ${pend} diagnóstico(s) pendientes: se sincronizarán cuando ingrese cualquier usuario con WiFi.`:'')))return;
+  await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};estadoSync();cerrarHoja();
+  await mostrarLogin();await despuesDeIngresar();
+}
+async function asegurarCartografia(){
+  const c=ACCESO&&ACCESO.carto;if(!c)return;
+  if(S.lotes&&CARTO.paquete===c.version)return;
+  avance('Descargando y descifrando la cartografía…');
+  let buf;
+  try{const r=await fetch('datos/'+(c.archivo||'carto.enc'));if(!r.ok)throw new Error();buf=new Uint8Array(await r.arrayBuffer());}
+  catch(e){if(S.lotes){toast('Hay una cartografía nueva; se cargará cuando abra la app con internet.',5000);return;}throw new Error('No se pudo obtener la cartografía. Abra la aplicación con internet la primera vez.');}
+  if(DEC.decode(buf.slice(0,4))!=='SPC1')throw new Error('El archivo de cartografía no es válido.');
+  const plano=await aesDes(SES.dk,buf.slice(4,16),buf.slice(16));
+  const z=await JSZip.loadAsync(plano);
+  await procesarCartografia(await z.file('lotes.geojson').async('string'),await z.file('palmas.zip').async('arraybuffer'),{origen:'Paquete cifrado de la app',paquete:c.version});
 }
 
 /* =====================================================================
@@ -1555,31 +1625,41 @@ function configInicial(msg){
    ===================================================================== */
 (async function iniciar(){
   pintarLeyenda();
+  if(!window.crypto||!crypto.subtle){$('#splashMsg').textContent='Abra la aplicación desde su dirección https para poder ingresar.';return;}
   try{await abrirDB();}catch(e){alert('No fue posible abrir el almacenamiento local: '+e.message);return;}
-  const c=await dbGet('config','cfg');if(c)S.cfg={...S.cfg,...c.v,gh:{...S.cfg.gh,...(c.v.gh||{})}};
-  if(!S.cfg.dispositivo){S.cfg.dispositivo='DISP-'+uid().slice(0,8).toUpperCase();}
-  const m=location.hash.match(/#cfg=([A-Za-z0-9+/=]+)/);
-  if(m){try{const g=JSON.parse(b64Texto(m[1]));S.cfg.gh={...S.cfg.gh,...g};toast('Configuración de GitHub recibida.');}catch(e){}history.replaceState(null,'',location.pathname);}
+  const c=await dbGet('config','cfg');if(c)S.cfg={...S.cfg,...c.v,gh:{...S.cfg.gh,...(c.v.gh||{}),token:''}};
+  if(!S.cfg.dispositivo)S.cfg.dispositivo='DISP-'+uid().slice(0,8).toUpperCase();
   await guardarCfg();
+  avance('Verificando acceso…');await cargarAcceso();
   const ca=await dbGet('config','carto');if(ca)CARTO=ca.v;
   const l=await dbGet('capas','lotes');if(l){S.lotes=l.fc;cajasLotes();}
   S.registros=await dbAll('registros');recalcUltimo();
-  ponerBase();
-  if(!S.lotes&&S.cfg.gh.token&&navigator.onLine){try{await descargarCartografia(true);}catch(e){toast('No se pudo descargar la cartografía: '+e.message,6000);}}
+  ponerBase();dibujarLotes();if(S.lotes)encuadrar();estadoSync();
+  if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
+  const ok=ACCESO?await restaurarSesion():false;
+  if(!ok){ocultarSplash();await mostrarLogin(ACCESO?'':'Esta aplicación aún no tiene paquete de acceso. Abra la app con internet o contacte al administrador.');}
+  await despuesDeIngresar();
+})();
+async function despuesDeIngresar(){
+  mostrarSplash();
+  try{await asegurarCartografia();}catch(e){alert(e.message);}
   dibujarLotes();
   if(S.cfg.jornadaActiva){const j=await dbGet('jornadas',S.cfg.jornadaActiva);
-    if(j&&j.estado==='activa'){S.jornada=j;const pts=await puntosTrack(j.id);TRACK.ultimo=pts[pts.length-1]||null;TRACK.n=pts.length;prepararTrack(pts.map(p=>[p.lat,p.lng]));
-      await cargarPalmasJornada();pantallaEncendida(true);toast('Jornada en curso recuperada. El recorrido continúa.',4000);}
+    if(j&&j.estado==='activa'){
+      if(j.usuario&&SES&&j.usuario!==SES.u){
+        if(confirm(`Hay una jornada en curso de ${j.evaluador}. Para trabajar como ${SES.nombre} debe finalizarse. ¿Finalizarla ahora?`)){
+          j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';await dbPut('jornadas',j);S.cfg.jornadaActiva=null;await guardarCfg();}
+        else{ocultarSplash();await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};await mostrarLogin('Ingrese con el usuario '+j.usuario+' para continuar su jornada.');return despuesDeIngresar();}
+      }else{S.jornada=j;const pts=await puntosTrack(j.id);TRACK.ultimo=pts[pts.length-1]||null;TRACK.n=pts.length;prepararTrack(pts.map(p=>[p.lat,p.lng]));
+        await cargarPalmasJornada();pantallaEncendida(true);toast('Jornada en curso recuperada. El recorrido continúa.',4000);}}
     else{S.cfg.jornadaActiva=null;await guardarCfg();}}
-  actualizarJornadaUI();estadoSync();
+  actualizarJornadaUI();estadoSync();dibujarLotes();
   if(S.jornada)encuadrar(S.jornada.seleccion.map(s=>s.lote));else encuadrar();
-  iniciarGPS();
-  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
-  if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
-  setTimeout(ocultarSplash,600);
-  if(!S.lotes)setTimeout(()=>configInicial(S.cfg.gh.token?'No se pudo descargar la cartografía. Verifique la conexión y el token.':''),700);
+  iniciarGPS();ocultarSplash();
+  if(SES)toast(`Bienvenido, ${SES.nombre}.`);
   programarSync(5000);
-})();
+}
 </script>
 </body>
 </html>

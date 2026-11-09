@@ -1,11 +1,15 @@
 /* Service worker de Sanidad Palma 2.0: permite abrir la aplicación y ver mapas sin conexión.
    Las llamadas a la API de GitHub no se guardan en caché. */
-const APP='sanidad-palma-app-v5';
+const APP='sanidad-palma-app-v6';
 const TESELAS='teselas-v1';
 const ARCHIVOS=['./','./index.html','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
 
+const OPCIONALES=['./datos/acceso.json','./datos/carto.enc'];
 self.addEventListener('install',e=>{
-  e.waitUntil(caches.open(APP).then(c=>c.addAll(ARCHIVOS)).then(()=>self.skipWaiting()));
+  e.waitUntil(caches.open(APP).then(async c=>{
+    await c.addAll(ARCHIVOS);
+    for(const f of OPCIONALES){try{const r=await fetch(f,{cache:'no-store'});if(r.ok)await c.put(f,r);}catch(err){}}
+  }).then(()=>self.skipWaiting()));
 });
 self.addEventListener('activate',e=>{
   e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==APP&&k!==TESELAS).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
@@ -21,6 +25,14 @@ self.addEventListener('fetch',e=>{
       const m=await c.match(req.url,{ignoreVary:true});if(m)return m;
       try{const r=await fetch(req);if(r.ok)c.put(req.url,r.clone());return r;}
       catch(err){return new Response('',{status:504,statusText:'Offline'});}
+    }));
+    return;
+  }
+  // Paquete de acceso y cartografía cifrada: primero la red (para recibir cambios), si no hay, la copia guardada.
+  if(u.origin===self.location.origin&&u.pathname.includes('/datos/')){
+    e.respondWith(caches.open(APP).then(async c=>{
+      try{const r=await fetch(req,{cache:'no-store'});if(r.ok){c.put(req,r.clone());return r;}throw new Error();}
+      catch(err){return (await c.match(req,{ignoreSearch:true}))||new Response('',{status:504,statusText:'Offline'});}
     }));
     return;
   }

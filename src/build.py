@@ -42,6 +42,12 @@ html = html.replace('__ISO__', 'data:image/png;base64,' + b64(os.path.join(MARCA
 with open(os.path.join(RAIZ, 'index.html'), 'w', encoding='utf-8') as f:
     f.write(html)
 
+adm = leer(os.path.join(RAIZ, 'src', 'admin.html'))
+adm = adm.replace('/*FUENTES*/', fuentes, 1).replace('/*LIB_JSZIP*/', seguro(leer(f'{NM}/jszip/dist/jszip.min.js')), 1)
+adm = adm.replace('__LOGO__', 'data:image/png;base64,' + b64(os.path.join(MARCA, 'logo_900.png')))
+with open(os.path.join(RAIZ, 'admin.html'), 'w', encoding='utf-8') as f:
+    f.write(adm)
+
 os.makedirs(os.path.join(RAIZ, 'icons'), exist_ok=True)
 for n in (192, 512):
     shutil.copy(os.path.join(MARCA, f'icon-{n}.png'), os.path.join(RAIZ, 'icons', f'icon-{n}.png'))

@@ -1,4 +1,4 @@
-# Sanidad Palma 2.0 — Guía de instalación y uso
+# Sanidad Palma 2.1 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -6,74 +6,64 @@
 
 | Repositorio | Visibilidad | Contenido |
 |---|---|---|
-| `jjbuila/Sanidad` | Público (GitHub Pages) | La aplicación: `index.html`, `sw.js`, `manifest.webmanifest`, `icons/`, `src/`. **No contiene datos.** |
-| `jjbuila/Sanidad-datos` | **Privado** | `cartografia/` (lotes y palmas) y `jornadas/` (diagnósticos, recorridos y fotos sincronizados). |
+| `jjbuila/Sanidad` | Público (GitHub Pages) | La aplicación (`index.html`, `admin.html`, `sw.js`, `icons/`, `src/`) y la carpeta **`datos/`** con el paquete de acceso **cifrado** (`acceso.json`) y la cartografía **cifrada** (`carto.enc`). |
+| `jjbuila/SanidadData` | **Privado** | `jornadas/`: diagnósticos, recorridos y fotos sincronizados. Opcionalmente, la copia maestra de la cartografía. |
 
-Cada celular descarga la cartografía una sola vez desde el repositorio privado, usando un token de acceso, y trabaja sin conexión. Al conectarse a WiFi, envía los diagnósticos y recorridos en formato GeoJSON. Lo que ya se sincronizó queda bloqueado.
+**Cómo funciona el acceso**
+- La cartografía y el token de GitHub viajan **cifrados** (AES-256-GCM) dentro de la aplicación, de modo que lotes y palmas vienen **cargados por defecto**.
+- Cada operario ingresa con **usuario y contraseña**. La contraseña (PBKDF2-SHA256, 600 000 iteraciones) descifra en el celular la llave de datos, y con ella el token y la cartografía. **No se necesita internet para ingresar.**
+- La sesión queda abierta en el dispositivo, protegida con una llave no extraíble, hasta que el operario pulse **Cerrar sesión**. Si la aplicación se cierra durante una jornada, al abrirla continúa sin pedir la contraseña.
+- El token nunca se guarda ni se muestra en texto plano.
 
-## 2. Crear el repositorio privado de datos
+## 2. Preparar el repositorio privado de datos
 
-1. En GitHub pulse **+** y luego **New repository**.
-2. En *Repository name* escriba `Sanidad-datos`.
-3. Marque **Private**.
-4. Marque **Add a README file**. Es obligatorio, porque la sincronización necesita que el repositorio tenga al menos un commit.
-5. Pulse **Create repository**.
-6. Pulse **Add file** y luego **Upload files**. Arrastre la carpeta **`cartografia`** del paquete `sanidad-datos-cartografia.zip`. La carpeta contiene:
-   - `cartografia/lotes.geojson`: 291 lotes con `Lote`, `Programa` y `ZonaCosecha`.
-   - `cartografia/palmas.zip`: 377 477 sitios de palma (4 MB).
-7. Pulse **Commit changes**.
+`SanidadData` ya está creado como privado y con README. La aplicación escribe allí la carpeta `jornadas/`. La carpeta `cartografia/` puede quedar como copia maestra; la aplicación ya no la descarga de allí.
 
 ## 3. Crear el token de acceso
-
-El token es la clave que usan los celulares para leer la cartografía y escribir los datos. Se crea en su cuenta de GitHub:
 
 1. Pulse su foto (arriba a la derecha) y luego **Settings**.
 2. Entre a **Developer settings**, luego **Personal access tokens**, **Fine-grained tokens** y pulse **Generate new token**.
 3. Complete los campos:
-   - *Token name*: `Sanidad Palma celulares`.
-   - *Expiration*: la fecha que defina la empresa, por ejemplo 1 año.
-   - *Repository access*: **Only select repositories** y elija **`jjbuila/Sanidad-datos`**.
-   - *Permissions*, *Repository permissions*, **Contents**: **Read and write**.
-4. Pulse **Generate token** y copie el valor que empieza por `github_pat_…`. GitHub no lo vuelve a mostrar.
+   - *Name*: `Sanidad Palma celulares`.
+   - *Expiration*: por ejemplo, 1 año.
+   - *Repository access*: **Only select repositories** → **`jjbuila/SanidadData`**.
+   - *Permissions*: **Contents** con **Read and write**.
+4. Pulse **Generate token** y copie el `github_pat_…`. Solo lo necesitará en el paso siguiente.
 
-> **Seguridad:** el token solo da acceso al repositorio `Sanidad-datos`. Si un celular se pierde, revoque el token en la misma pantalla y cree uno nuevo.
+## 4. Crear usuarios y el paquete cifrado (administrador)
 
-## 4. Actualizar la aplicación publicada (repositorio `Sanidad`)
+1. Abra **`https://jjbuila.github.io/Sanidad/admin.html`** en el computador. También puede abrir el archivo `admin.html` del paquete directamente en Chrome.
+2. En la pestaña **Crear paquete nuevo**:
+   1. Verifique el usuario `jjbuila`, el repositorio `SanidadData` y la rama `main`. Pegue el token y pulse **Probar token**.
+   2. En **Cartografía**, seleccione a la vez `lotes.geojson` y `palmas.zip`, que están en `sanidad-datos-cartografia.zip`.
+   3. En **Usuarios**, registre a cada operario con su usuario (por ejemplo `jperez`), su nombre completo, el rol y su contraseña. El botón 🎲 genera una contraseña segura. Debe existir al menos un **Administrador**.
+   4. Pulse **GENERAR ARCHIVOS CIFRADOS**. Se descargan `acceso.json` y `carto.enc`.
+   5. Opcional: pulse **Descargar credenciales (CSV)** para entregar las contraseñas. Hágalo de forma personal y borre el archivo después.
+3. Suba los dos archivos al repositorio **`Sanidad`**, dentro de una carpeta **`datos/`**:
+   1. Pulse **Add file** y luego **Create new file**, y escriba `datos/LEAME.md` con cualquier texto. Pulse **Commit changes**.
+   2. Entre a la carpeta `datos`, pulse **Add file** y luego **Upload files**, arrastre `acceso.json` y `carto.enc`, y pulse **Commit changes**.
 
-1. Descomprima `sanidad-palma-v2-app.zip`.
-2. En `jjbuila/Sanidad` pulse **Add file** y luego **Upload files**.
-3. Arrastre **todo el contenido** de la carpeta: `index.html`, `sw.js`, `manifest.webmanifest`, `GUIA.md`, `icons` y `src`.
-4. Pulse **Commit changes**. GitHub reemplaza los archivos que tienen el mismo nombre.
-5. Opcional: borre la carpeta `datos-ejemplo` de la versión anterior. Para hacerlo, abra cada archivo de esa carpeta, pulse **⋯** y luego **Delete file**.
-6. Espere entre 1 y 3 minutos a que *Actions* muestre el visto verde.
+**Contraseñas:** el paquete cifrado es público, así que su seguridad depende de la contraseña. Use **mínimo 8 caracteres combinando letras y números**; la página de administración no acepta contraseñas más débiles. Las generadas con 🎲 tienen 10 caracteres.
 
-Desde la línea de comandos:
+### Modificar usuarios después
+1. En `admin.html` entre a la pestaña **Modificar paquete existente**.
+2. Cargue el `acceso.json` vigente e ingrese con un usuario administrador.
+3. Desde allí puede **agregar usuarios**, **cambiar contraseñas**, **eliminar usuarios**, **cambiar el token** cuando venza, o **reemplazar la cartografía**.
+4. Pulse **GENERAR ARCHIVOS ACTUALIZADOS** y suba los archivos a `Sanidad/datos/`, reemplazando los anteriores.
 
-```bash
-git clone https://github.com/jjbuila/Sanidad.git
-cd Sanidad
-git rm -r --quiet datos-ejemplo
-cp -r /ruta/sanidad-palma-v2-app/* .
-git add .
-git commit -m "Sanidad Palma 2.0"
-git push
-```
+Los celulares toman los cambios la próxima vez que abran la aplicación con internet. Un usuario eliminado pierde la sesión en ese momento.
 
-## 5. Configurar cada celular
+> **Revocación completa:** si se pierde un celular o una contraseña queda expuesta, haga tres cosas. Primero, **revoque el token** en GitHub y cree uno nuevo. Segundo, en **Crear paquete nuevo**, genere un paquete completo con el token nuevo y contraseñas nuevas; así se crea una llave de datos nueva. Tercero, súbalo a `datos/`. Todas las sesiones anteriores quedarán invalidadas.
 
-1. Abra `https://jjbuila.github.io/Sanidad/` en **Chrome**, con WiFi.
-2. En **Configuración inicial**:
-   - Escriba su nombre.
-   - Usuario: `jjbuila`.
-   - Repositorio: `Sanidad-datos`.
-   - Rama: `main`.
-   - Pegue el token.
-3. Pulse **CONECTAR Y DESCARGAR CARTOGRAFÍA**. Tarda entre 20 y 60 segundos.
-4. Instale la aplicación desde **Menú**, opción **Instalar app**, o desde el menú ⋮ de Chrome, opción **Instalar app**.
-5. Descargue la voz en español para usarla sin internet: *Ajustes → Sistema → Idiomas → Salida de texto a voz → Servicios de voz de Google → Instalar datos de voz → Español*.
-6. Con internet, recorra en el mapa los lotes donde va a trabajar, o use **Menú → Mapa sin conexión**, para guardar la imagen satelital.
+## 5. Publicar la aplicación y preparar cada celular
 
-**Para configurar varios celulares más rápido:** en un celular ya configurado entre a **Menú → Configuración → Enlace de configuración** y envíe ese enlace por un canal privado. Al abrirlo, el otro celular queda conectado sin escribir el token. El enlace contiene el token, por lo que no debe compartirse en grupos.
+1. **Publicar:** suba al repositorio `Sanidad` el contenido de `sanidad-palma-v2-app.zip`: `index.html`, `admin.html`, `sw.js`, `manifest.webmanifest`, `GUIA.md`, `icons` y `src`. Además debe estar la carpeta `datos/` del paso 4.
+2. **Abrir por primera vez (con WiFi):** abra `https://jjbuila.github.io/Sanidad/` en **Chrome**. Ingrese con usuario y contraseña. La cartografía se descifra en unos segundos y queda guardada en el celular.
+3. **Instalar:** use **Menú → Instalar app**, o el menú ⋮ de Chrome → **Instalar app**.
+4. **Voz sin internet:** *Ajustes → Sistema → Idiomas → Salida de texto a voz → Servicios de voz de Google → Instalar datos de voz → Español*.
+5. **Mapa sin conexión:** con internet, recorra en el mapa los lotes de trabajo o use **Menú → Mapa sin conexión**.
+
+Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que ya tiene la sesión iniciada, planifica la jornada, censa y finaliza. Al llegar a una zona con WiFi, la información se sincroniza sola.
 
 ## 6. Trabajo en campo
 
@@ -81,7 +71,7 @@ git push
 1. Pulse el botón naranja **INICIAR** de la barra inferior.
 2. Elija los lotes. Puede tocarlos en el mapa (se marcan en naranja) o buscarlos por código o programa. Se permiten varios lotes en un mismo día.
 3. Para cada lote, ajuste el **rango de líneas** que va a censar. Por defecto vienen todas.
-4. Escriba el nombre del evaluador y pulse **INICIAR JORNADA**.
+4. Pulse **INICIAR JORNADA**. El evaluador queda registrado automáticamente con el nombre del usuario que ingresó.
    - Desde ese momento se **guarda el recorrido (track)**: aparece el indicador rojo **REC**, el tiempo, los kilómetros y el avance del censo.
    - Solo se cargan las palmas elegidas. En amarillo aparecen las pendientes por censar.
 
@@ -107,7 +97,7 @@ git push
 ### Qué queda en GitHub
 
 ```
-Sanidad-datos/
+SanidadData/
 ├── cartografia/
 │   ├── lotes.geojson
 │   └── palmas.zip
@@ -121,13 +111,14 @@ Sanidad-datos/
 ```
 
 - **Campos de `registros.geojson`:** `palma_id`, `lote`, `linea`, `palma`, `estado`, `problemas`, `p_PC`… (1/0), `grado_pc`, `severidad`, `sintomas`, `accion`, `observaciones`, `fotos`, `gps_precision_m`, `dist_gps_palma_m`, `evaluador`, `creado`, `sincronizado`, entre otros.
-- **Uso en QGIS:** los GeoJSON se abren directamente. Para consolidar, clone el repositorio con `git clone https://github.com/jjbuila/Sanidad-datos.git` y combine los `registros.geojson` con *Vectorial → Herramientas de gestión de datos → Combinar capas vectoriales*.
+- **Uso en QGIS:** los GeoJSON se abren directamente. Para consolidar, clone el repositorio con `git clone https://github.com/jjbuila/SanidadData.git` y combine los `registros.geojson` con *Vectorial → Herramientas de gestión de datos → Combinar capas vectoriales*.
 
 ## 8. Actualizar la cartografía
 
 1. Regenere `lotes.geojson` y `palmas.zip`. Mantenga el formato: `palmas.zip` contiene `indice.json` y `palmas/<LOTE>.json`.
-2. Súbalos a `Sanidad-datos/cartografia/`, reemplazando los anteriores.
-3. En cada celular, entre a **Menú → Configuración → Actualizar desde GitHub**.
+2. En `admin.html`, pestaña **Modificar paquete existente**, cargue los dos archivos en **Cartografía** y pulse **GENERAR ARCHIVOS ACTUALIZADOS**.
+3. Suba `acceso.json` y `carto.enc` a `Sanidad/datos/`.
+4. Cada celular cargará la nueva cartografía la próxima vez que abra la aplicación con internet.
 
 Mantenga el `ID Palma`, porque es el identificador que vincula los diagnósticos con cada palma.
 

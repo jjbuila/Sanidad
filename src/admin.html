@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Administración · Sanidad Palma</title>
+<link rel="icon" href="icons/icon-192.png">
+<style>/*FUENTES*/</style>
+<style>
+:root{--fondo:#06140f;--panel:#0b2119;--borde:rgba(144,205,241,.18);--borde2:rgba(255,255,255,.10);--texto:#eaf5f0;--tenue:#94b6a9;
+  --acento:#22d39a;--acento2:#0f9d6b;--naranja:#ee7633;--rojo:#ff5d5d;--ambar:#ffc53d;--t:'Rajdhani',system-ui,sans-serif}
+*{box-sizing:border-box}
+html{background:#06140f}
+body{margin:0;background:radial-gradient(120% 60% at 50% 0%,#0d3a2a 0%,#06140f 55%) fixed;color:var(--texto);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+button,input,select{font:inherit;color:inherit}
+.contenedor{max-width:980px;margin:0 auto;padding:24px 16px 60px}
+header{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:18px}
+.logo{background:#fff;border-radius:16px;padding:10px 16px}
+.logo img{height:56px;display:block}
+h1{font-family:var(--t);letter-spacing:3px;font-size:26px;margin:0}
+h1 small{display:block;font-size:13px;letter-spacing:2px;color:var(--tenue)}
+h2{font-family:var(--t);letter-spacing:1.5px;font-size:20px;margin:0 0 6px;color:var(--acento);text-transform:uppercase}
+.tarjeta{background:rgba(11,33,25,.85);border:1px solid var(--borde);border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 12px 30px rgba(0,0,0,.35)}
+.tenue{color:var(--tenue);font-size:13.5px}
+label{display:block;margin:12px 0 5px;font-weight:600;font-size:13px;color:#cfe6dc}
+input[type=text],input[type=password],input[type=file],select{width:100%;padding:10px 12px;border:1px solid var(--borde2);border-radius:12px;background:rgba(255,255,255,.06);outline:none}
+input:focus,select:focus{border-color:var(--acento);box-shadow:0 0 0 3px rgba(34,211,154,.18)}
+select option{background:#0c2219}
+.fila{display:flex;gap:10px;flex-wrap:wrap}
+.fila>*{flex:1;min-width:150px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--borde);background:rgba(255,255,255,.06);padding:10px 14px;border-radius:12px;font-family:var(--t);font-weight:700;font-size:16px;letter-spacing:.6px;cursor:pointer}
+.btn.prim{background:linear-gradient(145deg,#26d9a0,var(--acento2));border-color:transparent;color:#032a1d}
+.btn.nar{background:linear-gradient(145deg,#ff9a5c,var(--naranja));border-color:transparent;color:#fff}
+.btn.peligro{color:#ffb3b3;border-color:rgba(255,93,93,.45)}
+.btn.chico{padding:6px 10px;font-size:14px}
+.btn:disabled{opacity:.45;cursor:default}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tabs button{border:1px solid var(--borde2);background:transparent;color:var(--tenue);border-radius:999px;padding:8px 16px;font-family:var(--t);font-weight:700;font-size:16px;cursor:pointer}
+.tabs button.on{background:var(--acento);color:#032a1d;border-color:var(--acento)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;vertical-align:middle}
+th{font-family:var(--t);letter-spacing:.8px;text-transform:uppercase;color:var(--tenue);font-size:13px}
+td input,td select{padding:8px 10px}
+.aviso{background:rgba(255,197,61,.10);border:1px solid rgba(255,197,61,.45);color:#ffe6a6;border-radius:12px;padding:10px 12px;font-size:13.5px;margin:10px 0}
+.ok{background:rgba(34,211,154,.10);border:1px solid rgba(34,211,154,.5);color:#c9f7e6;border-radius:12px;padding:10px 12px;font-size:14px;margin:10px 0}
+.err{color:var(--rojo);font-size:13.5px;min-height:18px;margin-top:6px}
+.paso{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--naranja);color:#fff;font-family:var(--t);font-weight:700;margin-right:8px}
+code{background:rgba(255,255,255,.08);padding:1px 6px;border-radius:6px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="contenedor">
+  <header>
+    <div class="logo"><img src="__LOGO__" alt="Palmas de Tumaco"></div>
+    <h1>SANIDAD PALMA<small>ADMINISTRACIÓN DE ACCESOS</small></h1>
+  </header>
+  <div class="aviso">Todo el cifrado ocurre en este navegador: el token y las contraseñas no se envían a ningún servidor. Los archivos que genere se publican en la carpeta <code>datos/</code> del repositorio de la aplicación.</div>
+  <div class="tabs" id="tabs"><button data-t="crear" class="on">Crear paquete nuevo</button><button data-t="editar">Modificar paquete existente</button></div>
+
+  <!-- ================= CREAR ================= -->
+  <section id="crear">
+    <div class="tarjeta">
+      <h2><span class="paso">1</span>Repositorio de datos y token</h2>
+      <div class="fila">
+        <div><label>Usuario u organización</label><input type="text" id="cOwner" value="jjbuila"></div>
+        <div><label>Repositorio privado de datos</label><input type="text" id="cRepo" value="SanidadData"></div>
+        <div><label>Rama</label><input type="text" id="cRama" value="main"></div>
+      </div>
+      <label>Token de acceso (fine-grained, Contents: Read and write)</label>
+      <div class="fila"><input type="password" id="cToken" placeholder="github_pat_…" autocomplete="off" style="flex:3"><button class="btn" id="cProbar" style="flex:1">Probar token</button></div>
+      <div class="err" id="cTokenMsg"></div>
+    </div>
+    <div class="tarjeta">
+      <h2><span class="paso">2</span>Cartografía</h2>
+      <p class="tenue">Seleccione los dos archivos a la vez: <code>lotes.geojson</code> y <code>palmas.zip</code>.</p>
+      <input type="file" id="cCarto" multiple accept=".geojson,.json,.zip">
+      <div class="tenue" id="cCartoMsg"></div>
+    </div>
+    <div class="tarjeta">
+      <h2><span class="paso">3</span>Usuarios</h2>
+      <p class="tenue">Usuario: minúsculas, números, punto o guion (mín. 3). Contraseña: mínimo 8 caracteres con letras y números. Debe haber al menos un administrador.</p>
+      <table><thead><tr><th>Usuario</th><th>Nombre completo</th><th>Rol</th><th>Contraseña</th><th></th></tr></thead><tbody id="cUsuarios"></tbody></table>
+      <button class="btn chico" id="cAgregar" style="margin-top:10px">＋ Agregar usuario</button>
+    </div>
+    <div class="tarjeta">
+      <h2><span class="paso">4</span>Generar</h2>
+      <button class="btn nar" id="cGenerar">GENERAR ARCHIVOS CIFRADOS</button>
+      <div class="err" id="cMsg"></div>
+      <div id="cOk" hidden></div>
+    </div>
+  </section>
+
+  <!-- ================= EDITAR ================= -->
+  <section id="editar" hidden>
+    <div class="tarjeta">
+      <h2><span class="paso">1</span>Abrir paquete</h2>
+      <label>Archivo <code>acceso.json</code> actual</label><input type="file" id="eArchivo" accept=".json">
+      <div class="fila">
+        <div><label>Usuario administrador</label><input type="text" id="eUser" autocapitalize="none"></div>
+        <div><label>Contraseña</label><input type="password" id="eClave"></div>
+      </div>
+      <button class="btn prim" id="eAbrir" style="margin-top:12px">ABRIR</button>
+      <div class="err" id="eAbrirMsg"></div>
+    </div>
+    <div id="ePanel" hidden>
+      <div class="tarjeta">
+        <h2>Usuarios</h2>
+        <table><thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Acciones</th></tr></thead><tbody id="eLista"></tbody></table>
+        <h2 style="margin-top:18px;font-size:16px">Agregar usuarios</h2>
+        <table><thead><tr><th>Usuario</th><th>Nombre completo</th><th>Rol</th><th>Contraseña</th><th></th></tr></thead><tbody id="eNuevos"></tbody></table>
+        <button class="btn chico" id="eAgregar" style="margin-top:10px">＋ Agregar usuario</button>
+      </div>
+      <div class="tarjeta">
+        <h2>Token y repositorio</h2>
+        <div class="fila">
+          <div><label>Usuario u organización</label><input type="text" id="eOwner"></div>
+          <div><label>Repositorio de datos</label><input type="text" id="eRepo"></div>
+          <div><label>Rama</label><input type="text" id="eRama"></div>
+        </div>
+        <label>Nuevo token (déjelo vacío para conservar el actual)</label>
+        <div class="fila"><input type="password" id="eToken" placeholder="github_pat_…" autocomplete="off" style="flex:3"><button class="btn" id="eProbar" style="flex:1">Probar token</button></div>
+        <div class="err" id="eTokenMsg"></div>
+      </div>
+      <div class="tarjeta">
+        <h2>Cartografía</h2>
+        <p class="tenue">Versión actual: <b id="eCartoVer"></b>. Para reemplazarla, seleccione los nuevos <code>lotes.geojson</code> y <code>palmas.zip</code>; si no, deje vacío.</p>
+        <input type="file" id="eCarto" multiple accept=".geojson,.json,.zip">
+      </div>
+      <div class="tarjeta">
+        <button class="btn nar" id="eGuardar">GENERAR ARCHIVOS ACTUALIZADOS</button>
+        <div class="err" id="eMsg"></div>
+        <div id="eOk" hidden></div>
+      </div>
+    </div>
+  </section>
+</div>
+<script>/*LIB_JSZIP*/</script>
+<script>
+'use strict';
+const ITER=600000,FORMATO='sanidad-acceso-1';
+const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
+const enc=new TextEncoder(),dec=new TextDecoder();
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const b64=b=>{const a=new Uint8Array(b);let s='';for(let i=0;i<a.length;i+=0x8000)s+=String.fromCharCode.apply(null,a.subarray(i,i+0x8000));return btoa(s);};
+const deB64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const rnd=n=>crypto.getRandomValues(new Uint8Array(n));
+const pad=n=>String(n).padStart(2,'0');
+function versionAhora(){const d=new Date();return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;}
+function descargar(datos,nombre,tipo){const u=URL.createObjectURL(datos instanceof Blob?datos:new Blob([datos],{type:tipo||'application/octet-stream'}));const a=document.createElement('a');a.href=u;a.download=nombre;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),8000);}
+
+/* ---------- Criptografía ---------- */
+async function kek(clave,salt){const base=await crypto.subtle.importKey('raw',enc.encode(clave),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:ITER,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
+const llaveDatos=raw=>crypto.subtle.importKey('raw',raw,{name:'AES-GCM'},false,['encrypt','decrypt']);
+async function cifrar(llave,bytes){const iv=rnd(12);const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},llave,bytes);return {iv:b64(iv),ct:b64(ct)};}
+async function descifrar(llave,o){return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:deB64(o.iv)},llave,deB64(o.ct)));}
+async function entradaUsuario(dk,dkRaw,u,nombre,rol,clave){
+  const salt=rnd(16);const k=await kek(clave,salt);const w=await cifrar(k,dkRaw);
+  return {u,salt:b64(salt),iv:w.iv,ct:w.ct,meta:await cifrar(dk,enc.encode(JSON.stringify({nombre,rol})))};
+}
+async function cifrarCarto(dk,files){
+  const fl=files.find(f=>/\.(geo)?json$/i.test(f.name)),fz=files.find(f=>/\.zip$/i.test(f.name));
+  if(!fl||!fz)throw new Error('Seleccione los dos archivos: lotes.geojson y palmas.zip.');
+  const gj=JSON.parse(await fl.text());if(!gj.features||!gj.features.length)throw new Error('lotes.geojson no contiene polígonos.');
+  const zp=await JSZip.loadAsync(await fz.arrayBuffer());if(!zp.file('indice.json'))throw new Error('palmas.zip no contiene indice.json (formato de Sanidad Palma).');
+  const z=new JSZip();z.file('lotes.geojson',await fl.text(),{compression:'DEFLATE'});z.file('palmas.zip',await fz.arrayBuffer(),{compression:'STORE'});
+  const plano=await z.generateAsync({type:'uint8array'});
+  const iv=rnd(12);const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},dk,plano));
+  const out=new Uint8Array(4+12+ct.length);out.set(enc.encode('SPC1'),0);out.set(iv,4);out.set(ct,16);
+  return {bytes:out,lotes:gj.features.length};
+}
+
+/* ---------- Validación ---------- */
+const reUser=/^[a-z0-9._-]{3,30}$/;
+function validarClave(c){if(c.length<8)return 'mínimo 8 caracteres';if(!/[A-Za-z]/.test(c)||!/[0-9]/.test(c))return 'debe combinar letras y números';return '';}
+function generarClave(){const a='abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ',d='23456789';let s='';const r=rnd(10);
+  for(let i=0;i<10;i++)s+=(i===3||i===7?d:a+d)[r[i]%(i===3||i===7?d.length:(a+d).length)];return s;}
+async function probarToken(owner,repo,token,msg){
+  msg.style.color='var(--tenue)';msg.textContent='Probando…';
+  try{const r=await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,{headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'}});
+    const j=await r.json();
+    if(!r.ok)throw new Error(r.status===401?'Token inválido o vencido.':r.status===404?'Repositorio no encontrado o sin acceso con este token.':j.message);
+    if(j.permissions&&j.permissions.push===false)throw new Error('El token solo tiene lectura: necesita Contents: Read and write.');
+    msg.style.color='var(--acento)';msg.textContent=`✅ Correcto: ${j.full_name} (${j.private?'privado':'⚠️ PÚBLICO'}).`;
+  }catch(e){msg.style.color='var(--rojo)';msg.textContent='❌ '+e.message;}
+}
+function filaUsuario(tbody,datos={}){
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input type="text" data-k="u" placeholder="jperez" value="${esc(datos.u||'')}" autocapitalize="none"></td>
+    <td><input type="text" data-k="nombre" placeholder="Juan Pérez" value="${esc(datos.nombre||'')}"></td>
+    <td><select data-k="rol"><option value="operario">Operario</option><option value="admin" ${datos.rol==='admin'?'selected':''}>Administrador</option></select></td>
+    <td><div class="fila" style="flex-wrap:nowrap;gap:6px"><input type="text" data-k="clave" value="${esc(datos.clave||generarClave())}" style="min-width:110px;flex:1"><button class="btn chico" data-gen title="Generar contraseña" style="flex:none;min-width:0">🎲</button></div></td>
+    <td><button class="btn chico peligro" data-x title="Quitar">✕</button></td>`;
+  tr.querySelector('[data-gen]').onclick=()=>{tr.querySelector('[data-k=clave]').value=generarClave();};
+  tr.querySelector('[data-x]').onclick=()=>tr.remove();
+  tbody.appendChild(tr);
+}
+function leerFilas(tbody,existentes){
+  const out=[],vistos=new Set(existentes||[]);
+  for(const tr of tbody.querySelectorAll('tr')){
+    const v=k=>tr.querySelector(`[data-k=${k}]`).value.trim();
+    const u=v('u').toLowerCase(),nombre=v('nombre'),rol=v('rol'),clave=v('clave');
+    if(!u&&!nombre)continue;
+    if(!reUser.test(u))throw new Error(`Usuario «${u||'(vacío)'}» no válido.`);
+    if(vistos.has(u))throw new Error(`El usuario «${u}» está repetido.`);
+    if(!nombre)throw new Error(`Falta el nombre del usuario «${u}».`);
+    const e=validarClave(clave);if(e)throw new Error(`Contraseña de «${u}»: ${e}.`);
+    vistos.add(u);out.push({u,nombre,rol,clave});
+  }
+  return out;
+}
+function csvCredenciales(lista){return '﻿usuario;nombre;rol;contraseña\r\n'+lista.map(x=>[x.u,x.nombre,x.rol,x.clave].join(';')).join('\r\n');}
+function mostrarResultado(cont,archivos,lista){
+  cont.hidden=false;
+  cont.innerHTML=`<div class="ok">✅ Archivos generados y descargados: ${archivos.map(a=>`<code>${a}</code>`).join(' ')}.<br>
+    Súbalos al repositorio <b>Sanidad</b> dentro de la carpeta <code>datos/</code> (reemplazando los anteriores). Los celulares los tomarán la próxima vez que abran la aplicación con internet.</div>
+    ${lista.length?`<button class="btn" id="dlCred">Descargar credenciales para entregar (CSV)</button>
+    <p class="tenue">⚠️ El CSV contiene contraseñas en texto plano: entréguelas de forma personal y elimínelo después.</p>`:''}`;
+  const b=cont.querySelector('#dlCred');if(b)b.onclick=()=>descargar(csvCredenciales(lista),'credenciales_sanidad_palma.csv','text/csv');
+}
+
+/* ---------- Pestañas ---------- */
+$('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;$$('#tabs button').forEach(x=>x.classList.toggle('on',x===b));$('#crear').hidden=b.dataset.t!=='crear';$('#editar').hidden=b.dataset.t!=='editar';};
+
+/* ---------- Crear paquete ---------- */
+filaUsuario($('#cUsuarios'),{u:'admin',nombre:'Administrador',rol:'admin'});filaUsuario($('#cUsuarios'));
+$('#cAgregar').onclick=()=>filaUsuario($('#cUsuarios'));
+$('#cProbar').onclick=()=>probarToken($('#cOwner').value.trim(),$('#cRepo').value.trim(),$('#cToken').value.trim(),$('#cTokenMsg'));
+$('#cCarto').onchange=()=>{const fs=Array.from($('#cCarto').files);$('#cCartoMsg').textContent=fs.map(f=>`${f.name} (${(f.size/1048576).toFixed(1)} MB)`).join(' · ');};
+$('#cGenerar').onclick=async()=>{
+  const msg=$('#cMsg');msg.textContent='';$('#cOk').hidden=true;const bt=$('#cGenerar');
+  try{
+    const owner=$('#cOwner').value.trim(),repo=$('#cRepo').value.trim(),rama=$('#cRama').value.trim()||'main',token=$('#cToken').value.trim();
+    if(!owner||!repo)throw new Error('Complete el usuario y el repositorio.');
+    if(!/^(github_pat_|ghp_)/.test(token))throw new Error('El token debe empezar por github_pat_ (fine-grained).');
+    const lista=leerFilas($('#cUsuarios'));if(!lista.length)throw new Error('Agregue al menos un usuario.');
+    if(!lista.some(x=>x.rol==='admin'))throw new Error('Debe existir al menos un usuario administrador.');
+    const files=Array.from($('#cCarto').files||[]);
+    bt.disabled=true;bt.textContent='Cifrando… (puede tardar unos segundos)';
+    const dkRaw=rnd(32),dk=await llaveDatos(dkRaw);
+    const carto=await cifrarCarto(dk,files);
+    const usuarios=[];for(const x of lista)usuarios.push(await entradaUsuario(dk,dkRaw,x.u,x.nombre,x.rol,x.clave));
+    const acceso={formato:FORMATO,id:crypto.randomUUID(),creado:new Date().toISOString(),repo:{owner,repo,rama},
+      kdf:{alg:'PBKDF2-SHA256',iter:ITER},token:await cifrar(dk,enc.encode(token)),
+      carto:{archivo:'carto.enc',version:versionAhora(),tam:carto.bytes.length,lotes:carto.lotes},usuarios};
+    descargar(JSON.stringify(acceso,null,1),'acceso.json','application/json');
+    await new Promise(r=>setTimeout(r,600));descargar(new Blob([carto.bytes]),'carto.enc');
+    mostrarResultado($('#cOk'),['acceso.json','carto.enc'],lista);
+  }catch(e){msg.textContent='❌ '+e.message;}
+  finally{bt.disabled=false;bt.textContent='GENERAR ARCHIVOS CIFRADOS';}
+};
+
+/* ---------- Modificar paquete ---------- */
+const ED={acceso:null,dk:null,dkRaw:null,lista:[],eliminar:new Set(),claves:new Map()};
+$('#eAbrir').onclick=async()=>{
+  const msg=$('#eAbrirMsg');msg.textContent='';
+  try{
+    const f=$('#eArchivo').files[0];if(!f)throw new Error('Seleccione el archivo acceso.json.');
+    const a=JSON.parse(await f.text());if(a.formato!==FORMATO)throw new Error('El archivo no es un paquete de acceso de Sanidad Palma.');
+    const u=$('#eUser').value.trim().toLowerCase();const e=a.usuarios.find(x=>x.u===u);if(!e)throw new Error('Usuario o contraseña incorrectos.');
+    $('#eAbrir').disabled=true;$('#eAbrir').textContent='Verificando…';
+    const k=await kek($('#eClave').value,deB64(e.salt));let dkRaw;
+    try{dkRaw=await descifrar(k,{iv:e.iv,ct:e.ct});}catch(_){throw new Error('Usuario o contraseña incorrectos.');}
+    const dk=await llaveDatos(dkRaw);const meta=JSON.parse(dec.decode(await descifrar(dk,e.meta)));
+    if(meta.rol!=='admin')throw new Error('Este usuario no es administrador.');
+    ED.acceso=a;ED.dk=dk;ED.dkRaw=dkRaw;ED.eliminar.clear();ED.claves.clear();
+    ED.lista=[];for(const x of a.usuarios){const m=JSON.parse(dec.decode(await descifrar(dk,x.meta)));ED.lista.push({u:x.u,...m});}
+    $('#eOwner').value=a.repo.owner;$('#eRepo').value=a.repo.repo;$('#eRama').value=a.repo.rama;$('#eCartoVer').textContent=a.carto.version;
+    $('#eNuevos').innerHTML='';pintarLista();$('#ePanel').hidden=false;
+  }catch(e){msg.textContent='❌ '+e.message;}
+  finally{$('#eAbrir').disabled=false;$('#eAbrir').textContent='ABRIR';}
+};
+function pintarLista(){
+  $('#eLista').innerHTML=ED.lista.map(x=>{const del=ED.eliminar.has(x.u),nueva=ED.claves.get(x.u);
+    return `<tr style="${del?'opacity:.45;text-decoration:line-through':''}"><td><b>${esc(x.u)}</b></td><td>${esc(x.nombre)}</td><td>${x.rol==='admin'?'Administrador':'Operario'}</td>
+    <td><div class="fila" style="gap:6px"><button class="btn chico" data-clave="${esc(x.u)}" ${del?'disabled':''}>${nueva?'✓ Nueva: '+esc(nueva):'Nueva contraseña'}</button>
+    <button class="btn chico peligro" data-del="${esc(x.u)}">${del?'Deshacer':'Eliminar'}</button></div></td></tr>`;}).join('');
+  $$('[data-clave]').forEach(b=>b.onclick=()=>{const c=prompt('Nueva contraseña para '+b.dataset.clave+' (mín. 8, letras y números):',generarClave());
+    if(c==null)return;const e=validarClave(c.trim());if(e){alert('Contraseña no válida: '+e);return;}ED.claves.set(b.dataset.clave,c.trim());pintarLista();});
+  $$('[data-del]').forEach(b=>b.onclick=()=>{const u=b.dataset.del;ED.eliminar.has(u)?ED.eliminar.delete(u):ED.eliminar.add(u);ED.claves.delete(u);pintarLista();});
+}
+$('#eAgregar').onclick=()=>filaUsuario($('#eNuevos'));
+$('#eProbar').onclick=()=>{const t=$('#eToken').value.trim();if(!t){$('#eTokenMsg').textContent='Escriba el nuevo token para probarlo.';return;}probarToken($('#eOwner').value.trim(),$('#eRepo').value.trim(),t,$('#eTokenMsg'));};
+$('#eGuardar').onclick=async()=>{
+  const msg=$('#eMsg');msg.textContent='';$('#eOk').hidden=true;const bt=$('#eGuardar');
+  try{
+    const a=JSON.parse(JSON.stringify(ED.acceso));
+    const nuevos=leerFilas($('#eNuevos'),ED.lista.filter(x=>!ED.eliminar.has(x.u)).map(x=>x.u));
+    const quedan=ED.lista.filter(x=>!ED.eliminar.has(x.u));
+    if(!quedan.concat(nuevos).some(x=>x.rol==='admin'))throw new Error('Debe quedar al menos un administrador.');
+    bt.disabled=true;bt.textContent='Cifrando…';
+    const usuarios=[];
+    for(const x of a.usuarios){if(ED.eliminar.has(x.u))continue;
+      const c=ED.claves.get(x.u);if(c){const m=ED.lista.find(y=>y.u===x.u);usuarios.push(await entradaUsuario(ED.dk,ED.dkRaw,x.u,m.nombre,m.rol,c));}else usuarios.push(x);}
+    for(const x of nuevos)usuarios.push(await entradaUsuario(ED.dk,ED.dkRaw,x.u,x.nombre,x.rol,x.clave));
+    a.usuarios=usuarios;a.repo={owner:$('#eOwner').value.trim(),repo:$('#eRepo').value.trim(),rama:$('#eRama').value.trim()||'main'};
+    const t=$('#eToken').value.trim();if(t){if(!/^(github_pat_|ghp_)/.test(t))throw new Error('El token debe empezar por github_pat_.');a.token=await cifrar(ED.dk,enc.encode(t));}
+    const files=Array.from($('#eCarto').files||[]);let carto=null;
+    if(files.length){carto=await cifrarCarto(ED.dk,files);a.carto={archivo:'carto.enc',version:versionAhora(),tam:carto.bytes.length,lotes:carto.lotes};}
+    a.modificado=new Date().toISOString();
+    descargar(JSON.stringify(a,null,1),'acceso.json','application/json');
+    if(carto){await new Promise(r=>setTimeout(r,600));descargar(new Blob([carto.bytes]),'carto.enc');}
+    const entregar=nuevos.concat(Array.from(ED.claves,([u,clave])=>{const m=ED.lista.find(y=>y.u===u);return {u,nombre:m.nombre,rol:m.rol,clave};}));
+    mostrarResultado($('#eOk'),carto?['acceso.json','carto.enc']:['acceso.json'],entregar);
+    ED.acceso=a;
+  }catch(e){msg.textContent='❌ '+e.message;}
+  finally{bt.disabled=false;bt.textContent='GENERAR ARCHIVOS ACTUALIZADOS';}
+};
+</script>
+</body>
+</html>

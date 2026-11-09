@@ -1,0 +1,36 @@
+{
+ "formato": "sanidad-acceso-1",
+ "id": "2f619845-85fc-44f7-8a9a-33ed70486bca",
+ "creado": "2026-11-09T14:48:03.027468Z",
+ "repo": {
+  "owner": "jjbuila",
+  "repo": "SanidadData",
+  "rama": "main"
+ },
+ "kdf": {
+  "alg": "PBKDF2-SHA256",
+  "iter": 600000
+ },
+ "token": {
+  "iv": "xvd7blL8QJoOzvrg",
+  "ct": "G6Dgif/FapzWElSzNWgUZQk7n9RL//PFEm5DwPJEKe8Bj/6+XX7YtYimwZQ/Aj8mpo80xE1oKv5esUN9ljI7nQ9n0kUj40ilsWPg/9QrIURJjumK6WOQHPq87xcdpvd0IRB3DY0NENMrFU5o5w=="
+ },
+ "carto": {
+  "archivo": "carto.enc",
+  "version": "20261109-0948",
+  "tam": 4335728,
+  "lotes": 291
+ },
+ "usuarios": [
+  {
+   "u": "jjbuila",
+   "salt": "HTyLwjmDP1ERxY66lx4LIg==",
+   "iv": "4pNjyKVAZPXd2uuo",
+   "ct": "DOYfFl6RfCCKgsW3gwydeKE3e2p3w9q9g8a2HlsOP5+HXyc1RXtIaBBIvCu5H3C4",
+   "meta": {
+    "iv": "A9gokKaCioe+tQUw",
+    "ct": "mYirjcL1qeE55HidOEVurTwL+sptES4Da/XxmEJAODjqSvRmejL1c6R1bO10SmSEBRREkTziiuU="
+   }
+  }
+ ]
+}
