@@ -1,4 +1,4 @@
-# Sanidad Vegetal 2.5 — Guía de instalación y uso
+# Sanidad Vegetal 2.6 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -86,6 +86,12 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 - **Qué cuenta (método por calle, predeterminado):** la aplicación identifica en qué **calle** está el operario, es decir, entre qué **par de líneas** camina, y cuenta como **visitadas** las palmas de **esas dos líneas** a la altura por donde pasa (media distancia entre palmas hacia adelante y hacia atrás). No hace falta que el operario las marque; el diagnóstico se registra solo para la sanidad.
 - **Cómo identifica la calle:** cada ~2 m del recorrido busca la línea más cercana (distancia perpendicular a la línea, no a la palma) y luego la línea vecina del mismo lote que queda del lado del operario. Si el operario va casi encima de una línea (menos de 1,5 m), conserva la calle anterior para evitar saltos por ruido del GPS. En el borde del lote, donde no hay línea vecina, cuenta solo la línea del borde. Si el operario está a más de 6 m de cualquier línea (vías, canales, zonas sin palma), no cuenta nada.
 - **Tolerancia:** soporta desviaciones laterales del GPS de hasta media calle (unos 3,9 m) sin contar líneas de calles vecinas ni perder la línea del frente. En pruebas con desvíos de 0, 2, 3 y 3,7 m hacia cualquier lado, contó siempre las dos líneas correctas; el buffer de 5 m perdía la línea opuesta desde 2 m de desvío.
+- **Tipos de lote:** la aplicación clasifica cada lote automáticamente al cargarlo, según su cartografía:
+  - **Lineal:** todas las palmas tienen línea → método por calle.
+  - **Terraza** (siembra por curvas de nivel): las palmas no tienen línea (línea 0) o un mismo número de línea agrupa varias filas → se cuentan las palmas a **5 m o menos del recorrido** (buffer), porque no hay un par de líneas que definan la calle.
+  - **Mixto:** las palmas con línea válida se cuentan por calle y las de terraza por buffer, en el mismo recorrido.
+  - Una línea se considera de terraza cuando, en promedio, cada palma tiene más de 2,6 palmas de la misma línea a 10,5 m o menos (una fila real tiene unas 2). Con la cartografía actual: **268 lotes lineales, 22 de terraza** (RI02–RI07, RI12–RI14, RI19–RI23, RI26–RI33) **y 1 mixto** (IS03, con 79 palmas sin línea). Los lotes con líneas curvas pero numeradas fila por fila (por ejemplo IT33) se tratan como lineales, porque la dirección de la línea se toma localmente de las dos palmas más cercanas.
+  - El resumen por lote indica «terraza» o «mixto», y los datos sincronizados lo guardan en `tipo_lote`.
 - **Método alternativo (buffer):** cuenta las palmas a 5 m o menos del recorrido. El administrador puede elegirlo en *Configuración*. Para evaluar, **cada jornada guarda también el resultado con buffer** en `comparativo_buffer` (palmas, ha y detalle por lote), y el resumen lo muestra al final de la tabla.
 - **Hectáreas recorridas** = palmas visitadas ÷ **115 palmas/ha**. Se calcula **por lote**, incluso para lotes que el operario cruce fuera de su selección.
 - **En el mapa:** las palmas visitadas sin diagnóstico se ven en **cian**.

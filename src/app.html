@@ -953,11 +953,24 @@ async function puntosTrack(jid){return (await dbIndice('track','j',jid)).sort((a
 let KX=0;const KY=111320,CV=10,SALTO_MAX=50;
 function prepK(){if(KX)return;let lat=1.7;const f=S.lotes&&S.lotes.features[0];if(f&&f._caja)lat=(f._caja[1]+f._caja[3])/2;KX=KY*Math.cos(lat*Math.PI/180);}
 const IDXV=new Map();
+/* Índice de visita por lote. Clasifica cada línea:
+   - válida (lote lineal o parte lineal de un lote mixto): una sola fila de palmas → método por calle;
+   - terraza: línea 0 / sin línea, o un número de línea que agrupa varias filas (siembra por curvas de nivel) → buffer.
+   Una fila real tiene en promedio ≤2 palmas de la misma línea a 10,5 m; una "línea" que agrupa terrazas tiene ≈3. */
 async function indiceVisita(l){
   if(IDXV.has(l))return IDXV.get(l);
-  const d=await leerChunk(l);const grid=new Map();
+  const d=await leerChunk(l);const grid=new Map();const todas=[];
   for(const a of d){const x=a[4]*KX,y=a[5]*KY;const k=Math.floor(x/CV)+','+Math.floor(y/CV);let g=grid.get(k);if(!g)grid.set(k,g=[]);
-    g.push({id:String(a[0]),x,y,e:a[3]!==0,ln:typeof a[1]==='number'?a[1]:(a[1]!=null&&a[1]!==''&&!isNaN(a[1])?Number(a[1]):null)});}
+    const n=typeof a[1]==='number'?a[1]:(a[1]!=null&&a[1]!==''&&!isNaN(a[1])?Number(a[1]):null);
+    const q={id:String(a[0]),x,y,e:a[3]!==0,ln:n};g.push(q);todas.push(q);}
+  const dens=new Map();
+  for(const q of todas){if(q.ln==null||q.ln===0)continue;let c=0;const i0=Math.floor(q.x/CV),j0=Math.floor(q.y/CV);
+    for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++){const g=grid.get(i+','+j);if(!g)continue;
+      for(const o of g)if(o!==q&&o.ln===q.ln){const dd=Math.hypot(o.x-q.x,o.y-q.y);if(dd<=10.5)c++;}}
+    let r=dens.get(q.ln);if(!r)dens.set(q.ln,r={n:0,c:0});r.n++;r.c+=c;}
+  let lin=0,ter=0;
+  for(const q of todas){const r=q.ln==null||q.ln===0?null:dens.get(q.ln);if(!r||(r.n>=20&&r.c/r.n>2.6)){q.ln=null;ter++;}else lin++;}
+  grid.tipo=ter===0?'lineal':lin===0?'terraza':'mixto';grid.palmasTerraza=ter;
   if(IDXV.size>60)IDXV.clear();IDXV.set(l,grid);return grid;
 }
 /* metodo: 'calle' (identifica la calle entre dos líneas y cuenta sus dos líneas a la altura del operario) o 'buffer' (distancia al recorrido). */
@@ -980,7 +993,8 @@ function marcarCalle(E,grids,sx,sy,nuevos){
         if(q.ln==null){sinLinea.push([l,q,d2]);continue;}
         const k=l+'|'+q.ln;let arr=porLinea.get(k);if(!arr)porLinea.set(k,arr=[]);arr.push({q,d2});}}
   }
-  if(!porLinea.size){for(const [l,q,d2] of sinLinea)if(d2<=E.buffer*E.buffer)marcarVisita(E,l,q,nuevos);return;}
+  for(const [l,q,d2] of sinLinea)if(d2<=E.buffer*E.buffer)marcarVisita(E,l,q,nuevos); // terrazas / sin línea: buffer
+  if(!porLinea.size)return;
   const lineas=[];
   for(const [k,arr] of porLinea){
     arr.sort((u,v)=>u.d2-v.d2);const q1=arr[0].q;let lat=Math.sqrt(arr[0].d2),ux=null,uy=null,paso=9;
@@ -1004,7 +1018,7 @@ function marcarCalle(E,grids,sx,sy,nuevos){
     if(L2&&L2.lat>12)L2=null;
   }
   const marcar=lin=>{const ux=lin.ux!=null?lin.ux:L1.ux,uy=lin.ux!=null?lin.uy:L1.uy;const medio=Math.min(6,Math.max(3,(lin.paso||9)/2));
-    for(const {q} of lin.arr){const along=ux!=null?Math.abs((q.x-sx)*ux+(q.y-sy)*uy):Math.hypot(q.x-sx,q.y-sy);if(along<=medio)marcarVisita(E,lin.lote,q,nuevos);}};
+    for(const {q} of lin.arr){const along=ux!=null?Math.abs((q.x-sx)*ux+(q.y-sy)*uy):Math.hypot(q.x-sx,q.y-sy);if(along<=medio&&Math.hypot(q.x-sx,q.y-sy)<=11)marcarVisita(E,lin.lote,q,nuevos);}};
   marcar(L1);if(L2)marcar(L2);E.calle=L2?{lote:L1.lote,a:L1.ln,b:L2.ln}:null;
 }
 async function visitarTramo(E,p){
@@ -1012,7 +1026,7 @@ async function visitarTramo(E,p){
   const a=E.ult&&dist(E.ult.lat,E.ult.lng,p.lat,p.lng)<=SALTO_MAX?E.ult:p;E.ult=p; // tramos con saltos grandes no barren área
   const ax=a.lng*KX,ay=a.lat*KY,bx=p.lng*KX,by=p.lat*KY,nuevos=[];
   if(E.metodo==='calle'){
-    const grids=[];for(const l of lotesCercanos(ax,ay,bx,by,14))if(CARTO.lotes[l])grids.push([l,await indiceVisita(l)]);
+    const grids=[];for(const l of lotesCercanos(ax,ay,bx,by,14))if(CARTO.lotes[l]){const g=await indiceVisita(l);grids.push([l,g]);(E.tipos||(E.tipos=new Map())).set(l,g.tipo);}
     if(!grids.length)return nuevos;
     const n=Math.max(1,Math.ceil(Math.hypot(bx-ax,by-ay)/2));
     for(let k=(a===p?n:0);k<=n;k++){const t=k/n;marcarCalle(E,grids,ax+(bx-ax)*t,ay+(by-ay)*t,nuevos);}
@@ -1020,7 +1034,7 @@ async function visitarTramo(E,p){
   }
   const B=E.buffer;
   for(const l of lotesCercanos(ax,ay,bx,by,B)){
-    if(!CARTO.lotes[l])continue;const grid=await indiceVisita(l);
+    if(!CARTO.lotes[l])continue;const grid=await indiceVisita(l);(E.tipos||(E.tipos=new Map())).set(l,grid.tipo);
     const i0=Math.floor((Math.min(ax,bx)-B)/CV),i1=Math.floor((Math.max(ax,bx)+B)/CV),j0=Math.floor((Math.min(ay,by)-B)/CV),j1=Math.floor((Math.max(ay,by)+B)/CV);
     for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const g=grid.get(i+','+j);if(!g)continue;
       for(const q of g)if(!E.set.has(q.id)&&dSeg(q.x,q.y,ax,ay,bx,by)<=B)marcarVisita(E,l,q,nuevos);}
@@ -1030,11 +1044,11 @@ async function visitarTramo(E,p){
 async function calcularVisita(pts,densidad,buffer,metodo){const E=nuevoEstadoVisita(densidad,buffer,metodo);for(const p of pts)await visitarTramo(E,p);return E;}
 function resumenVisita(E,regs,conIds){
   const filas=new Map();const fila=l=>{if(!filas.has(l))filas.set(l,{lote:l,palmas_visitadas:0,palmas_existentes:0,sitios_vacios:0,ha:0,diagnosticos:0});return filas.get(l);};
-  for(const [l,r] of E.lotes){const x=fila(l);x.palmas_visitadas=r.v;x.palmas_existentes=r.v-r.vac;x.sitios_vacios=r.vac;x.ha=+(r.v/E.densidad).toFixed(2);if(conIds)x.ids_palmas_visitadas=r.ids;}
+  for(const [l,r] of E.lotes){const x=fila(l);x.palmas_visitadas=r.v;x.palmas_existentes=r.v-r.vac;x.sitios_vacios=r.vac;x.ha=+(r.v/E.densidad).toFixed(2);if(E.tipos&&E.tipos.has(l))x.tipo_lote=E.tipos.get(l);if(conIds)x.ids_palmas_visitadas=r.ids;}
   for(const r of regs||[])fila(r.lote||'—').diagnosticos++;
   const por_lote=[...filas.values()].sort((a,b)=>ordenNat(a.lote,b.lote));
   const tv=por_lote.reduce((a,x)=>a+x.palmas_visitadas,0);
-  return {metodo:E.metodo==='calle'?'calle_entre_lineas':'buffer',densidad_palmas_ha:E.densidad,buffer_m:E.metodo==='calle'?null:E.buffer,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),
+  return {metodo:E.metodo==='calle'?'calle_entre_lineas':'buffer',densidad_palmas_ha:E.densidad,buffer_m:E.metodo==='calle'?null:E.buffer,buffer_terraza_m:E.metodo==='calle'?E.buffer:undefined,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),
     ha_recorridas:+(tv/E.densidad).toFixed(2),por_lote};
 }
 let VIS=null;
@@ -1047,10 +1061,11 @@ function tablaLotes(res,j){
   const sel=j&&j.seleccion?new Map(j.seleccion.map(s=>[s.lote,s])):new Map();
   const filas=res.por_lote.map(x=>`<tr><td><b>${esc(x.lote)}</b>${sel.has(x.lote)?'':' <span class="tenue">(fuera de selección)</span>'}</td><td>${num(x.palmas_visitadas)}</td><td><b>${x.ha.toFixed(2)}</b></td><td>${num(x.diagnosticos)}</td></tr>`).join('');
   const cp=res.por_lote.some(x=>x.paradas!=null);
-  const filas2=res.por_lote.map(x=>`<tr><td><b>${esc(x.lote)}</b>${sel.has(x.lote)?'':' <span class="tenue">(fuera de selección)</span>'}</td><td>${num(x.palmas_visitadas)}</td><td><b>${x.ha.toFixed(2)}</b></td><td>${num(x.diagnosticos)}</td>${cp?`<td>${x.paradas||0}${x.minutos_paradas?` (${x.minutos_paradas}′)`:''}</td>`:''}</tr>`).join('');
+  const tl={terraza:' <span class="tenue">· terraza</span>',mixto:' <span class="tenue">· mixto</span>'};
+  const filas2=res.por_lote.map(x=>`<tr><td><b>${esc(x.lote)}</b>${tl[x.tipo_lote]||''}${sel.has(x.lote)?'':' <span class="tenue">(fuera de selección)</span>'}</td><td>${num(x.palmas_visitadas)}</td><td><b>${x.ha.toFixed(2)}</b></td><td>${num(x.diagnosticos)}</td>${cp?`<td>${x.paradas||0}${x.minutos_paradas?` (${x.minutos_paradas}′)`:''}</td>`:''}</tr>`).join('');
   return `<table class="res"><thead><tr><th>Lote</th><th>Palmas visitadas</th><th>Ha</th><th>Diag.</th>${cp?'<th>Paradas</th>':''}</tr></thead><tbody>${filas2||'<tr><td colspan="5" class="tenue">Aún sin recorrido.</td></tr>'}
     ${res.por_lote.length>1?`<tr><td><b>TOTAL</b></td><td><b>${num(res.palmas_visitadas)}</b></td><td><b>${res.ha_recorridas.toFixed(2)}</b></td><td><b>${num(res.por_lote.reduce((a,x)=>a+x.diagnosticos,0))}</b></td>${cp?`<td><b>${res.por_lote.reduce((a,x)=>a+(x.paradas||0),0)}</b></td>`:''}</tr>`:''}</tbody></table>
-    <p class="tenue">${res.metodo==='buffer'?`Palmas visitadas = sitios a ${res.buffer_m} m o menos del recorrido.`:'Palmas visitadas = las dos líneas de la calle por donde pasa el operario, a la altura del recorrido (método por calle).'} Ha = palmas visitadas ÷ ${res.densidad_palmas_ha} palmas/ha.${res.comparativo_buffer?` Comparativo con buffer de ${res.comparativo_buffer.buffer_m} m: ${num(res.comparativo_buffer.palmas_visitadas)} palmas · ${res.comparativo_buffer.ha_recorridas.toFixed(2)} ha.`:''}</p>`;
+    <p class="tenue">${res.metodo==='buffer'?`Palmas visitadas = sitios a ${res.buffer_m} m o menos del recorrido.`:`Palmas visitadas = en lotes lineales, las dos líneas de la calle por donde pasa el operario, a la altura del recorrido; en terrazas (sin línea o por curvas de nivel), las palmas a ${res.buffer_terraza_m||5} m o menos del recorrido.`} Ha = palmas visitadas ÷ ${res.densidad_palmas_ha} palmas/ha.${res.comparativo_buffer?` Comparativo con buffer de ${res.comparativo_buffer.buffer_m} m: ${num(res.comparativo_buffer.palmas_visitadas)} palmas · ${res.comparativo_buffer.ha_recorridas.toFixed(2)} ha.`:''}</p>`;
 }
 
 /* ---------- Paradas (tiempos de espera) ----------
@@ -1818,7 +1833,7 @@ async function abrirConfig(){
     <p class="tenue">Cada jornada se envía completa una sola vez, después de finalizarla.</p>
     <h3>Cálculo de hectáreas recorridas</h3>
     <div class="fila"><div><label class="campo">Densidad (palmas/ha)</label><input type="number" id="cDens" min="50" max="250" value="${esc(S.cfg.densidad)}"></div>
-      <div><label class="campo">Buffer (método buffer y comparativo) (m)</label><input type="number" id="cBuf" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferVisita)}"></div></div>
+      <div><label class="campo">Buffer: terrazas, método buffer y comparativo (m)</label><input type="number" id="cBuf" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferVisita)}"></div></div>
     <label class="campo">Método de cálculo de palmas visitadas</label>
     <select id="cMet"><option value="calle" ${S.cfg.metodoVisita!=='buffer'?'selected':''}>Por calle (dos líneas a la altura del operario) — recomendado</option><option value="buffer" ${S.cfg.metodoVisita==='buffer'?'selected':''}>Buffer alrededor del recorrido</option></select>
     <label class="campo">Radio para elegir la palma a diagnosticar (m)</label><input type="number" id="cRad" min="10" max="200" value="${esc(S.cfg.radioSel)}">
