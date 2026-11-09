@@ -76,15 +76,15 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
    - Solo se cargan las palmas elegidas. En amarillo aparecen las pendientes por censar.
 
 ### Censar
-- **CERCANA**: abre la palma más próxima a su posición.
-- **🔊 Guía por voz** (botón flotante): anuncia «Lote I T 43, línea 3, palma 14» al acercarse a menos de 4 m. Si la palma ya fue censada, también lo dice.
+- **CERCANA**: muestra un **círculo de 50 m** en el mapa y la **lista de palmas de la jornada dentro de ese radio**, ordenadas por distancia, con filtro por línea y opción «solo pendientes». Toque la palma que va a diagnosticar. El radio lo ajusta el administrador.
+- **🔊 Guía por voz** (botón flotante): anuncia «Lote I T 43, línea 3, palma 14» al llegar a 2 m o menos de la palma. Si la palma ya fue censada, también lo dice.
 - **REGISTRAR DIAGNÓSTICO**: estado, problemas, grado de PC, severidad, síntomas, acción, observaciones y fotos. En cada jornada hay un diagnóstico por palma, que puede corregirse mientras no se haya sincronizado.
 - La aplicación **no permite crear palmas ni lotes**: solo se trabaja sobre la cartografía oficial.
 - Desde el botón **JORNADA** puede ver el avance por lote, **agregar lotes**, ver el recorrido hasta el momento o **FINALIZAR JORNADA**.
 
 ### Palmas visitadas y hectáreas recorridas (automático)
-- **Qué cuenta:** cada palma (sitio de siembra) a **10 m o menos del recorrido** se cuenta como **visitada**, sin que el operario la marque. El diagnóstico se registra solo para la sanidad.
-- **Por qué 10 m:** los operarios caminan por la calle, entre dos líneas. Con siembra en triángulo de 9 m, las dos líneas de la calle quedan a unos 3,9 m del operario y las siguientes a unos 11,7 m. Así el buffer de 10 m capta **exactamente las dos líneas de la calle**.
+- **Qué cuenta:** cada palma (sitio de siembra) a **5 m o menos del recorrido** se cuenta como **visitada**, sin que el operario la marque. El diagnóstico se registra solo para la sanidad.
+- **Por qué 5 m:** los operarios caminan por la calle, entre dos líneas. Con siembra en triángulo de 9 m, las dos líneas de la calle quedan a unos 3,9 m del operario y las siguientes a unos 11,7 m. El buffer de 5 m capta las dos líneas de la calle y excluye las de las calles vecinas. Es sensible al error lateral del GPS: si la señal se desvía más de 1 m hacia un lado, puede dejar de contar la línea del lado opuesto.
 - **Hectáreas recorridas** = palmas visitadas ÷ **115 palmas/ha**. Se calcula **por lote**, incluso para lotes que el operario cruce fuera de su selección.
 - **En el mapa:** las palmas visitadas sin diagnóstico se ven en **cian**.
 - **En el panel superior:** hora de **inicio**, palmas **visitadas** y **ha** en vivo.
