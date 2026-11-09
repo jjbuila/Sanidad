@@ -1,4 +1,4 @@
-# Sanidad Vegetal 2.4 — Guía de instalación y uso
+# Sanidad Vegetal 2.5 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -83,13 +83,15 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 - Desde el botón **JORNADA** puede ver el avance por lote, **agregar lotes**, ver el recorrido hasta el momento o **FINALIZAR JORNADA**.
 
 ### Palmas visitadas y hectáreas recorridas (automático)
-- **Qué cuenta:** cada palma (sitio de siembra) a **5 m o menos del recorrido** se cuenta como **visitada**, sin que el operario la marque. El diagnóstico se registra solo para la sanidad.
-- **Por qué 5 m:** los operarios caminan por la calle, entre dos líneas. Con siembra en triángulo de 9 m, las dos líneas de la calle quedan a unos 3,9 m del operario y las siguientes a unos 11,7 m. El buffer de 5 m capta las dos líneas de la calle y excluye las de las calles vecinas. Es sensible al error lateral del GPS: si la señal se desvía más de 1 m hacia un lado, puede dejar de contar la línea del lado opuesto.
+- **Qué cuenta (método por calle, predeterminado):** la aplicación identifica en qué **calle** está el operario, es decir, entre qué **par de líneas** camina, y cuenta como **visitadas** las palmas de **esas dos líneas** a la altura por donde pasa (media distancia entre palmas hacia adelante y hacia atrás). No hace falta que el operario las marque; el diagnóstico se registra solo para la sanidad.
+- **Cómo identifica la calle:** cada ~2 m del recorrido busca la línea más cercana (distancia perpendicular a la línea, no a la palma) y luego la línea vecina del mismo lote que queda del lado del operario. Si el operario va casi encima de una línea (menos de 1,5 m), conserva la calle anterior para evitar saltos por ruido del GPS. En el borde del lote, donde no hay línea vecina, cuenta solo la línea del borde. Si el operario está a más de 6 m de cualquier línea (vías, canales, zonas sin palma), no cuenta nada.
+- **Tolerancia:** soporta desviaciones laterales del GPS de hasta media calle (unos 3,9 m) sin contar líneas de calles vecinas ni perder la línea del frente. En pruebas con desvíos de 0, 2, 3 y 3,7 m hacia cualquier lado, contó siempre las dos líneas correctas; el buffer de 5 m perdía la línea opuesta desde 2 m de desvío.
+- **Método alternativo (buffer):** cuenta las palmas a 5 m o menos del recorrido. El administrador puede elegirlo en *Configuración*. Para evaluar, **cada jornada guarda también el resultado con buffer** en `comparativo_buffer` (palmas, ha y detalle por lote), y el resumen lo muestra al final de la tabla.
 - **Hectáreas recorridas** = palmas visitadas ÷ **115 palmas/ha**. Se calcula **por lote**, incluso para lotes que el operario cruce fuera de su selección.
 - **En el mapa:** las palmas visitadas sin diagnóstico se ven en **cian**.
 - **En el panel superior:** hora de **inicio**, palmas **visitadas** y **ha** en vivo.
 - **En los resúmenes:** la jornada y su resumen final muestran **hora de inicio y fin**, duración, km, ha y la tabla **por lote** (palmas visitadas, ha y diagnósticos).
-- **Ajustes:** la densidad y el buffer los define el administrador en *Configuración* y se aplican a las jornadas nuevas.
+- **Ajustes:** el método, la densidad y el buffer los define el administrador en *Configuración* y se aplican a las jornadas nuevas.
 - **Saltos del GPS:** los tramos con saltos de más de 50 m no se cuentan como área recorrida.
 
 ### Paradas (tiempos de espera)
@@ -130,7 +132,7 @@ SanidadData/
 ```
 
 **Contenido del `.geojson`:**
-- Encabezado `"jornada"`: evaluador, usuario, dispositivo, **fecha, hora_inicio, hora_fin, duracion_min**, km, **ha_recorridas, palmas_visitadas, densidad_palmas_ha, buffer_m, n_paradas, minutos_paradas, minutos_movimiento**, número de diagnósticos y de fotos, nombre del ZIP de fotos y versión de la aplicación. Incluye también **`por_lote`**, con lote, palmas_visitadas, palmas_existentes, sitios_vacios, ha, diagnosticos e ids_palmas_visitadas.
+- Encabezado `"jornada"`: evaluador, usuario, dispositivo, **fecha, hora_inicio, hora_fin, duracion_min**, km, **ha_recorridas, palmas_visitadas, densidad_palmas_ha, metodo (calle_entre_lineas o buffer), comparativo_buffer, n_paradas, minutos_paradas, minutos_movimiento**, número de diagnósticos y de fotos, nombre del ZIP de fotos y versión de la aplicación. Incluye también **`por_lote`**, con lote, palmas_visitadas, palmas_existentes, sitios_vacios, ha, diagnosticos e ids_palmas_visitadas.
 - **Puntos** con `tipo = diagnostico`. Cada uno lleva `palma_id`, `lote`, `linea`, `palma`, `estado`, `problemas`, `p_PC`… (1/0), `grado_pc`, `severidad`, `sintomas`, `accion`, `observaciones`, `fotos` (nombres dentro del ZIP), `gps_precision_m`, `dist_gps_palma_m`, `creado` y `sincronizado`.
 - **Línea** con `tipo = recorrido`: el track, con la hora y la precisión de cada vértice.
 - **Puntos** con `tipo = parada`: n, hora_inicio, hora_fin, duracion_min, lote, clase (con diagnóstico / sin actividad / sin señal GPS) y diagnosticos.

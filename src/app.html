@@ -492,7 +492,7 @@ const S={
   lotes:null,palmas:null,idx:new Map(),registros:[],ultimo:new Map(),hechos:new Map(),marcadores:new Map(),
   gps:null,seguir:false,jornada:null,plan:[],planAbierto:false,planModo:'nueva',
   cfg:{evaluador:'',dispositivo:'',base:'esri',urlPropia:'teselas/{z}/{x}/{y}.png',zmaxPropia:20,
-    umbralVoz:2,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:5,radioSel:50,paramVer:2,paradaRadio:20,paradaMin:5,soloWifi:true,esperaSync:2,jornadaActiva:null,
+    umbralVoz:2,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:5,radioSel:50,metodoVisita:'calle',paramVer:3,paradaRadio:20,paradaMin:5,soloWifi:true,esperaSync:2,jornadaActiva:null,
     gh:{owner:'jjbuila',repo:'Sanidad-datos',rama:'main',token:''}}
 };
 let CARTO={version:'',lotes:{}};
@@ -833,9 +833,9 @@ async function confirmarPlan(){
 function idJornada(){const d=new Date();return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}-${uid().slice(0,6)}`;}
 async function iniciarJornada(sel,evaluador){
   const j={id:idJornada(),inicio:new Date().toISOString(),fin:null,evaluador,usuario:SES?SES.u:'',dispositivo:S.cfg.dispositivo,seleccion:sel,estado:'activa',
-    km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||5,paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
+    km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||5,metodoVisita:S.cfg.metodoVisita||'calle',paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=evaluador;await guardarCfg();
-  TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer);PAR.lista=[];capaParadas.clearLayers();
+  TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita);PAR.lista=[];capaParadas.clearLayers();
   await cargarPalmasJornada();iniciarGPS();pantallaEncendida(true);actualizarJornadaUI();dibujarLotes();encuadrar(sel.map(s=>s.lote));
   if(VOZ.activa)hablar('Jornada iniciada.');
   toast(`▶ Jornada iniciada: ${sel.length} lote(s). Se está guardando el recorrido.`,4000);
@@ -867,7 +867,7 @@ function panelJornada(){
   const j=S.jornada;if(!j)return;
   const filas=j.seleccion.map(it=>{const c=censoLote(it.lote);const p=c.tot?c.hec/c.tot*100:0;
     return `<div class="prog-lote"><b>${esc(it.lote)}</b><div class="barra" style="margin:0"><i style="width:${p}%"></i></div><span class="tenue">${num(c.hec)}/${num(c.tot)} · L${it.desde??'?'}–${it.hasta??'?'}</span></div>`;}).join('');
-  const regs=S.registros.filter(r=>r.jornada_id===j.id);actualizarParadas();const res=paradasEnLotes(resumenVisita(VIS||nuevoEstadoVisita(j.densidad,j.buffer),regs),PAR.lista);
+  const regs=S.registros.filter(r=>r.jornada_id===j.id);actualizarParadas();const res=paradasEnLotes(resumenVisita(VIS||nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita),regs),PAR.lista);
   abrirHoja('Jornada en curso',`
     <div class="stats">
       <div class="stat"><b>${hhmm(j.inicio)}</b><span>Hora de inicio</span></div>
@@ -894,8 +894,10 @@ async function finalizarJornada(){
   if(!confirm(`¿Finalizar la jornada?\n\nCensadas: ${c.hec} de ${c.tot} palmas.\nSe detendrá el registro del recorrido.`))return;
   j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
-  const E=await calcularVisita(pts,j.densidad,j.buffer);const par=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);
+  const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer');const par=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);
   j.paradas=par;j.resumen_paradas=resumenParadas(par,j);j.visita=paradasEnLotes(resumenVisita(E,regs,true),par);
+  if(E.metodo==='calle'){const Eb=await calcularVisita(pts,j.densidad,j.buffer,'buffer');const rb=resumenVisita(Eb,regs);
+    j.visita.comparativo_buffer={buffer_m:Eb.buffer,palmas_visitadas:rb.palmas_visitadas,ha_recorridas:rb.ha_recorridas,por_lote:rb.por_lote.map(x=>({lote:x.lote,palmas_visitadas:x.palmas_visitadas,ha:x.ha}))};}
   await dbPut('jornadas',j);
   S.jornada=null;S.cfg.jornadaActiva=null;await guardarCfg();VIS=null;
   S.palmas=null;S.hechos.clear();indexar();dibujarPalmas();capaTrack.clearLayers();TRACK.linea=null;TRACK.pts=[];PAR.lista=[];capaParadas.clearLayers();
@@ -954,10 +956,12 @@ const IDXV=new Map();
 async function indiceVisita(l){
   if(IDXV.has(l))return IDXV.get(l);
   const d=await leerChunk(l);const grid=new Map();
-  for(const a of d){const x=a[4]*KX,y=a[5]*KY;const k=Math.floor(x/CV)+','+Math.floor(y/CV);let g=grid.get(k);if(!g)grid.set(k,g=[]);g.push({id:String(a[0]),x,y,e:a[3]!==0});}
+  for(const a of d){const x=a[4]*KX,y=a[5]*KY;const k=Math.floor(x/CV)+','+Math.floor(y/CV);let g=grid.get(k);if(!g)grid.set(k,g=[]);
+    g.push({id:String(a[0]),x,y,e:a[3]!==0,ln:typeof a[1]==='number'?a[1]:(a[1]!=null&&a[1]!==''&&!isNaN(a[1])?Number(a[1]):null)});}
   if(IDXV.size>60)IDXV.clear();IDXV.set(l,grid);return grid;
 }
-function nuevoEstadoVisita(densidad,buffer){return {set:new Set(),lotes:new Map(),densidad:Number(densidad)||115,buffer:Number(buffer)||5,ult:null};}
+/* metodo: 'calle' (identifica la calle entre dos líneas y cuenta sus dos líneas a la altura del operario) o 'buffer' (distancia al recorrido). */
+function nuevoEstadoVisita(densidad,buffer,metodo){return {set:new Set(),lotes:new Map(),densidad:Number(densidad)||115,buffer:Number(buffer)||5,metodo:metodo||'calle',maxLat:6,ult:null};}
 function lotesCercanos(ax,ay,bx,by,B){
   const out=[];if(!S.lotes)return out;const mx=B/KX,my=B/KY;
   const w=Math.min(ax,bx)/KX-mx,e=Math.max(ax,bx)/KX+mx,s=Math.min(ay,by)/KY-my,n=Math.max(ay,by)/KY+my;
@@ -965,27 +969,72 @@ function lotesCercanos(ax,ay,bx,by,B){
   return out;
 }
 function dSeg(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy;let t=L?((px-ax)*dx+(py-ay)*dy)/L:0;t=t<0?0:t>1?1:t;const qx=ax+t*dx-px,qy=ay+t*dy-py;return Math.sqrt(qx*qx+qy*qy);}
+function marcarVisita(E,l,q,nuevos){if(E.set.has(q.id))return;E.set.add(q.id);let r=E.lotes.get(l);if(!r)E.lotes.set(l,r={v:0,vac:0,ids:[]});r.v++;if(!q.e)r.vac++;r.ids.push(Number(q.id)||q.id);nuevos.push(q.id);}
+/* Método por calle, evaluado en un punto (sx,sy) en metros. */
+function marcarCalle(E,grids,sx,sy,nuevos){
+  const R=14,R2=R*R;const porLinea=new Map();const sinLinea=[];
+  for(const [l,grid] of grids){
+    const i0=Math.floor((sx-R)/CV),i1=Math.floor((sx+R)/CV),j0=Math.floor((sy-R)/CV),j1=Math.floor((sy+R)/CV);
+    for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const g=grid.get(i+','+j);if(!g)continue;
+      for(const q of g){const dx=q.x-sx,dy=q.y-sy,d2=dx*dx+dy*dy;if(d2>R2)continue;
+        if(q.ln==null){sinLinea.push([l,q,d2]);continue;}
+        const k=l+'|'+q.ln;let arr=porLinea.get(k);if(!arr)porLinea.set(k,arr=[]);arr.push({q,d2});}}
+  }
+  if(!porLinea.size){for(const [l,q,d2] of sinLinea)if(d2<=E.buffer*E.buffer)marcarVisita(E,l,q,nuevos);return;}
+  const lineas=[];
+  for(const [k,arr] of porLinea){
+    arr.sort((u,v)=>u.d2-v.d2);const q1=arr[0].q;let lat=Math.sqrt(arr[0].d2),ux=null,uy=null,paso=9;
+    if(arr.length>1){const q2=arr[1].q;const vx=q2.x-q1.x,vy=q2.y-q1.y,Lq=Math.hypot(vx,vy);
+      if(Lq>1){ux=vx/Lq;uy=vy/Lq;lat=Math.abs((sx-q1.x)*uy-(sy-q1.y)*ux);paso=Lq;}}
+    const i=k.lastIndexOf('|');lineas.push({lote:k.slice(0,i),ln:Number(k.slice(i+1)),lat,ux,uy,paso,arr});
+  }
+  lineas.sort((u,v)=>u.lat-v.lat);
+  const L1=lineas[0];if(L1.lat>E.maxLat)return; // fuera de las calles del cultivo
+  let L2=null;const vec=lineas.filter(x=>x.lote===L1.lote&&Math.abs(x.ln-L1.ln)===1);
+  const prev=E.calle;let otra=null;
+  if(prev&&prev.lote===L1.lote&&L1.lat<1.5&&(prev.a===L1.ln||prev.b===L1.ln))otra=vec.find(x=>x.ln===(prev.a===L1.ln?prev.b:prev.a))||null;
+  if(otra)L2=otra; // casi sobre una línea: se mantiene la calle anterior (evita saltos por ruido del GPS)
+  else if(vec.length===2){L2=vec[0].lat<=vec[1].lat?vec[0]:vec[1];} // entre dos vecinas: la calle es la de la vecina más cercana
+  else if(vec.length){
+    if(L1.ux!=null){ // la línea vecina debe estar del mismo lado que el operario
+      const q1=L1.arr[0].q,lado=v=>Math.sign(L1.ux*(v[1]-q1.y)-L1.uy*(v[0]-q1.x));
+      const ls=lado([sx,sy]);L2=vec.find(x=>lado([x.arr[0].q.x,x.arr[0].q.y])===ls)||null;
+      if(ls===0)L2=vec.sort((u,v)=>u.lat-v.lat)[0];
+    }else L2=vec.sort((u,v)=>u.lat-v.lat)[0];
+    if(L2&&L2.lat>12)L2=null;
+  }
+  const marcar=lin=>{const ux=lin.ux!=null?lin.ux:L1.ux,uy=lin.ux!=null?lin.uy:L1.uy;const medio=Math.min(6,Math.max(3,(lin.paso||9)/2));
+    for(const {q} of lin.arr){const along=ux!=null?Math.abs((q.x-sx)*ux+(q.y-sy)*uy):Math.hypot(q.x-sx,q.y-sy);if(along<=medio)marcarVisita(E,lin.lote,q,nuevos);}};
+  marcar(L1);if(L2)marcar(L2);E.calle=L2?{lote:L1.lote,a:L1.ln,b:L2.ln}:null;
+}
 async function visitarTramo(E,p){
   prepK();
   const a=E.ult&&dist(E.ult.lat,E.ult.lng,p.lat,p.lng)<=SALTO_MAX?E.ult:p;E.ult=p; // tramos con saltos grandes no barren área
-  const ax=a.lng*KX,ay=a.lat*KY,bx=p.lng*KX,by=p.lat*KY,B=E.buffer;const nuevos=[];
+  const ax=a.lng*KX,ay=a.lat*KY,bx=p.lng*KX,by=p.lat*KY,nuevos=[];
+  if(E.metodo==='calle'){
+    const grids=[];for(const l of lotesCercanos(ax,ay,bx,by,14))if(CARTO.lotes[l])grids.push([l,await indiceVisita(l)]);
+    if(!grids.length)return nuevos;
+    const n=Math.max(1,Math.ceil(Math.hypot(bx-ax,by-ay)/2));
+    for(let k=(a===p?n:0);k<=n;k++){const t=k/n;marcarCalle(E,grids,ax+(bx-ax)*t,ay+(by-ay)*t,nuevos);}
+    return nuevos;
+  }
+  const B=E.buffer;
   for(const l of lotesCercanos(ax,ay,bx,by,B)){
     if(!CARTO.lotes[l])continue;const grid=await indiceVisita(l);
     const i0=Math.floor((Math.min(ax,bx)-B)/CV),i1=Math.floor((Math.max(ax,bx)+B)/CV),j0=Math.floor((Math.min(ay,by)-B)/CV),j1=Math.floor((Math.max(ay,by)+B)/CV);
     for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const g=grid.get(i+','+j);if(!g)continue;
-      for(const q of g){if(E.set.has(q.id))continue;
-        if(dSeg(q.x,q.y,ax,ay,bx,by)<=B){E.set.add(q.id);let r=E.lotes.get(l);if(!r)E.lotes.set(l,r={v:0,vac:0,ids:[]});r.v++;if(!q.e)r.vac++;r.ids.push(Number(q.id)||q.id);nuevos.push(q.id);}}}
+      for(const q of g)if(!E.set.has(q.id)&&dSeg(q.x,q.y,ax,ay,bx,by)<=B)marcarVisita(E,l,q,nuevos);}
   }
   return nuevos;
 }
-async function calcularVisita(pts,densidad,buffer){const E=nuevoEstadoVisita(densidad,buffer);for(const p of pts)await visitarTramo(E,p);return E;}
+async function calcularVisita(pts,densidad,buffer,metodo){const E=nuevoEstadoVisita(densidad,buffer,metodo);for(const p of pts)await visitarTramo(E,p);return E;}
 function resumenVisita(E,regs,conIds){
   const filas=new Map();const fila=l=>{if(!filas.has(l))filas.set(l,{lote:l,palmas_visitadas:0,palmas_existentes:0,sitios_vacios:0,ha:0,diagnosticos:0});return filas.get(l);};
   for(const [l,r] of E.lotes){const x=fila(l);x.palmas_visitadas=r.v;x.palmas_existentes=r.v-r.vac;x.sitios_vacios=r.vac;x.ha=+(r.v/E.densidad).toFixed(2);if(conIds)x.ids_palmas_visitadas=r.ids;}
   for(const r of regs||[])fila(r.lote||'—').diagnosticos++;
   const por_lote=[...filas.values()].sort((a,b)=>ordenNat(a.lote,b.lote));
   const tv=por_lote.reduce((a,x)=>a+x.palmas_visitadas,0);
-  return {densidad_palmas_ha:E.densidad,buffer_m:E.buffer,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),
+  return {metodo:E.metodo==='calle'?'calle_entre_lineas':'buffer',densidad_palmas_ha:E.densidad,buffer_m:E.metodo==='calle'?null:E.buffer,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),
     ha_recorridas:+(tv/E.densidad).toFixed(2),por_lote};
 }
 let VIS=null;
@@ -1001,7 +1050,7 @@ function tablaLotes(res,j){
   const filas2=res.por_lote.map(x=>`<tr><td><b>${esc(x.lote)}</b>${sel.has(x.lote)?'':' <span class="tenue">(fuera de selección)</span>'}</td><td>${num(x.palmas_visitadas)}</td><td><b>${x.ha.toFixed(2)}</b></td><td>${num(x.diagnosticos)}</td>${cp?`<td>${x.paradas||0}${x.minutos_paradas?` (${x.minutos_paradas}′)`:''}</td>`:''}</tr>`).join('');
   return `<table class="res"><thead><tr><th>Lote</th><th>Palmas visitadas</th><th>Ha</th><th>Diag.</th>${cp?'<th>Paradas</th>':''}</tr></thead><tbody>${filas2||'<tr><td colspan="5" class="tenue">Aún sin recorrido.</td></tr>'}
     ${res.por_lote.length>1?`<tr><td><b>TOTAL</b></td><td><b>${num(res.palmas_visitadas)}</b></td><td><b>${res.ha_recorridas.toFixed(2)}</b></td><td><b>${num(res.por_lote.reduce((a,x)=>a+x.diagnosticos,0))}</b></td>${cp?`<td><b>${res.por_lote.reduce((a,x)=>a+(x.paradas||0),0)}</b></td>`:''}</tr>`:''}</tbody></table>
-    <p class="tenue">Palmas visitadas = sitios a ${res.buffer_m} m o menos del recorrido (dos líneas por calle). Ha = palmas visitadas ÷ ${res.densidad_palmas_ha} palmas/ha.</p>`;
+    <p class="tenue">${res.metodo==='buffer'?`Palmas visitadas = sitios a ${res.buffer_m} m o menos del recorrido.`:'Palmas visitadas = las dos líneas de la calle por donde pasa el operario, a la altura del recorrido (método por calle).'} Ha = palmas visitadas ÷ ${res.densidad_palmas_ha} palmas/ha.${res.comparativo_buffer?` Comparativo con buffer de ${res.comparativo_buffer.buffer_m} m: ${num(res.comparativo_buffer.palmas_visitadas)} palmas · ${res.comparativo_buffer.ha_recorridas.toFixed(2)} ha.`:''}</p>`;
 }
 
 /* ---------- Paradas (tiempos de espera) ----------
@@ -1566,7 +1615,7 @@ async function sincronizar(manual){
     for(const j of lista){
       const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
       if(!j.paradas){j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);}
-      if(!j.visita){const E=await calcularVisita(pts,j.densidad,j.buffer);j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);}
+      if(!j.visita){const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer');j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);}
       const ahora=new Date().toISOString();const base=`jornadas/${fechaLocal(j.inicio)}/${j.id}`;
       const archivos=[];let nombreZip=null;
       const ids=regs.flatMap(r=>r.fotos||[]);
@@ -1769,7 +1818,9 @@ async function abrirConfig(){
     <p class="tenue">Cada jornada se envía completa una sola vez, después de finalizarla.</p>
     <h3>Cálculo de hectáreas recorridas</h3>
     <div class="fila"><div><label class="campo">Densidad (palmas/ha)</label><input type="number" id="cDens" min="50" max="250" value="${esc(S.cfg.densidad)}"></div>
-      <div><label class="campo">Buffer del recorrido (m)</label><input type="number" id="cBuf" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferVisita)}"></div></div>
+      <div><label class="campo">Buffer (método buffer y comparativo) (m)</label><input type="number" id="cBuf" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferVisita)}"></div></div>
+    <label class="campo">Método de cálculo de palmas visitadas</label>
+    <select id="cMet"><option value="calle" ${S.cfg.metodoVisita!=='buffer'?'selected':''}>Por calle (dos líneas a la altura del operario) — recomendado</option><option value="buffer" ${S.cfg.metodoVisita==='buffer'?'selected':''}>Buffer alrededor del recorrido</option></select>
     <label class="campo">Radio para elegir la palma a diagnosticar (m)</label><input type="number" id="cRad" min="10" max="200" value="${esc(S.cfg.radioSel)}">
     <h3>Paradas</h3>
     <div class="fila"><div><label class="campo">Radio de parada (m)</label><input type="number" id="cPRad" min="5" max="100" value="${esc(S.cfg.paradaRadio)}"></div>
@@ -1796,7 +1847,7 @@ async function abrirConfig(){
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#cSalir',cerrarSesion);
   $('#cOk').onclick=async()=>{
-    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||5;S.cfg.radioSel=Number($('#cRad').value)||50;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
+    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||5;S.cfg.metodoVisita=$('#cMet').value;S.cfg.radioSel=Number($('#cRad').value)||50;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
     S.cfg.base=$('#cBase').value;S.cfg.urlPropia=$('#cUrl').value.trim();S.cfg.zmaxPropia=Number($('#cZmax').value)||20;
     S.cfg.umbralVoz=Number($('#cUmbral').value)||2;S.cfg.precisionVoz=Number($('#cPrec').value)||15;S.cfg.velocidadVoz=Number($('#cVel').value)||1;S.cfg.precisionTrack=Number($('#cPTrack').value)||30;
     await guardarCfg();ponerBase();estadoSync();cerrarHoja();toast('Configuración guardada.');programarSync(1500);};
@@ -1909,7 +1960,8 @@ async function asegurarCartografia(){
   if(!window.crypto||!crypto.subtle){$('#splashMsg').textContent='Abra la aplicación desde su dirección https para poder ingresar.';return;}
   try{await abrirDB();}catch(e){alert('No fue posible abrir el almacenamiento local: '+e.message);return;}
   const c=await dbGet('config','cfg');if(c){const pv=S.cfg.paramVer;S.cfg={...S.cfg,...c.v,gh:{...S.cfg.gh,...(c.v.gh||{}),token:''}};
-    if((c.v.paramVer||1)<2){S.cfg.bufferVisita=5;S.cfg.umbralVoz=2;S.cfg.radioSel=50;S.cfg.paramVer=pv;}}
+    if((c.v.paramVer||1)<2){S.cfg.bufferVisita=5;S.cfg.umbralVoz=2;S.cfg.radioSel=50;}
+    if((c.v.paramVer||1)<3){S.cfg.metodoVisita='calle';S.cfg.paramVer=pv;}}
   if(!S.cfg.dispositivo)S.cfg.dispositivo='DISP-'+uid().slice(0,8).toUpperCase();
   await guardarCfg();
   avance('Verificando acceso…');await cargarAcceso();
@@ -1934,7 +1986,7 @@ async function despuesDeIngresar(){
           j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';await dbPut('jornadas',j);S.cfg.jornadaActiva=null;await guardarCfg();}
         else{ocultarSplash();await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};await mostrarLogin('Ingrese con el usuario '+j.usuario+' para continuar su jornada.');return despuesDeIngresar();}
       }else{S.jornada=j;const pts=await puntosTrack(j.id);TRACK.ultimo=pts[pts.length-1]||null;TRACK.n=pts.length;prepararTrack(pts.map(p=>[p.lat,p.lng]));
-        VIS=await calcularVisita(pts,j.densidad,j.buffer);TRACK.pts=pts;
+        VIS=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer');TRACK.pts=pts;
         await cargarPalmasJornada();pantallaEncendida(true);toast('Jornada en curso recuperada. El recorrido continúa.',4000);}}
     else{S.cfg.jornadaActiva=null;await guardarCfg();}}
   actualizarJornadaUI();estadoSync();dibujarLotes();
