@@ -1,4 +1,4 @@
-# Sanidad Vegetal 2.1 — Guía de instalación y uso
+# Sanidad Vegetal 2.3 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -82,6 +82,16 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 - La aplicación **no permite crear palmas ni lotes**: solo se trabaja sobre la cartografía oficial.
 - Desde el botón **JORNADA** puede ver el avance por lote, **agregar lotes**, ver el recorrido hasta el momento o **FINALIZAR JORNADA**.
 
+### Palmas visitadas y hectáreas recorridas (automático)
+- **Qué cuenta:** cada palma (sitio de siembra) a **10 m o menos del recorrido** se cuenta como **visitada**, sin que el operario la marque. El diagnóstico se registra solo para la sanidad.
+- **Por qué 10 m:** los operarios caminan por la calle, entre dos líneas. Con siembra en triángulo de 9 m, las dos líneas de la calle quedan a unos 3,9 m del operario y las siguientes a unos 11,7 m. Así el buffer de 10 m capta **exactamente las dos líneas de la calle**.
+- **Hectáreas recorridas** = palmas visitadas ÷ **115 palmas/ha**. Se calcula **por lote**, incluso para lotes que el operario cruce fuera de su selección.
+- **En el mapa:** las palmas visitadas sin diagnóstico se ven en **cian**.
+- **En el panel superior:** hora de **inicio**, palmas **visitadas** y **ha** en vivo.
+- **En los resúmenes:** la jornada y su resumen final muestran **hora de inicio y fin**, duración, km, ha y la tabla **por lote** (palmas visitadas, ha y diagnósticos).
+- **Ajustes:** la densidad y el buffer los define el administrador en *Configuración* y se aplican a las jornadas nuevas.
+- **Saltos del GPS:** los tramos con saltos de más de 50 m no se cuentan como área recorrida.
+
 ### Base de datos y recorridos
 - **DATOS → Diagnósticos**: tabla con filtros por jornada, lote, estado y sincronización, búsqueda y orden por columna. 🔒 indica sincronizado y ⏳ pendiente.
 - **DATOS → Jornadas y recorridos**: cada jornada con su duración, kilómetros, puntos y diagnósticos. El botón **▶ Reproducir recorrido** muestra el track animado con hora, distancia y diagnósticos que aparecen en el momento en que se registraron. Tiene velocidades de ×10 a ×300 y una barra para adelantar o retroceder.
@@ -109,7 +119,7 @@ SanidadData/
 ```
 
 **Contenido del `.geojson`:**
-- Encabezado `"jornada"`: evaluador, usuario, dispositivo, inicio, fin, km, lotes y rangos de líneas, número de diagnósticos y de fotos, nombre del ZIP de fotos y versión de la aplicación.
+- Encabezado `"jornada"`: evaluador, usuario, dispositivo, **fecha, hora_inicio, hora_fin, duracion_min**, km, **ha_recorridas, palmas_visitadas, densidad_palmas_ha, buffer_m**, número de diagnósticos y de fotos, nombre del ZIP de fotos y versión de la aplicación. Incluye también **`por_lote`**, con lote, palmas_visitadas, palmas_existentes, sitios_vacios, ha, diagnosticos e ids_palmas_visitadas.
 - **Puntos** con `tipo = diagnostico`. Cada uno lleva `palma_id`, `lote`, `linea`, `palma`, `estado`, `problemas`, `p_PC`… (1/0), `grado_pc`, `severidad`, `sintomas`, `accion`, `observaciones`, `fotos` (nombres dentro del ZIP), `gps_precision_m`, `dist_gps_palma_m`, `creado` y `sincronizado`.
 - **Línea** con `tipo = recorrido`: el track, con la hora y la precisión de cada vértice.
 
