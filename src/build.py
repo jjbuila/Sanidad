@@ -4,7 +4,7 @@ para que la aplicación funcione 100 % sin internet.
 Uso:
     python3 src/build.py RUTA/node_modules RUTA/marca
 """
-import base64, os, shutil, sys
+import base64, datetime, os, re, shutil, sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NM = sys.argv[1] if len(sys.argv) > 1 else '/root/build/node_modules'
@@ -27,7 +27,9 @@ for peso in (500, 600, 700):
     fuentes += ("@font-face{font-family:'Rajdhani';font-style:normal;font-display:swap;"
                 f"font-weight:{peso};src:url(data:font/woff2;base64,{b64(ruta)}) format('woff2')}}\n")
 
-html = leer(os.path.join(RAIZ, 'src', 'app.html'))
+# Versión = fecha y hora de Colombia (UTC-5) del momento de la construcción: AAAAMMDD:HHMM
+VERSION = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=5)).strftime('%Y%m%d:%H%M')
+html = leer(os.path.join(RAIZ, 'src', 'app.html')).replace('__VERSION__', VERSION)
 reemplazos = {
     '/*LEAFLET_CSS*/': leer(f'{NM}/leaflet/dist/leaflet.css'),
     '/*FUENTES*/': fuentes,
@@ -51,4 +53,9 @@ with open(os.path.join(RAIZ, 'admin.html'), 'w', encoding='utf-8') as f:
 os.makedirs(os.path.join(RAIZ, 'icons'), exist_ok=True)
 for n in (192, 512):
     shutil.copy(os.path.join(MARCA, f'icon-{n}.png'), os.path.join(RAIZ, 'icons', f'icon-{n}.png'))
-print('index.html', os.path.getsize(os.path.join(RAIZ, 'index.html')), 'bytes')
+sw_ruta = os.path.join(RAIZ, 'sw.js')
+sw = leer(sw_ruta)
+sw = re.sub(r"const APP='[^']*';", "const APP='sanidad-vegetal-" + VERSION.replace(':', '-') + "';", sw, count=1)
+with open(sw_ruta, 'w', encoding='utf-8') as f:
+    f.write(sw)
+print('Versión', VERSION, '| index.html', os.path.getsize(os.path.join(RAIZ, 'index.html')), 'bytes')

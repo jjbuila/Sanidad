@@ -40,6 +40,7 @@ button{cursor:pointer}
 .carga{width:min(70vw,280px);height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}
 .carga i{display:block;height:100%;width:40%;background:linear-gradient(90deg,transparent,var(--acento),transparent);animation:barrido 1.2s infinite}
 @keyframes barrido{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+#splashVer,#lgVer2{font-family:var(--t);font-weight:700;letter-spacing:2px;font-size:14px;color:var(--acento);text-align:center}
 #splashMsg{color:var(--tenue);font-size:13px;min-height:18px;text-align:center}
 
 /* ---------- Ingreso ---------- */
@@ -269,6 +270,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
+  <div id="splashVer">VERSIÓN __VERSION__</div>
 </div>
 
 <div id="login" hidden>
@@ -282,6 +284,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
+  <div id="lgVer2">VERSIÓN __VERSION__</div>
 </div>
 
 <header id="hud">
@@ -364,7 +367,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='2.4.0';
+const VERSION='__VERSION__';
 
 /* ---------- Catálogos del formulario ---------- */
 const ESTADOS=[
@@ -1663,7 +1666,7 @@ function menu(){
       ${mos('mSalir','candado','Cerrar sesión',SES?esc(SES.nombre):'')}
       ${eventoInstalar?mos('mInst','instalar','Instalar app','En este dispositivo'):''}
     </div>
-    <p class="tenue" style="text-align:center;margin-top:16px">Sanidad Vegetal v${VERSION} · Cartografía ${esc(CARTO.version||'—')}<br>Palmas de Tumaco S.A.S.</p>`);
+    <p class="tenue" style="text-align:center;margin-top:16px">Sanidad Vegetal · versión ${VERSION} · Cartografía ${esc(CARTO.version||'—')}<br>Palmas de Tumaco S.A.S.</p>`);
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#mJor',()=>S.jornada?panelJornada():abrirPlanificador('nueva'));
   on('#mBD',()=>{cerrarHoja();abrirBD('diag');});on('#mRec',()=>{cerrarHoja();abrirBD('jor');});on('#mRes',()=>{cerrarHoja();abrirBD('res');});
