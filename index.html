@@ -757,6 +757,7 @@ button{cursor:pointer}
 .etq-lote.sel{background:var(--naranja);color:#fff;border-color:#fff}
 .etq-lote.jor{background:var(--acento2);color:#fff;border-color:#bff5df}
 .sin-etiquetas .etq-lote{display:none}
+.n3auto{border:1px solid rgba(34,211,154,.45);background:rgba(34,211,154,.10);border-radius:12px;padding:9px 12px;font-size:15px}
 .etq-palma-ic{background:none;border:0}
 .etq-palma{position:absolute;left:0;bottom:0;transform:translateX(-50%);white-space:nowrap;background:rgba(6,20,15,.86);color:#e8fff6;border:1px solid rgba(144,205,241,.45);border-radius:7px;font-family:var(--t);font-weight:700;font-size:12.5px;letter-spacing:.3px;padding:1px 6px;line-height:1.35;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35)}
 .etq-palma.cerca{border-color:#ee7633;color:#fff}
@@ -952,7 +953,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261109:2131</div>
+  <div id="splashVer">VERSIÓN 20261109:2144</div>
 </div>
 
 <div id="login" hidden>
@@ -966,7 +967,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261109:2131</div>
+  <div id="lgVer2">VERSIÓN 20261109:2144</div>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
 
@@ -1070,29 +1071,44 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261109:2131';
+const VERSION='20261109:2144';
 
 /* ---------- Catálogos del formulario ---------- */
+/* Estado de la palma: se deriva automáticamente del diagnóstico (sirve para colores del mapa y resúmenes). */
 const ESTADOS=[
-  {id:'sana',n:'Sana',c:'#2ecc71'},
-  {id:'enferma',n:'Enferma',c:'#ff4d4d'},
-  {id:'tratamiento',n:'En tratamiento / recuperación',c:'#ff9f1c'},
-  {id:'muerta',n:'Muerta',c:'#1a1a1a'},
+  {id:'sana',n:'Sana / sin novedad',c:'#2ecc71'},
+  {id:'enferma',n:'Enferma (caso nuevo o activo)',c:'#ff4d4d'},
+  {id:'tratamiento',n:'En recuperación / seguimiento',c:'#ff9f1c'},
+  {id:'alta',n:'De alta',c:'#7bed9f'},
   {id:'erradicada',n:'Erradicada',c:'#9e9e9e'},
-  {id:'faltante',n:'Sitio vacío / faltante',c:'#ffffff'},
-  {id:'resiembra',n:'Resiembra',c:'#3fa9ff'}
+  {id:'novedad',n:'Otra novedad (no fitosanitaria)',c:'#b388ff'},
+  {id:'muerta',n:'Muerta',c:'#1a1a1a',leg:1},{id:'faltante',n:'Sitio vacío / faltante',c:'#ffffff',leg:1},{id:'resiembra',n:'Resiembra',c:'#3fa9ff',leg:1}
 ];
 const SIN_EVALUAR='#ffc53d';
-const PROBLEMAS=[
-  {id:'PC',n:'Pudrición del cogollo (PC)'},{id:'ML',n:'Marchitez letal (ML)'},{id:'AR',n:'Anillo rojo'},
-  {id:'MS',n:'Marchitez sorpresiva'},{id:'PE',n:'Pudrición del estípite'},{id:'PB',n:'Pudrición basal'},
-  {id:'RP',n:'Rhynchophorus palmarum (picudo)'},{id:'SA',n:'Strategus aloeus'},{id:'LG',n:'Leptopharsa / Pestalotiopsis'},
-  {id:'OC',n:'Opsiphanes cassina'},{id:'SV',n:'Sagalassa valida'},{id:'DF',n:'Otros defoliadores'},
-  {id:'RT',n:'Daño por roedores'},{id:'DN',n:'Deficiencia nutricional'},{id:'OT',n:'Otro'}
-];
-const SINTOMAS=['Pudrición en flecha','Flechas acumuladas','Clorosis foliar','Secamiento de hojas bajeras','Hojas partidas / dobladas',
-  'Racimos podridos','Galerías u orificios','Exudados','Lesiones en estípite','Raíces afectadas','Defoliación'];
-const ACCIONES=['Ninguna','Seguimiento','Cirugía / saneamiento','Aplicación de producto','Erradicación','Trampeo','Fertilización correctiva','Resiembra','Otra'];
+/* Formulario de sanidad · Ramificación V6 (Palmas de Tumaco). Una fila por combinación Nivel 1 → Nivel 2 → Nivel 3.
+   r: rama · c: código · n1/n2/n3: niveles · s: síntomas (Nivel 4, selección múltiple) · h: estados del hongo (si aplica)
+   cir/prod/rai/tra/obs: si aplican Cirugía, Producción, Raíces buenas, Transitabilidad y Observación · f: fuente. */
+const RAMAS=[{"r":1,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"PC INICIAL","n3":"PC CASO NUEVO","s":["Manchas necróticas de color café en la flecha más joven","Folíolos deformados con mordisco en forma de V"],"h":null,"cir":true,"prod":true,"rai":false,"tra":true,"obs":true,"f":"Cenipalma. Escala de severidad de la PC; ABC de la Pudrición del cogollo (PC); Guía de bolsillo Fedepalma-Cenipalma (2016)."},{"r":2,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"PC AVANZADA","n3":"PC CASO NUEVO","s":["Lesiones en la mayor parte del área de la flecha","Colapso de la flecha","Hoja clorótica (amarillamiento de las hojas cercanas al paquete de flechas)"],"h":null,"cir":true,"prod":true,"rai":false,"tra":true,"obs":true,"f":"Cenipalma. Escala de severidad de la PC; ABC de la Pudrición del cogollo (PC); Guía de bolsillo Fedepalma-Cenipalma (2016)."},{"r":3,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"CRATER","n3":"PC CASO NUEVO","s":["Emisión de flechas interrumpida","Palma sin tejidos jóvenes"],"h":null,"cir":true,"prod":true,"rai":false,"tra":true,"obs":true,"f":"Fedepalma-Cenipalma (2016). Guía de bolsillo para el reconocimiento y manejo de las principales enfermedades e insectos plaga en el cultivo de la palma de aceite."},{"r":4,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"PC EN RECUPERACIÓN","n3":"SEGUIMIENTO PC","s":["Hojas nuevas cortas, con apariencia similar a la deficiencia de boro"],"h":null,"cir":true,"prod":true,"rai":false,"tra":true,"obs":true,"f":"Martínez et al. (2009). Manejo integrado de la Pudrición del cogollo (PC) de la palma de aceite. Cartilla Técnica N.° 1. Cenipalma."},{"r":5,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"PC DE ALTA","n3":"SEGUIMIENTO PC","s":["Emisión de hojas nuevas de apariencia normal"],"h":null,"cir":true,"prod":true,"rai":false,"tra":true,"obs":true,"f":"Martínez, G. (2008). Cómo tratar y detener la Pudrición de Cogollo. El Palmicultor N.° 436, pp. 47-49. Fedepalma."},{"r":6,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"PC REINCIDENTE","n3":"SEGUIMIENTO PC","s":["Avance de la pudrición en las nuevas emisiones después de la cirugía"],"h":null,"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Martínez, G. (2008). Cómo tratar y detener la Pudrición de Cogollo. El Palmicultor N.° 436, pp. 47-49. Fedepalma."},{"r":7,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"PC INESTABLE","n3":"SEGUIMIENTO PC","s":["Alterna flechas sanas y flechas con lesiones","Recuperación irregular entre evaluaciones"],"h":null,"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":8,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"CRATER","n3":"SEGUIMIENTO PC","s":["Emisión de flechas interrumpida","Palma sin tejidos jóvenes"],"h":null,"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Fedepalma-Cenipalma (2016). Guía de bolsillo para el reconocimiento y manejo de las principales enfermedades e insectos plaga en el cultivo de la palma de aceite."},{"r":9,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"ERRADICADA","n3":"SEGUIMIENTO PC","s":["Palma eliminada","Sitio vacío o con residuos de la erradicación"],"h":null,"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":10,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"PE INICIAL","n3":"PE CASO NUEVO","s":["Acumulación de flechas","Clorosis y doblamiento de las hojas bajeras"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Mestizo et al. Caracterización de síntomas e identificación de microorganismos asociados a la pudrición basal del estípite. Revista Palmas, Fedepalma."},{"r":11,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"PE AVANZADA","n3":"PE CASO NUEVO","s":["Enruanamiento y doblamiento de la punta de las hojas","Acumulación de raíces adventicias e inflorescencias masculinas"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Mestizo et al. Caracterización de síntomas e identificación de microorganismos asociados a la pudrición basal del estípite. Revista Palmas, Fedepalma."},{"r":12,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"PE EN RECUPERACIÓN","n3":"SEGUIMIENTO PE","s":["Lesión seca o cicatrizada en el estípite","Emisión normal de flechas","Sin avance de la pudrición"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":13,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"PE DE ALTA","n3":"SEGUIMIENTO PE","s":["Sin lesión activa en el estípite","Follaje de apariencia normal"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":14,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"PE REINCIDENTE","n3":"SEGUIMIENTO PE","s":["Reactivación de la lesión en el estípite","Nueva acumulación de flechas","Nueva clorosis de hojas bajeras"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":15,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"PE PARTIDA","n3":"SEGUIMIENTO PE","s":["Degradación de la base del estípite sin síntomas visibles en el follaje","Pérdida de anclaje y volcamiento de la palma"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Sarria, G. (Cenipalma). Tres pudriciones amenazan los buenos pronósticos del híbrido OxG. Publicaciones Fedepalma."},{"r":16,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"ERRADICADA","n3":"SEGUIMIENTO PE","s":["Palma eliminada","Sitio vacío o con residuos de la erradicación"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":17,"c":"DBP","n1":"DESPRENDIMIENTO DE BASES PECIOLARES (DBP)","n2":null,"n3":null,"s":["Desprendimiento prematuro de bases peciolares","Lesiones marrones que avanzan desde el corte hacia la base","Secamiento de hojas inferiores","Reducción del área del estípite"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Sarria et al. (Cenipalma). Descripción de síntomas y estrategias de manejo del desprendimiento prematuro y pudrición de bases peciolares en cultivares híbrido OxG."},{"r":18,"c":"AR","n1":"ANILLO ROJO (AR)","n2":null,"n3":null,"s":["Clorosis y acortamiento de hojas jóvenes","Cogollo cerrado o apiñado","Frutos sin brillo y pudrición de racimos","Puntos anaranjados en peciolo y raquis"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Fedepalma-Cenipalma (2016). Guía de bolsillo para el reconocimiento y manejo de las principales enfermedades e insectos plaga en el cultivo de la palma de aceite."},{"r":19,"c":"CER","n1":"CERCOSPORA","n2":null,"n3":null,"s":["Manchas foliares pequeñas de color pardo con halo amarillo","Secamiento de folíolos en hojas bajeras"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":20,"c":"DEF","n1":"DEFICIENCIAS","n2":null,"n3":null,"s":["Amarillamiento generalizado (N)","Manchas anaranjadas en hojas del tercio inferior (K)","Bandas amarillas en folíolos de hojas bajeras (Mg)","Hojas arrugadas o en gancho (B)"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Pérez Rojas, P. A. (2012). Guía de prácticas agrícolas en el cultivo de palma de aceite ya establecido. Fedepalma."},{"r":21,"c":"ESP","n1":"ESPONTANEA","n2":null,"n3":null,"s":["Palma nacida de semilla fuera del sitio de siembra"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":22,"c":"HP","n1":"HOJA PEQUEÑA","n2":null,"n3":null,"s":["Hojas pequeñas y arrugadas, en gancho o espina de pescado","Folíolos cortos (asociado a deficiencia de boro)"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Pérez Rojas, P. A. (2012). Guía de prácticas agrícolas en el cultivo de palma de aceite ya establecido. Fedepalma."},{"r":23,"c":"MJ","n1":"MAL DE JUVENTUD (MJ)","n2":null,"n3":null,"s":["Hojas jóvenes arqueadas o dobladas","Lesión en el raquis de la flecha"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":24,"c":"ML","n1":"MARCHITEZ LETAL (ML)","n2":null,"n3":null,"s":["Necrosis en puntas de brácteas de inflorescencias inmaduras","Desprendimiento de frutos inmaduros sin olor fétido","Folíolos que secan de la punta a la base con franja amarilla","Inicia en el tercio inferior"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Martínez et al. (2011). Guía de bolsillo para el manejo de la marchitez letal (ML) de la palma de aceite. Cenipalma."},{"r":25,"c":"MS","n1":"MARCHITEZ SORPRESIVA (MS)","n2":null,"n3":null,"s":["Secamiento progresivo de hojas de abajo hacia arriba","Folíolos cloróticos con secamiento rojizo","Pudrición de racimos y caída de frutos verdes","Raíces deterioradas con pigmentación rojiza"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Fedepalma-Cenipalma (2016). Guía de bolsillo para el reconocimiento y manejo de las principales enfermedades e insectos plaga en el cultivo de la palma de aceite."},{"r":26,"c":"PA","n1":"PALMA AMARILLA","n2":null,"n3":null,"s":["Amarillamiento generalizado del follaje","Pérdida de vigor"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":27,"c":"PEST","n1":"PESTALOTIA","n2":null,"n3":null,"s":["Lesiones ovaladas acuosas con halo clorótico","Manchas marrón rojizo con halo oscuro","Zonas necróticas grisáceas y pérdida de área foliar"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Cenipalma (2023). Informe de Labores 2023, sección 2.3: Otras enfermedades de la palma de aceite."},{"r":28,"c":"RAYO","n1":"RAYO","n2":null,"n3":null,"s":["Follaje quemado de forma repentina","Hojas quebradas","Rajadura o quemadura en el estípite","Palmas vecinas afectadas"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":29,"c":"YAR","n1":"YARUMO","n2":"YARUMO EN CALLE","n3":null,"s":["Árbol de yarumo creciendo en la calle"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":30,"c":"YAR","n1":"YARUMO","n2":"YARUMO EN LOTE","n3":null,"s":["Árbol de yarumo creciendo dentro del lote"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"}];
+const SIN_NOVEDAD={c:'SN',n1:'SIN NOVEDAD (PALMA SANA)'};
+const N1S=[SIN_NOVEDAD,...RAMAS.filter((x,i,a)=>a.findIndex(y=>y.c===x.c)===i).map(x=>({c:x.c,n1:x.n1}))];
+const PROBLEMAS=N1S.filter(x=>x.c!=='SN').map(x=>({id:x.c,n:x.n1.charAt(0)+x.n1.slice(1).toLowerCase().replace(/\(([a-z]+)\)/,(m,g)=>'('+g.toUpperCase()+')')}));
+const TRANSIT=['Transitable','Poco transitable','No transitable'];
+/* Nivel 3 automático. CRATER aparece como caso nuevo y como seguimiento: se decide por el historial de la palma. */
+function ramaDe(c,n2,palmaId,regId){
+  const fil=RAMAS.filter(x=>x.c===c&&(x.n2||null)===(n2||null));
+  if(fil.length<=1)return {rama:fil[0]||null,motivo:''};
+  const previo=S.registros.some(r=>r.palma_id===palmaId&&r.id!==regId&&(r.n1_codigo===c||(r.problemas||[]).includes(c)));
+  const rama=fil.find(x=>/SEGUIMIENTO/.test(x.n3||''))&&previo?fil.find(x=>/SEGUIMIENTO/.test(x.n3)):fil.find(x=>!/SEGUIMIENTO/.test(x.n3||''))||fil[0];
+  return {rama,motivo:previo?'la palma ya tiene registros de '+c+' en este dispositivo':'la palma no tiene registros previos de '+c+' en este dispositivo'};
+}
+function estadoDeRama(c,rama){
+  if(c==='SN')return 'sana';if(!rama)return 'enferma';
+  if(rama.n2==='ERRADICADA')return 'erradicada';
+  if(c==='ESP'||c==='YAR'||c==='RAYO')return 'novedad';
+  if(/DE ALTA/.test(rama.n2||''))return 'alta';
+  if(/EN RECUPERACI/.test(rama.n2||''))return 'tratamiento';
+  return 'enferma';
+}
 
 /* ---------- Íconos ---------- */
 const IC={
@@ -1129,6 +1145,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const uid=()=>(window.crypto&&crypto.randomUUID)?crypto.randomUUID():'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,12);
 const estadoDe=id=>ESTADOS.find(e=>e.id===id);
 const probDe=id=>PROBLEMAS.find(p=>p.id===id);
+const textoDiag=r=>r.n1?[r.n1,r.n2,r.n3].filter(Boolean).join(' › '):(r.problemas||[]).map(p=>(probDe(p)||{n:p}).n).join(', ');
 const pad=n=>String(n).padStart(2,'0');
 const num=x=>Number(x||0).toLocaleString('es-CO');
 const esperar=ms=>new Promise(r=>setTimeout(r,ms));
@@ -1351,7 +1368,7 @@ function resaltar(lat,lng){
   resalte=L.circleMarker([lat,lng],{radius:radioPalma()+6,color:'#00e5ff',weight:3,fill:false,interactive:false}).addTo(capaGps);
 }
 function pintarLeyenda(){
-  $('#leyenda').innerHTML=ESTADOS.map(e=>`<div><span class="punto" style="background:${e.c}"></span>${esc(e.n)}</div>`).join('')+
+  $('#leyenda').innerHTML=ESTADOS.filter(e=>!e.leg).map(e=>`<div><span class="punto" style="background:${e.c}"></span>${esc(e.n)}</div>`).join('')+
   `<div><span class="punto" style="background:${SIN_EVALUAR}"></span>Pendiente por censar</div>
    <div><span class="punto" style="background:#4dd0e1"></span>Visitada por el recorrido (sin diagnóstico)</div>
    <div><span class="punto" style="background:#ff9f1c;border:2px solid #fff"></span>Parada sin actividad</div>
@@ -1855,11 +1872,11 @@ function etiquetaPalma(p){const a=[];if(p._lote)a.push(p._lote);if(p._linea)a.pu
 const etiquetaReg=r=>[r.lote,r.linea?'L'+r.linea:'',r.numero?'P'+r.numero:''].filter(Boolean).join(' · ')||('Palma '+r.palma_id);
 function selloSync(r){return r.sync==='sincronizado'?'<span class="sello ok">🔒 SINCRONIZADO</span>':'<span class="sello pend">⏳ PENDIENTE</span>';}
 function tarjetaRegistro(r){
-  const e=estadoDe(r.estado)||{n:r.estado,c:'#999'};const probs=(r.problemas||[]).map(p=>(probDe(p)||{n:p}).n).join(', ');
+  const e=estadoDe(r.estado)||{n:r.estado,c:'#999'};const probs=textoDiag(r);
   return `<div class="tarjeta" data-id="${esc(r.id)}" style="border-left-color:${e.c==='#ffffff'?'#bbb':e.c}">
     <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>${esc(e.n)}</b>${selloSync(r)}</div>
     <span class="tenue">${esc(fmtFecha(r.creado))} · ${esc(etiquetaReg(r))} · ${esc(r.evaluador||'')}</span>
-    ${probs?`<br>${esc(probs)}${r.grado_pc?` · Grado PC ${esc(r.grado_pc)}`:''}`:''}${(r.fotos||[]).length?` · 📷 ${(r.fotos||[]).length}`:''}</div>`;
+    ${probs?`<br>${esc(probs)}${r.grado_pc?` · Grado PC ${esc(r.grado_pc)}`:''}`:''}${(r.sintomas||[]).length?` · ${(r.sintomas||[]).length} síntoma(s)`:''}${(r.fotos||[]).length?` · 📷 ${(r.fotos||[]).length}`:''}</div>`;
 }
 function enlazarTarjetas(cont){(cont||$('#hojaCuerpo')).querySelectorAll('.tarjeta').forEach(el=>el.onclick=()=>{const r=S.registros.find(x=>x.id===el.dataset.id);if(r)abrirFormulario(r);});}
 function abrirPalma(id,dm){
@@ -1896,7 +1913,7 @@ async function abrirFormulario(base){
   if(!edit&&!f0){toast('Esa palma no pertenece a la jornada.');return;}
   if(!edit){const rg=reglaDiagnostico(f0);if(!rg.ok){toast(rg.motivo.replace(/<[^>]+>/g,''),5000);return;}}
   const r=edit?JSON.parse(JSON.stringify(base)):{id:uid(),palma_id:base.palma_id,jornada_id:S.jornada.id,evaluador:S.jornada.evaluador,
-    estado:'',problemas:[],sintomas:[],grado_pc:'',severidad:'',accion:'',observaciones:'',fotos:[],sync:'pendiente'};
+    estado:'',n1_codigo:'',n1:'',n2:'',n3:'',rama:null,problemas:[],sintomas:[],hongo:'',cirugia:'',produccion:'',raices:'',transitabilidad:'',observaciones:'',fotos:[],sync:'pendiente'};
   const bloq=r.sync==='sincronizado';
   let lat,lng,lote,linea,numero;
   if(f0){[lng,lat]=f0.geometry.coordinates;const p=f0.properties;lote=p._lote;linea=p._linea;numero=p._num;}
@@ -1915,22 +1932,16 @@ async function abrirFormulario(base){
       ${bloq?`<div class="candado">🔒 Sincronizado el ${esc(fmtFecha(r.sync_fecha))}. Este diagnóstico ya no se puede modificar ni eliminar.</div>`:''}
       ${!bloq&&S.gps&&dGps>(Number(S.cfg.radioSel)||50)?`<div class="aviso">⚠️ Usted está a más de ${Number(S.cfg.radioSel)||50} m de esta palma. Verifique que sea la palma correcta.</div>`:''}
       <fieldset ${bloq?'disabled':''}>
-      <label class="campo">Estado de la palma <i>*</i></label>
-      <div class="chips">${ESTADOS.map(e=>chip('radio','estado',e.id,e.n,r.estado===e.id)).join('')}</div>
-      <div id="secProblemas">
-        <label class="campo">Problema sanitario (puede marcar varios)</label>
-        <div class="chips">${PROBLEMAS.map(p=>chip('checkbox','problemas',p.id,p.n,(r.problemas||[]).includes(p.id))).join('')}</div>
-        <div id="secPC"><label class="campo">Grado de PC (1 a 5)</label>
-          <select name="grado_pc"><option value="">—</option>${[1,2,3,4,5].map(g=>`<option ${String(r.grado_pc)===String(g)?'selected':''}>${g}</option>`).join('')}</select></div>
-        <label class="campo">Severidad general del daño</label>
-        <select name="severidad"><option value="">—</option>${[['0','0 · Sin daño'],['1','1 · Muy leve'],['2','2 · Leve'],['3','3 · Moderado'],['4','4 · Severo'],['5','5 · Muy severo']].map(([v,t])=>`<option value="${v}" ${String(r.severidad)===v?'selected':''}>${t}</option>`).join('')}</select>
-        <label class="campo">Síntomas observados</label>
-        <div class="chips">${SINTOMAS.map(s=>chip('checkbox','sintomas',s,s,(r.sintomas||[]).includes(s))).join('')}</div>
-      </div>
-      <label class="campo">Acción recomendada</label>
-      <select name="accion"><option value="">—</option>${ACCIONES.map(a=>`<option ${r.accion===a?'selected':''}>${esc(a)}</option>`).join('')}</select>
-      <label class="campo">Observaciones</label>
+      ${!r.n1&&(r.problemas||[]).length?`<div class="aviso">Diagnóstico registrado con el formulario anterior: ${esc(textoDiag(r))}${r.grado_pc?' · Grado PC '+esc(r.grado_pc):''}. Al guardar se reemplaza por el formulario actual.</div>`:''}
+      <label class="campo">Nivel 1 · Enfermedad principal <i>*</i></label>
+      <div class="chips">${N1S.map(x=>chip('radio','n1',x.c,x.n1,(r.n1_codigo||(!r.n1&&r.estado==='sana'?'SN':''))===x.c)).join('')}</div>
+      <div id="secN2"></div>
+      <div id="secN3"></div>
+      <div id="secSint"></div>
+      <div id="secCampos"></div>
+      <label class="campo">Observación</label>
       <textarea name="observaciones" placeholder="Detalle de la evaluación">${esc(r.observaciones)}</textarea>
+      <div id="secFuente" class="tenue" style="font-size:12px;margin-top:6px"></div>
       </fieldset>
       <label class="campo">Fotografías</label>
       ${bloq?'':'<button type="button" class="btn ancho" id="btFoto">📷 Tomar o adjuntar foto</button>'}
@@ -1939,9 +1950,27 @@ async function abrirFormulario(base){
     </form>`);
   for(const fid of (r.fotos||[])){const fo=await dbGet('fotos',fid);if(fo)agregarMiniatura(fid,new Blob([fo.buf],{type:fo.type}),false,bloq);}
   const frm=$('#frm');
-  const vis=()=>{const est=(frm.querySelector('input[name=estado]:checked')||{}).value;
-    $('#secProblemas').style.display=est==='faltante'?'none':'';
-    $('#secPC').style.display=frm.querySelector('input[name=problemas][value=PC]').checked?'':'none';};
+  /* Ramificación: Nivel 1 (única) → Nivel 2 (única) → Nivel 3 (automático) → síntomas (múltiple) y campos que apliquen (única). */
+  const val=n=>(frm.querySelector(`input[name="${n}"]:checked`)||{}).value||'';
+  const siNo=(name,tit,v)=>`<label class="campo">${tit} <i>*</i></label><div class="chips">${chip('radio',name,'Sí','Sí',v==='Sí')}${chip('radio',name,'No','No',v==='No')}</div>`;
+  let ult={n1:null,n2:null};
+  const pintarN2=()=>{const c=val('n1');if(c===ult.n1)return;ult.n1=c;ult.n2=null;
+    const ops=[...new Set(RAMAS.filter(x=>x.c===c&&x.n2).map(x=>x.n2))];
+    $('#secN2').innerHTML=ops.length?`<label class="campo">Nivel 2 · Opción de la enfermedad <i>*</i></label><div class="chips">${ops.map(o=>chip('radio','n2',o,o,(c===r.n1_codigo&&r.n2===o))).join('')}</div>`:'';};
+  const pintarResto=()=>{const c=val('n1');const n2=val('n2');const key=c+'|'+n2;if(key===ult.n2)return;ult.n2=key;
+    const tieneN2=RAMAS.some(x=>x.c===c&&x.n2);
+    if(!c||c==='SN'||(tieneN2&&!n2)){F.rama=null;$('#secN3').innerHTML='';$('#secSint').innerHTML='';
+      $('#secCampos').innerHTML=c==='SN'?siNo('produccion','Producción',r.produccion)+`<label class="campo">Transitabilidad <i>*</i></label><div class="chips">${TRANSIT.map(t=>chip('radio','transitabilidad',t,t,r.transitabilidad===t)).join('')}</div>`:'';
+      $('#secFuente').textContent='';return;}
+    const {rama,motivo}=ramaDe(c,n2||null,r.palma_id,r.id);F.rama=rama;if(!rama)return;
+    $('#secN3').innerHTML=rama.n3?`<label class="campo">Nivel 3 · Enfermedad (automático)</label><div class="n3auto"><b>${esc(rama.n3)}</b>${motivo?`<span class="tenue"> · ${esc(motivo)}</span>`:''}</div>`:'';
+    const mismos=c===r.n1_codigo&&(r.n2||'')===(n2||'');
+    $('#secSint').innerHTML=`<label class="campo">Nivel 4 · Síntomas observados (puede marcar varios)</label><div class="chips">${rama.s.map(s=>chip('checkbox','sintomas',s,s,mismos?(r.sintomas||[]).includes(s):rama.s.length===1)).join('')}</div>`;
+    $('#secCampos').innerHTML=(rama.h?`<label class="campo">Estado del hongo <i>*</i></label><div class="chips">${rama.h.map(o=>chip('radio','hongo',o,o,r.hongo===o)).join('')}</div>`:'')+
+      (rama.cir?siNo('cirugia','Cirugía',r.cirugia):'')+(rama.prod?siNo('produccion','Producción',r.produccion):'')+(rama.rai?siNo('raices','Raíces buenas',r.raices):'')+
+      (rama.tra?`<label class="campo">Transitabilidad <i>*</i></label><div class="chips">${TRANSIT.map(t=>chip('radio','transitabilidad',t,t,r.transitabilidad===t)).join('')}</div>`:'');
+    $('#secFuente').textContent=rama.f?'Fuente: '+rama.f:'';};
+  const vis=()=>{pintarN2();pintarResto();};
   frm.addEventListener('change',vis);vis();
   const bf=$('#btFoto');if(bf)bf.onclick=()=>{const i=$('#inFoto');i.value='';i.click();};
   const bb=$('#btBorrarReg');if(bb)bb.onclick=()=>borrarRegistro(r.id);
@@ -1975,13 +2004,26 @@ async function marcarJornadaPendiente(jid){
 async function guardarRegistro(frm){
   if(SYNC.activo){alert('Se está sincronizando con GitHub. Intente de nuevo en unos segundos.');return;}
   const r=F.r;if(r.sync==='sincronizado'){alert('Este diagnóstico ya fue sincronizado y no se puede modificar.');return;}
-  const fd=new FormData(frm);
-  r.estado=fd.get('estado')||'';r.problemas=fd.getAll('problemas');r.sintomas=fd.getAll('sintomas');
-  r.grado_pc=r.problemas.includes('PC')?(fd.get('grado_pc')||''):'';r.severidad=fd.get('severidad')||'';r.accion=fd.get('accion')||'';
+  const fd=new FormData(frm);const c=fd.get('n1')||'';
+  if(!c){alert('Seleccione el Nivel 1: enfermedad principal.');return;}
+  const rama=c==='SN'?null:F.rama;
+  if(c!=='SN'){
+    if(RAMAS.some(x=>x.c===c&&x.n2)&&!fd.get('n2')){alert('Seleccione el Nivel 2: opción de la enfermedad.');return;}
+    if(!rama){alert('No se encontró la combinación en el formulario de ramificación.');return;}
+    if(rama.h&&!fd.get('hongo')){alert('Seleccione el estado del hongo.');return;}
+    for(const [k,t] of [['cir','cirugia','Cirugía'],['prod','produccion','Producción'],['rai','raices','Raíces buenas']].map(x=>[x[0],x[1]]).map((x,i)=>x)){}
+  }
+  const falta=[];
+  if(c==='SN'){if(!fd.get('produccion'))falta.push('Producción');if(!fd.get('transitabilidad'))falta.push('Transitabilidad');}
+  else{if(rama.cir&&!fd.get('cirugia'))falta.push('Cirugía');if(rama.prod&&!fd.get('produccion'))falta.push('Producción');if(rama.rai&&!fd.get('raices'))falta.push('Raíces buenas');if(rama.tra&&!fd.get('transitabilidad'))falta.push('Transitabilidad');}
+  if(falta.length){alert('Complete: '+falta.join(', ')+'.');return;}
+  const n=N1S.find(x=>x.c===c);
+  r.n1_codigo=c;r.n1=n?n.n1:'';r.n2=rama&&rama.n2||'';r.n3=rama&&rama.n3||'';r.rama=rama?rama.r:null;
+  r.sintomas=rama?fd.getAll('sintomas'):[];r.hongo=rama&&rama.h?fd.get('hongo')||'':'';
+  r.cirugia=rama&&rama.cir?fd.get('cirugia')||'':'';r.produccion=(c==='SN'||(rama&&rama.prod))?fd.get('produccion')||'':'';r.raices=rama&&rama.rai?fd.get('raices')||'':'';
+  r.transitabilidad=(c==='SN'||(rama&&rama.tra))?fd.get('transitabilidad')||'':'';
   r.observaciones=(fd.get('observaciones')||'').trim();
-  if(r.estado==='faltante'){r.problemas=[];r.sintomas=[];r.grado_pc='';r.severidad='';}
-  if(!r.estado){alert('Seleccione el estado de la palma.');return;}
-  if((r.estado==='enferma'||r.estado==='tratamiento')&&!r.problemas.length){alert('Para una palma enferma o en tratamiento marque al menos un problema sanitario.');return;}
+  r.estado=estadoDeRama(c,rama);r.problemas=c==='SN'?[]:[c];r.grado_pc='';r.severidad='';r.accion='';
   r.lote=F.lote;r.linea=F.linea||'';r.numero=F.numero||'';r.lat=F.lat;r.lng=F.lng;
   if(!F.edit){
     r.creado=new Date().toISOString();r.fecha=ahoraLocal();
@@ -2108,7 +2150,7 @@ const COLS=[
   {k:'creado',n:'Fecha y hora',v:r=>fmtFecha(r.creado)},
   {k:'lote',n:'Lote',v:r=>r.lote},{k:'linea',n:'Línea',v:r=>r.linea,num:1},{k:'numero',n:'Palma',v:r=>r.numero,num:1},
   {k:'estado',n:'Estado',v:r=>(estadoDe(r.estado)||{}).n||r.estado,h:r=>{const e=estadoDe(r.estado)||{c:'#999',n:r.estado};return `<span class="est"><i style="background:${e.c}"></i>${esc(e.n)}</span>`;}},
-  {k:'problemas',n:'Problemas',v:r=>(r.problemas||[]).join(', ')},{k:'grado_pc',n:'PC',v:r=>r.grado_pc,num:1},{k:'severidad',n:'Sev.',v:r=>r.severidad,num:1},
+  {k:'n1',n:'Nivel 1',v:r=>r.n1||(r.problemas||[]).join(', ')},{k:'n2',n:'Nivel 2',v:r=>r.n2||''},{k:'n3',n:'Nivel 3',v:r=>r.n3||''},{k:'sintomas',n:'Síntomas',v:r=>(r.sintomas||[]).join(' / ')},
   {k:'accion',n:'Acción',v:r=>r.accion},{k:'evaluador',n:'Evaluador',v:r=>r.evaluador},{k:'fotos',n:'Fotos',v:r=>(r.fotos||[]).length,num:1},
   {k:'dist_gps',n:'Dist. GPS (m)',v:r=>r.dist_gps??'',num:1},{k:'palma_id',n:'ID palma',v:r=>r.palma_id,num:1},{k:'jornada_id',n:'Jornada',v:r=>r.jornada_id}
 ];
@@ -2116,7 +2158,7 @@ function filtrarRegs(){
   const f=BD.f,q=f.q.trim().toUpperCase();
   let L2=S.registros.filter(r=>(!f.jornada||r.jornada_id===f.jornada)&&(!f.lote||r.lote===f.lote)&&(!f.estado||r.estado===f.estado)&&
     (!f.sync||(f.sync==='ok'?r.sync==='sincronizado':r.sync!=='sincronizado'))&&
-    (!q||[r.lote,r.linea,r.numero,r.palma_id,r.evaluador,r.observaciones,(r.problemas||[]).join(' ')].join(' ').toUpperCase().includes(q)));
+    (!q||[r.lote,r.linea,r.numero,r.palma_id,r.evaluador,r.observaciones,(r.problemas||[]).join(' '),r.n1,r.n2,r.n3].join(' ').toUpperCase().includes(q)));
   const c=COLS.find(x=>x.k===BD.orden)||COLS[1];
   L2.sort((a,b)=>{let x=c.k==='creado'?a.creado:c.v(a),y=c.k==='creado'?b.creado:c.v(b);
     const r2=c.num?((parseFloat(x)||0)-(parseFloat(y)||0)):ordenNat(x??'',y??'');return BD.asc?r2:-r2;});
@@ -2180,8 +2222,8 @@ function pintarResumen(){
   R.forEach(x=>{tot.total+=x.total;tot.evaluadas+=x.evaluadas;for(const k in x.est)tot.est[k]=(tot.est[k]||0)+x.est[k];for(const k in x.prob)tot.prob[k]=(tot.prob[k]||0)+x.prob[k];});
   const fh=x=>`<tr><td><b>${esc(x.lote)}</b></td><td>${num(x.total)}</td><td>${num(x.evaluadas)}</td><td>${x.total?(x.evaluadas/x.total*100).toFixed(1):'0.0'}%</td><td>${x.est.sana||0}</td><td>${(x.est.enferma||0)+(x.est.tratamiento||0)}</td><td>${(x.est.muerta||0)+(x.est.erradicada||0)}</td><td><b>${incid(x).toFixed(1)}%</b></td></tr>`;
   const probs=PROBLEMAS.filter(p=>tot.prob[p.id]).map(p=>`<tr><td>${esc(p.n)}</td><td>${tot.prob[p.id]}</td><td>${tot.evaluadas?(tot.prob[p.id]/tot.evaluadas*100).toFixed(1):'0.0'}%</td></tr>`).join('');
-  $('#bdCuerpo').innerHTML=`<p class="tenue">Último diagnóstico de cada palma registrado en este dispositivo. Incidencia = (enfermas + en tratamiento) / evaluadas.</p>
-    <div class="tabla-cont" style="max-height:none"><table class="res"><thead><tr><th>Lote</th><th>Palmas</th><th>Evaluadas</th><th>Avance</th><th>Sanas</th><th>Enf.</th><th>Muertas/Err.</th><th>Incid.</th></tr></thead>
+  $('#bdCuerpo').innerHTML=`<p class="tenue">Último diagnóstico de cada palma registrado en este dispositivo. Incidencia = (enfermas + en recuperación/seguimiento) / evaluadas.</p>
+    <div class="tabla-cont" style="max-height:none"><table class="res"><thead><tr><th>Lote</th><th>Palmas</th><th>Evaluadas</th><th>Avance</th><th>Sanas</th><th>Enf./Seg.</th><th>Erradic.</th><th>Incid.</th></tr></thead>
     <tbody>${R.map(fh).join('')}${R.length?fh(tot):'<tr><td colspan="8" class="tenue">Sin datos.</td></tr>'}</tbody></table></div>
     <h3>Problemas detectados</h3>${probs?`<table class="res"><thead><tr><th>Problema</th><th>Palmas</th><th>% evaluadas</th></tr></thead><tbody>${probs}</tbody></table>`:'<p class="tenue">Aún no se han registrado problemas.</p>'}`;
 }
@@ -2299,8 +2341,9 @@ async function ghCommit(archivos,mensaje){
 }
 function planos(r){
   const o={id:r.id,jornada_id:r.jornada_id,palma_id:r.palma_id,lote:r.lote,linea:r.linea,palma:r.numero,fecha:r.fecha,creado:r.creado,modificado:r.modificado,
-    evaluador:r.evaluador,estado:r.estado,estado_nombre:(estadoDe(r.estado)||{}).n||'',problemas:(r.problemas||[]).join('|'),grado_pc:r.grado_pc,
-    severidad:r.severidad,sintomas:(r.sintomas||[]).join('|'),accion:r.accion,observaciones:r.observaciones,n_fotos:(r.fotos||[]).length,
+    evaluador:r.evaluador,estado:r.estado,estado_nombre:(estadoDe(r.estado)||{}).n||'',rama:r.rama??null,n1_codigo:r.n1_codigo||'',nivel1:r.n1||'',nivel2:r.n2||'',nivel3:r.n3||'',
+    sintomas:(r.sintomas||[]).join('|'),estado_hongo:r.hongo||'',cirugia:r.cirugia||'',produccion:r.produccion||'',raices_buenas:r.raices||'',transitabilidad:r.transitabilidad||'',
+    problemas:(r.problemas||[]).join('|'),grado_pc:r.grado_pc||'',severidad:r.severidad||'',accion:r.accion||'',observaciones:r.observaciones,n_fotos:(r.fotos||[]).length,
     fotos:(r.fotos||[]).map(f=>f+'.jpg').join('|'),lat:r.lat,lng:r.lng,gps_lat:r.gps_lat,gps_lng:r.gps_lng,gps_precision_m:r.gps_acc,
     dist_gps_palma_m:r.dist_gps,dispositivo:S.cfg.dispositivo,sincronizado:r.sync_fecha||null};
   PROBLEMAS.forEach(p=>o['p_'+p.id]=(r.problemas||[]).includes(p.id)?1:0);

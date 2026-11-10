@@ -1,4 +1,4 @@
-# Sanidad Vegetal 2.9 — Guía de instalación y uso
+# Sanidad Vegetal 3.0 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -83,7 +83,14 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
   3. Botón **CERCANA**: lista de palmas a 50 m o menos, con filtro por línea y «solo pendientes».
   - **Regla:** solo se puede **registrar un diagnóstico nuevo** en palmas a **50 m o menos** del operario (radio configurable por el administrador) y con GPS activo. Si la palma está más lejos, la ficha muestra la distancia y el botón «Ver palmas a 50 m o menos». Los diagnósticos ya registrados en la jornada pueden consultarse y corregirse (si no se han sincronizado) desde cualquier distancia.
 - **🔊 Guía por voz** (botón flotante): anuncia «Lote I T 43, línea 3, palma 14» al llegar a 2 m o menos de la palma. Si la palma ya fue censada, también lo dice.
-- **REGISTRAR DIAGNÓSTICO**: estado, problemas, grado de PC, severidad, síntomas, acción, observaciones y fotos. En cada jornada hay un diagnóstico por palma, que puede corregirse mientras no se haya sincronizado.
+- **REGISTRAR DIAGNÓSTICO** (formulario *Ramificación V6* de la plantación, 30 ramas, en `src/Formulario_Sanidad_RamificacionV6.xlsx`):
+  1. **Nivel 1 · Enfermedad principal** (una sola): PC, PE, DBP, Anillo rojo, Cercospora, Deficiencias, Espontánea, Hoja pequeña, Mal de juventud, Marchitez letal, Marchitez sorpresiva, Palma amarilla, Pestalotia, Rayo, Yarumo, o **Sin novedad (palma sana)**.
+  2. **Nivel 2 · Opción** (una sola), solo si la enfermedad la tiene (por ejemplo PC INICIAL, CRATER, PE PARTIDA, YARUMO EN CALLE).
+  3. **Nivel 3 · Enfermedad**: **automático** según los niveles anteriores (caso nuevo o seguimiento). CRATER existe en ambos: si la palma ya tiene un diagnóstico de PC en el celular es *Seguimiento PC*; si no, *PC caso nuevo*.
+  4. **Nivel 4 · Síntomas**: la **única selección múltiple**; se muestran solo los de la rama elegida (si hay uno solo, queda marcado).
+  5. Campos de la rama, **respuesta única y obligatoria** cuando aplican: estado del hongo (solo PE), cirugía, producción, raíces buenas y transitabilidad. Observación (texto) y fotos. Se muestra la fuente técnica de la rama.
+  - El **estado** (color en el mapa) se asigna solo: sana, enferma (caso nuevo o activo), en recuperación, de alta, erradicada u otra novedad (espontánea, yarumo, rayo).
+  - En cada jornada hay un diagnóstico por palma, que puede corregirse mientras no se haya sincronizado. Los diagnósticos hechos con el formulario anterior se conservan y se muestran como tales.
 - La aplicación **no permite crear palmas ni lotes**: solo se trabaja sobre la cartografía oficial.
 - Desde el botón **JORNADA** puede ver el avance por lote, **agregar lotes**, ver el recorrido hasta el momento o **FINALIZAR JORNADA**.
 

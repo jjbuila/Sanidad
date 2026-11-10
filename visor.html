@@ -813,7 +813,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261109:2131</div>
+    <div id="lgVer">VERSIÓN 20261109:2144</div>
   </div>
 </div>
 
@@ -898,7 +898,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261109:2131';
+const VERSION='20261109:2144';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -908,12 +908,13 @@ const hhmm=t=>{if(!t)return '—';const d=new Date(t);return isNaN(d)?'—':d.to
 const minAh=m=>m==null?'—':(m>=60?Math.floor(m/60)+' h '+String(Math.round(m%60)).padStart(2,'0')+' min':Math.round(m)+' min');
 function toast(m,ms=3500){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),ms);}
 const ESTADOS=[
-  {id:'sana',n:'Sana',c:'#2ecc71'},{id:'enferma',n:'Enferma',c:'#ff4d4d'},{id:'tratamiento',n:'En tratamiento / recuperación',c:'#ff9f1c'},
-  {id:'muerta',n:'Muerta',c:'#1a1a1a'},{id:'erradicada',n:'Erradicada',c:'#9e9e9e'},{id:'faltante',n:'Sitio vacío / faltante',c:'#ffffff'},{id:'resiembra',n:'Resiembra',c:'#3fa9ff'}];
+  {id:'sana',n:'Sana / sin novedad',c:'#2ecc71'},{id:'enferma',n:'Enferma (caso nuevo o activo)',c:'#ff4d4d'},{id:'tratamiento',n:'En recuperación / seguimiento',c:'#ff9f1c'},
+  {id:'alta',n:'De alta',c:'#7bed9f'},{id:'erradicada',n:'Erradicada',c:'#9e9e9e'},{id:'novedad',n:'Otra novedad (no fitosanitaria)',c:'#b388ff'},
+  {id:'muerta',n:'Muerta',c:'#1a1a1a',leg:1},{id:'faltante',n:'Sitio vacío / faltante',c:'#ffffff',leg:1},{id:'resiembra',n:'Resiembra',c:'#3fa9ff',leg:1}];
 const estadoDe=id=>ESTADOS.find(e=>e.id===id);
-const PROBLEMAS={PC:'Pudrición del cogollo (PC)',ML:'Marchitez letal (ML)',AR:'Anillo rojo',MS:'Marchitez sorpresiva',PE:'Pudrición del estípite',PB:'Pudrición basal',
-  RP:'Rhynchophorus palmarum (picudo)',SA:'Strategus aloeus',LG:'Leptopharsa / Pestalotiopsis',OC:'Opsiphanes cassina',SV:'Sagalassa valida',DF:'Otros defoliadores',
-  RT:'Daño por roedores',DN:'Deficiencia nutricional',OT:'Otro'};
+const PROBLEMAS={PC:'Pudrición de cogollo (PC)',PE:'Pudrición de estípite (PE)',DBP:'Desprendimiento de bases peciolares (DBP)',AR:'Anillo rojo (AR)',CER:'Cercospora',DEF:'Deficiencias',
+  ESP:'Espontánea',HP:'Hoja pequeña',MJ:'Mal de juventud (MJ)',ML:'Marchitez letal (ML)',MS:'Marchitez sorpresiva (MS)',PA:'Palma amarilla',PEST:'Pestalotia',RAYO:'Rayo',YAR:'Yarumo',
+  RP:'Rhynchophorus palmarum (picudo)',SA:'Strategus aloeus',LG:'Leptopharsa / Pestalotiopsis',OC:'Opsiphanes cassina',SV:'Sagalassa valida',DF:'Otros defoliadores',RT:'Daño por roedores',DN:'Deficiencia nutricional',OT:'Otro'};
 const PALETA=['#22d39a','#2f93d5','#ee7633','#c77dff','#ffd166','#ef476f','#06d6a0','#90cdf1','#f4a261','#a7c957','#ff8fab','#4cc9f0','#e9c46a','#b5179e','#8ac926','#ff595e'];
 const colorOp=(()=>{const m=new Map();return u=>{if(!m.has(u))m.set(u,PALETA[m.size%PALETA.length]);return m.get(u);};})();
 
@@ -1013,7 +1014,7 @@ const vis=(id,capa)=>{$(id).onchange=()=>{$(id).checked?capa.addTo(mapa):mapa.re
 vis('#cLotes',capaLotes);vis('#cRec',capaRec);vis('#cDiag',capaDiag);vis('#cPar',capaPar);vis('#cPalmas',capaPalmas);
 mapa.on('zoomend moveend',()=>{mapa.getContainer().classList.toggle('sin-etq',mapa.getZoom()<14);dibujarPalmas();});
 function pintarLeyenda(){
-  $('#leyenda').innerHTML='<b class="tit" style="font-size:13px">Diagnósticos</b>'+ESTADOS.map(e=>`<div><span class="punto" style="background:${e.c}"></span>${esc(e.n)}</div>`).join('')+
+  $('#leyenda').innerHTML='<b class="tit" style="font-size:13px">Diagnósticos</b>'+ESTADOS.filter(e=>!e.leg).map(e=>`<div><span class="punto" style="background:${e.c}"></span>${esc(e.n)}</div>`).join('')+
   '<div style="margin-top:4px"><span class="punto" style="background:#ff9f1c;border:2px solid #fff"></span>Parada</div><div class="tenue">Recorridos: un color por operario.</div>';
 }
 
@@ -1147,9 +1148,11 @@ function htmlDiag(d){const e=estadoDe(d.estado)||{c:'#ccc',n:d.estado_nombre||d.
   const probs=String(d.problemas||'').split('|').filter(Boolean).map(p=>PROBLEMAS[p]||p);
   return `<b class="h">${esc(etiquetaDiag(d))}</b><br><span class="punto" style="background:${e.c}"></span><b>${esc(e.n)}</b>
     <div style="margin-top:6px;display:grid;gap:2px">
-    ${probs.length?`<div><b>Problemas:</b> ${esc(probs.join(', '))}</div>`:''}
+    ${d.nivel1?`<div><b>Nivel 1:</b> ${esc(d.nivel1)}</div>${d.nivel2?`<div><b>Nivel 2:</b> ${esc(d.nivel2)}</div>`:''}${d.nivel3?`<div><b>Nivel 3:</b> ${esc(d.nivel3)}</div>`:''}`:(probs.length?`<div><b>Problemas:</b> ${esc(probs.join(', '))}</div>`:'')}
+    ${d.estado_hongo?`<div><b>Hongo:</b> ${esc(d.estado_hongo)}</div>`:''}${d.cirugia?`<div><b>Cirugía:</b> ${esc(d.cirugia)}</div>`:''}${d.produccion?`<div><b>Producción:</b> ${esc(d.produccion)}</div>`:''}
+    ${d.raices_buenas?`<div><b>Raíces buenas:</b> ${esc(d.raices_buenas)}</div>`:''}${d.transitabilidad?`<div><b>Transitabilidad:</b> ${esc(d.transitabilidad)}</div>`:''}
     ${d.grado_pc?`<div><b>Grado PC:</b> ${esc(d.grado_pc)}</div>`:''}${d.severidad?`<div><b>Severidad:</b> ${esc(d.severidad)}</div>`:''}
-    ${d.sintomas?`<div><b>Síntomas:</b> ${esc(String(d.sintomas).split('|').join(', '))}</div>`:''}${d.accion?`<div><b>Acción:</b> ${esc(d.accion)}</div>`:''}
+    ${d.sintomas?`<div><b>Síntomas:</b> ${esc(String(d.sintomas).split('|').join(' / '))}</div>`:''}${d.accion?`<div><b>Acción:</b> ${esc(d.accion)}</div>`:''}
     ${d.observaciones?`<div><b>Observaciones:</b> ${esc(d.observaciones)}</div>`:''}
     <div class="tenue">${esc(d.evaluador||'')} · ${esc(d._j?d._j.fecha:'')} ${esc(hhmm(d.creado))}${d.dist_gps_palma_m!=null?` · GPS a ${num(d.dist_gps_palma_m,1)} m`:''}</div></div>`;}
 function popupDiag(d,ll){
@@ -1261,7 +1264,7 @@ function barraEstados(){
 function barraProblemas(){
   const c=new Map();for(const d of DIAGF)for(const p of String(d.problemas||'').split('|').filter(Boolean))c.set(p,(c.get(p)||0)+1);
   const v=[...c.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);const mx=v.length?v[0][1]:1;
-  return v.map(([p,n])=>`<div class="barra"><span title="${esc(PROBLEMAS[p]||p)}">${esc(p)}</span><span class="b"><i style="width:${100*n/mx}%;background:var(--naranja)"></i></span><span class="n">${num(n)}</span></div>`).join('')||'<div class="tenue">Sin problemas registrados.</div>';
+  return v.map(([p,n])=>`<div class="barra"><span title="${esc(PROBLEMAS[p]||p)}">${esc(PROBLEMAS[p]?(PROBLEMAS[p].length>16?p:PROBLEMAS[p]):p)}</span><span class="b"><i style="width:${100*n/mx}%;background:var(--naranja)"></i></span><span class="n">${num(n)}</span></div>`).join('')||'<div class="tenue">Sin problemas registrados.</div>';
 }
 function pintarPanel(){
   const P=$('#panel');
@@ -1277,7 +1280,7 @@ function pintarPanel(){
       <div class="kpi"><b>${num(DIAGF.length)}</b><span>Diagnósticos</span></div><div class="kpi"><b style="color:var(--rojo)">${num(enf)}</b><span>Enfermas</span></div><div class="kpi"><b>${num(fotos)}</b><span>Fotos</span></div></div>
       <div class="kpis" style="grid-template-columns:1fr 1fr"><div class="kpi"><b>${esc(minAh(mp))}</b><span>Tiempo en paradas</span></div><div class="kpi"><b>${ops?num(ha/Math.max(1,new Set(JORF.map(j=>j.usuario+'|'+j.fecha)).size),2):'0'}</b><span>Ha por operario-día</span></div></div>
       <h3>Diagnósticos por estado</h3>${barraEstados()}
-      <h3>Problemas más frecuentes</h3>${barraProblemas()}
+      <h3>Enfermedades más frecuentes (Nivel 1)</h3>${barraProblemas()}
       ${comp.length?`<h3>Método por calle frente a buffer</h3><div class="tenue" style="font-size:13px">En ${num(comp.length)} jornada(s) con comparativo: por calle <b style="color:var(--texto)">${num(pc)}</b> palmas; buffer <b style="color:var(--texto)">${num(pb)}</b> palmas (${pb?(pc>=pb?'+':'')+num(100*(pc-pb)/pb,1)+' %':'—'}).</div>`:''}
       <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn mini" id="xGeo">⬇ GeoJSON filtrado</button><button class="btn mini" id="xJor">⬇ CSV jornadas</button><button class="btn mini" id="xDiag">⬇ CSV diagnósticos</button></div>`;
     $('#xGeo').onclick=()=>descargar(`sanidad_${$('#fDesde').value}_${$('#fHasta').value}.geojson`,JSON.stringify(geoDeJornadas(JORF)),'application/geo+json');
@@ -1297,8 +1300,8 @@ function pintarPanel(){
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque un operario para filtrar sus recorridos.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xOp">⬇ CSV operarios</button></div>`;
     $('#xOp').onclick=()=>csv(`operarios_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['usuario','evaluador','jornadas','dias','horas','km','ha','ha_dia','palmas','diag','min_par','lotes'],resumenOperarios());
   }else{
-    const filas=DIAGF.map(d=>({_d:d,fecha:d._j.fecha,hora:hhmm(d.creado),palma:etiquetaDiag(d),lote:d.lote,estado:(estadoDe(d.estado)||{n:d.estado_nombre||d.estado}).n,_c:(estadoDe(d.estado)||{c:'#ccc'}).c,problemas:String(d.problemas||'').split('|').filter(Boolean).join(', '),evaluador:d.evaluador,fotos:Number(d.n_fotos)||0}));
-    const t=tabla('tDiag',[{k:'fecha',t:'Fecha',asc:false},{k:'hora',t:'Hora'},{k:'palma',t:'Palma'},{k:'estado',t:'Estado',f:x=>`<span class="punto" style="background:${x._c}"></span>${esc(x.estado)}`},{k:'problemas',t:'Problemas'},{k:'evaluador',t:'Operario'},{k:'fotos',t:'Fotos',n:1}],
+    const filas=DIAGF.map(d=>({_d:d,fecha:d._j.fecha,hora:hhmm(d.creado),palma:etiquetaDiag(d),lote:d.lote,estado:(estadoDe(d.estado)||{n:d.estado_nombre||d.estado}).n,_c:(estadoDe(d.estado)||{c:'#ccc'}).c,problemas:d.nivel1?[d.n1_codigo||d.nivel1,d.nivel2,d.nivel3].filter(Boolean).join(' › '):String(d.problemas||'').split('|').filter(Boolean).join(', '),evaluador:d.evaluador,fotos:Number(d.n_fotos)||0}));
+    const t=tabla('tDiag',[{k:'fecha',t:'Fecha',asc:false},{k:'hora',t:'Hora'},{k:'palma',t:'Palma'},{k:'estado',t:'Estado',f:x=>`<span class="punto" style="background:${x._c}"></span>${esc(x.estado)}`},{k:'problemas',t:'Diagnóstico'},{k:'evaluador',t:'Operario'},{k:'fotos',t:'Fotos',n:1}],
       filas,f=>{mapa.setView([f._d.lat,f._d.lng],Math.max(mapa.getZoom(),19));popupDiag(f._d);});
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">${num(DIAGF.length)} diagnóstico(s). Toque uno para ubicarlo y ver sus fotos.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xDiag">⬇ CSV diagnósticos</button></div>`;$('#xDiag').onclick=()=>csvDiag();
   }
@@ -1311,7 +1314,7 @@ function csv(nombre,cols,filas){const q=v=>{if(v==null)return '';const s=typeof 
   descargar(nombre,'﻿'+cols.join(';')+'\r\n'+filas.map(f=>cols.map(c=>q(f[c])).join(';')).join('\r\n'),'text/csv;charset=utf-8');}
 function csvJornadas(){csv(`jornadas_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['id','fecha','usuario','evaluador','hora_inicio','hora_fin','duracion_min','km','ha','palmas','diagnosticos','n_paradas','min_paradas','metodo','palmas_buffer','lotes'],
   JORF.map(j=>({id:j.id,fecha:j.fecha,usuario:j.usuario,evaluador:j.evaluador,hora_inicio:j.hora_inicio,hora_fin:j.hora_fin,duracion_min:j.duracion_min,km:j.km,ha:j.ha,palmas:j.palmas,diagnosticos:j.diags.length,n_paradas:j.n_paradas,min_paradas:j.min_paradas,metodo:j.metodo,palmas_buffer:j.comp?j.comp.palmas_visitadas:'',lotes:[...j.lotes].sort(ordenNat).join(',')})));}
-function csvDiag(){const cols=['id','jornada_id','fecha','creado','evaluador','lote','linea','palma','palma_id','estado','estado_nombre','problemas','grado_pc','severidad','sintomas','accion','observaciones','n_fotos','fotos','lat','lng','dist_gps_palma_m'];
+function csvDiag(){const cols=['id','jornada_id','fecha','creado','evaluador','lote','linea','palma','palma_id','estado','estado_nombre','rama','n1_codigo','nivel1','nivel2','nivel3','sintomas','estado_hongo','cirugia','produccion','raices_buenas','transitabilidad','observaciones','problemas','grado_pc','severidad','accion','n_fotos','fotos','lat','lng','dist_gps_palma_m'];
   csv(`diagnosticos_${$('#fDesde').value}_${$('#fHasta').value}.csv`,cols,DIAGF.map(d=>({...d,fecha:d._j.fecha})));}
 function geoDeJornadas(js){const feats=[];
   for(const j of js){
