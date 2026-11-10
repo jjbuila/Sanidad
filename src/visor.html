@@ -349,7 +349,7 @@ async function cargarCartografia(){
       l.on('click',e=>{L.DomEvent.stopPropagation(e);popupLote(n,e.latlng);});}}).addTo(capaLotes);
   const lista=LOTES.features.map(f=>f.properties._lote).filter(Boolean).sort(ordenNat);
   $('#fLote').innerHTML='<option value="">Todos</option>'+lista.map(l=>`<option>${esc(l)}</option>`).join('');
-  try{mapa.fitBounds(L.geoJSON(LOTES).getBounds(),{padding:[20,20]});}catch(e){}
+  try{mapa.fitBounds(L.geoJSON(LOTES).getBounds(),{padding:[20,20],animate:false});}catch(e){}
   mapa.getContainer().classList.toggle('sin-etq',mapa.getZoom()<14);
 }
 async function chunkLote(l){if(CHUNK.has(l))return CHUNK.get(l);const f=PALMASZIP&&PALMASZIP.file(`palmas/${l}.json`);
@@ -382,12 +382,16 @@ async function cargar(){
     const archivos=[];
     await enParalelo(dias,6,async dia=>{for(const f of await arbol(dia.sha))archivos.push({...f,dia:dia.path});});
     const geos=archivos.filter(f=>f.type==='blob'&&f.path.endsWith('.geojson'));
+    const viejas=archivos.filter(f=>f.type==='tree'); // formato anterior: una carpeta por jornada
     const zips=new Map(archivos.filter(f=>f.path.endsWith('_fotos.zip')).map(f=>[f.dia+'/'+f.path,f.sha]));
     const nuevas=[];let hechos=0;
     await enParalelo(geos,6,async f=>{
       try{const g=JSON.parse(await blobTexto(f.sha));nuevas.push(normalizar(g,f,zips.get(f.dia+'/'+f.path.replace(/\.geojson$/,'_fotos.zip'))));}
       catch(e){console.warn('Jornada ilegible',f.path,e);}
-      hechos++;progreso(.05+.95*hechos/geos.length,`Leyendo jornadas: ${hechos} de ${geos.length}`);});
+      hechos++;progreso(.05+.95*hechos/(geos.length+viejas.length),`Leyendo jornadas: ${hechos} de ${geos.length+viejas.length}`);});
+    await enParalelo(viejas,4,async f=>{
+      try{const j=await jornadaCarpeta(f);if(j)nuevas.push(j);}catch(e){console.warn('Jornada (formato anterior) ilegible',f.path,e);}
+      hechos++;progreso(.05+.95*hechos/(geos.length+viejas.length),`Leyendo jornadas: ${hechos} de ${geos.length+viejas.length}`);});
     JOR=nuevas.sort((a,b)=>String(b.inicio).localeCompare(String(a.inicio)));
     const ops=[...new Map(JOR.map(j=>[j.usuario||j.evaluador,j.evaluador])).entries()].sort((a,b)=>ordenNat(a[1],b[1]));
     const sel=$('#fOp').value;$('#fOp').innerHTML='<option value="">Todos</option>'+ops.map(([u,n])=>`<option value="${esc(u)}" ${u===sel?'selected':''}>${esc(n)}</option>`).join('');
@@ -396,6 +400,22 @@ async function cargar(){
     aplicarFiltros(true);
   }catch(e){progreso(0,'⚠ '+e.message);toast(e.message,6000);}
   finally{$('#btCargar').disabled=false;}
+}
+/* Formato anterior (versiones 2.1–2.3): carpeta con jornada.json, registros.geojson, recorrido.geojson y fotos/. */
+async function jornadaCarpeta(f){
+  const t=await arbol(f.sha);const b=n=>t.find(x=>x.path===n&&x.type==='blob');
+  const jj=b('jornada.json');if(!jj)return null;
+  const h=JSON.parse(await blobTexto(jj.sha));
+  const reg=b('registros.geojson')?JSON.parse(await blobTexto(b('registros.geojson').sha)):{features:[]};
+  const rec=b('recorrido.geojson')?JSON.parse(await blobTexto(b('recorrido.geojson').sha)):{features:[]};
+  const feats=(reg.features||[]).map(x=>({...x,properties:{tipo:'diagnostico',...x.properties}}));
+  for(const x of rec.features||[])feats.push({...x,properties:{...x.properties,tipo:'recorrido'}});
+  const fd=t.find(x=>x.path==='fotos'&&x.type==='tree');
+  const ini=h.inicio,fin=h.fin;
+  const head={...h,usuario:h.usuario||'',fecha:f.dia,hora_inicio:hhmm(ini),hora_fin:hhmm(fin),duracion_min:ini&&fin?Math.round((Date.parse(fin)-Date.parse(ini))/60000):null,
+    lotes_seleccionados:h.seleccion||[],km:+(Number(h.km)||0).toFixed(3)};
+  const j=normalizar({jornada:head,features:feats},{path:f.path,dia:f.dia},null);
+  if(fd)j.fotosDir=fd.sha;j.formato='anterior';return j;
 }
 function normalizar(g,f,zipSha){
   const h=g.jornada||{};const diags=[],paradas=[];let track=null;
@@ -436,7 +456,7 @@ function pintarMapa(ajustar){
     const m=L.circleMarker([d.lat,d.lng],{renderer:rend,radius:6,color:'#fff',weight:1.5,fillColor:e.c,fillOpacity:1}).addTo(capaDiag);
     m.on('click',ev=>{L.DomEvent.stopPropagation(ev);popupDiag(d,ev.latlng);});caja.extend([d.lat,d.lng]);}
   if(lote&&LOTES){const f=LOTES.features.find(x=>x.properties._lote===lote);if(f)caja.extend(L.geoJSON(f).getBounds());}
-  if(ajustar&&caja.isValid())mapa.fitBounds(caja,{padding:[30,30],maxZoom:18});
+  if(ajustar&&caja.isValid()){mapa.stop();mapa.fitBounds(caja,{padding:[30,30],maxZoom:18,animate:false});}
 }
 function etiquetaDiag(d){return [d.lote,d.linea!=null&&d.linea!==''?'L'+d.linea:null,d.palma!=null&&d.palma!==''?'P'+d.palma:null].filter(Boolean).join(' · ');}
 function htmlDiag(d){const e=estadoDe(d.estado)||{c:'#ccc',n:d.estado_nombre||d.estado||'—'};
@@ -462,10 +482,12 @@ function popupLote(l,ll){
 }
 async function verFotos(d){
   const lista=String(d.fotos||'').split('|').filter(Boolean);if(!lista.length)return;
-  const j=d._j;if(!j.zipSha){toast('No se encontró el archivo de fotos de esta jornada.');return;}
+  const j=d._j;if(!j.zipSha&&!j.fotosDir){toast('No se encontró el archivo de fotos de esta jornada.');return;}
   $('#fotosTit').textContent=etiquetaDiag(d)+' · '+(j.fecha||'');$('#fotosG').innerHTML='<div class="tenue">Descargando fotos de la jornada…</div>';$('#fotos').hidden=false;
-  try{const z=await blobZip(j.zipSha);const out=[];
-    for(const n of lista){const f=z.file(n)||z.file(n.replace(/\.jpg$/,''));if(!f)continue;const url=URL.createObjectURL(new Blob([await f.async('arraybuffer')],{type:'image/jpeg'}));
+  try{const out=[];let leer;
+    if(j.zipSha){const z=await blobZip(j.zipSha);leer=async n=>{const f=z.file(n)||z.file(n.replace(/\.jpg$/,''));return f?f.async('arraybuffer'):null;};}
+    else{const t=await arbol(j.fotosDir);leer=async n=>{const x=t.find(y=>y.path===n||y.path===n+'.jpg');return x?(await gh(`/git/blobs/${x.sha}`,'application/vnd.github.raw+json')).arrayBuffer():null;};}
+    for(const n of lista){const ab=await leer(n);if(!ab)continue;const url=URL.createObjectURL(new Blob([ab],{type:'image/jpeg'}));
       out.push(`<a href="${url}" download="${esc(etiquetaDiag(d).replace(/[^\w-]+/g,'_'))}_${esc(n)}"><img src="${url}" alt="Foto"></a>`);}
     $('#fotosG').innerHTML=out.join('')||'<div class="tenue">Las fotos no están en el archivo de la jornada.</div>';}
   catch(e){$('#fotosG').innerHTML=`<div class="aviso">${esc(e.message)}</div>`;}
