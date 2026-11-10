@@ -323,9 +323,27 @@ L.control.scale({imperial:false,position:'bottomright'}).addTo(mapa);
 const BASES={sat:()=>L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,attribution:'Imágenes © Esri'}),
   osm:()=>L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:19,attribution:'© OpenStreetMap'})};
 let capaBase=null;
+/* Capa de la ortofoto del dron: zoom 12–17 en teselas sueltas; zoom 18–19 en paquetes (.bin) de 4 o 16 teselas
+   para que el sitio tenga pocos archivos. Formato del paquete: 'SVT1' + uint32 largo de cabecera + JSON {"x,y":[desplazamiento,largo]} + WebP. */
+function capaOrto(base,v,bounds,PZ){
+  PZ=PZ||17;const mem=new Map();
+  const paquete=(z,X,Y)=>{const k=z+'/'+X+'_'+Y;if(mem.has(k))return mem.get(k);
+    const p=fetch(`${base}p${z}/${X}_${Y}.bin?v=${v}`).then(r=>r.ok?r.arrayBuffer():null).then(buf=>{
+      if(!buf)return null;const dv=new DataView(buf);if(dv.getUint32(0)!==0x53565431)return null;const hl=dv.getUint32(4);
+      return {buf,h:JSON.parse(new TextDecoder().decode(new Uint8Array(buf,8,hl))),o:8+hl};}).catch(()=>null);
+    p.then(x=>{if(!x)mem.delete(k);});mem.set(k,p);if(mem.size>48)mem.delete(mem.keys().next().value);return p;};
+  const C=L.GridLayer.extend({createTile(c,done){
+    const img=document.createElement('img');img.alt='';img.setAttribute('role','presentation');
+    img.onload=()=>{if(img._u){URL.revokeObjectURL(img._u);img._u=null;}done(null,img);};img.onerror=()=>done(null,img);
+    if(c.z<=PZ)img.src=`${base}${c.z}/${c.x}/${c.y}.webp?v=${v}`;
+    else{const s=c.z-PZ;paquete(c.z,c.x>>s,c.y>>s).then(b=>{const e=b&&b.h[c.x+','+c.y];if(!e){setTimeout(()=>done(null,img),0);return;}
+      img._u=URL.createObjectURL(new Blob([new Uint8Array(b.buf,b.o+e[0],e[1])],{type:'image/webp'}));img.src=img._u;});}
+    return img;}});
+  return new C({maxZoom:22,maxNativeZoom:19,minNativeZoom:12,bounds,attribution:'Ortofoto dron Palmas de Tumaco'});
+}
 const ORTO_B=[[1.4563992,-78.8196864],[1.5846769,-78.7299481]];
 function ponerBase(){if(capaBase)mapa.removeLayer(capaBase);capaBase=null;const b=$('#cBase').value;
-  if(b==='dron'){const s=BASES.sat();capaBase=L.layerGroup([s,L.tileLayer('teselas/orto/{z}/{x}/{y}.webp?v=2',{maxZoom:22,maxNativeZoom:19,minNativeZoom:12,bounds:ORTO_B,attribution:'Ortofoto dron Palmas de Tumaco'})]).addTo(mapa);s.bringToBack();return;}
+  if(b==='dron'){const s=BASES.sat();capaBase=L.layerGroup([s,capaOrto('teselas/orto/','3',ORTO_B,17)]).addTo(mapa);s.bringToBack();return;}
   if(BASES[b]){capaBase=BASES[b]().addTo(mapa);capaBase.bringToBack();}}
 $('#cBase').onchange=ponerBase;
 const capaLotes=L.layerGroup().addTo(mapa),capaRec=L.layerGroup().addTo(mapa),capaDiag=L.layerGroup().addTo(mapa),capaPar=L.layerGroup().addTo(mapa),capaPalmas=L.layerGroup(),capaSel=L.layerGroup().addTo(mapa);

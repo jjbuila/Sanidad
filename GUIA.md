@@ -176,7 +176,7 @@ SanidadData/
   - Zoom 19: **27,6 cm por píxel** (bloques de 3 × 3 píxeles del original), WebP calidad 70: 9.878 teselas, 86 MB. Se ven las hojas de cada palma.
   - Zoom 18: generado desde 27,6 cm (más nítido), WebP calidad 78: 2.571 teselas, 38 MB.
   - Zoom 12 a 17: desde 55 cm, 11 MB.
-  - Total publicado: 13.440 teselas, 135 MB, en `teselas/orto/` con su índice `indice.json`.
+  - Total: 135 MB en `teselas/orto/` con su índice `indice.json`. Los zoom 18 y 19 van agrupados en **paquetes** (`p18/`, `p19/`, 699 archivos cada uno, de 4 y 16 teselas) para que el sitio tenga unos 2.400 archivos: con 13.440 archivos sueltos GitHub Pages superaba su límite de 10 minutos de publicación.
 - **App de campo:** mapa base predeterminado **«Ortofoto dron Palmas de Tumaco + satélite»** (fuera del área volada se ve el satélite).
   - **Menú → Mapa sin conexión:** descarga la ortofoto de toda la plantación hasta zoom 18 (unos 49 MB, con WiFi).
   - **Al iniciar una jornada con internet** se descarga en segundo plano el zoom 19 solo de los lotes elegidos (alrededor de 1 MB por lote), para tener el máximo detalle sin conexión sin cargar el celular.
