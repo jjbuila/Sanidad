@@ -813,7 +813,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261109:1948</div>
+    <div id="lgVer">VERSIÓN 20261109:2039</div>
   </div>
 </div>
 
@@ -859,7 +859,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
         <label><input type="checkbox" id="cDiag" checked> Diagnósticos</label>
         <label><input type="checkbox" id="cPar" checked> Paradas</label>
         <label><input type="checkbox" id="cPalmas"> Palmas (zoom 17+)</label>
-        <label style="margin-top:2px"><select id="cBase" style="padding:3px 6px;font-size:12.5px"><option value="sat">Satélite</option><option value="osm">Mapa de calles</option><option value="no">Sin fondo</option></select></label>
+        <label style="margin-top:2px"><select id="cBase" style="padding:3px 6px;font-size:12.5px"><option value="dron">Ortofoto dron</option><option value="sat">Satélite</option><option value="osm">Mapa de calles</option><option value="no">Sin fondo</option></select></label>
       </div>
       <div class="leyenda glass" id="leyenda"></div>
       <div id="detalle" class="glass" hidden></div>
@@ -898,7 +898,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261109:1948';
+const VERSION='20261109:2039';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1003,7 +1003,10 @@ L.control.scale({imperial:false,position:'bottomright'}).addTo(mapa);
 const BASES={sat:()=>L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:22,maxNativeZoom:19,attribution:'Imágenes © Esri'}),
   osm:()=>L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:22,maxNativeZoom:19,attribution:'© OpenStreetMap'})};
 let capaBase=null;
-function ponerBase(){if(capaBase)mapa.removeLayer(capaBase);capaBase=null;const b=$('#cBase').value;if(BASES[b]){capaBase=BASES[b]().addTo(mapa);capaBase.bringToBack();}}
+const ORTO_B=[[1.4563992,-78.8196864],[1.5846769,-78.7299481]];
+function ponerBase(){if(capaBase)mapa.removeLayer(capaBase);capaBase=null;const b=$('#cBase').value;
+  if(b==='dron'){const s=BASES.sat();capaBase=L.layerGroup([s,L.tileLayer('teselas/orto/{z}/{x}/{y}.webp',{maxZoom:22,maxNativeZoom:18,minNativeZoom:12,bounds:ORTO_B,attribution:'Ortofoto dron Palmas de Tumaco'})]).addTo(mapa);s.bringToBack();return;}
+  if(BASES[b]){capaBase=BASES[b]().addTo(mapa);capaBase.bringToBack();}}
 $('#cBase').onchange=ponerBase;
 const capaLotes=L.layerGroup().addTo(mapa),capaRec=L.layerGroup().addTo(mapa),capaDiag=L.layerGroup().addTo(mapa),capaPar=L.layerGroup().addTo(mapa),capaPalmas=L.layerGroup(),capaSel=L.layerGroup().addTo(mapa);
 const vis=(id,capa)=>{$(id).onchange=()=>{$(id).checked?capa.addTo(mapa):mapa.removeLayer(capa);if(id==='#cPalmas')dibujarPalmas();};};

@@ -1,4 +1,4 @@
-# Sanidad Vegetal 2.8 — Guía de instalación y uso
+# Sanidad Vegetal 2.9 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -162,6 +162,14 @@ SanidadData/
   - **Exportar:** GeoJSON filtrado, CSV de jornadas, lotes, operarios y diagnósticos (separador `;`, abre directo en Excel).
 - **Consumo de GitHub:** cada archivo se descarga una sola vez y queda en caché del navegador (los archivos sincronizados no cambian). Una consulta de 7 días con 120 operarios usa unas 850 solicitudes la primera vez y casi ninguna después; el límite es 5.000 por hora.
 - **Seguridad:** el token sigue cifrado en `datos/acceso.json`; solo se descifra en el navegador con la contraseña. Con «Recordar en este equipo» la sesión queda cifrada con una llave que no sale del navegador; use **Salir** en equipos compartidos.
+
+## 7.2 Ortofoto del dron
+- **Origen:** `ORTHO.tif` (9,2 cm por píxel, 108.480 × 154.151 píxeles, 4 bandas, sin comprimir, **66,9 GB**, MAGNA-SIRGAS Colombia Oeste Oeste EPSG:3114).
+- **Versión liviana:** se redujo a **55 cm por píxel** (promedio de bloques de 6 × 6 píxeles) y se cortó en teselas web (Web Mercator, formato WebP), zoom 12 a 18: **3.562 teselas, 35 MB**, en `teselas/orto/` con su índice `indice.json`. A 55 cm se distinguen las coronas de las palmas; desde el zoom 19 se amplía la misma imagen.
+- **App de campo:** mapa base predeterminado **«Ortofoto dron Palmas de Tumaco + satélite»** (fuera del área volada se ve el satélite). Menú → **Mapa sin conexión** descarga la ortofoto completa (35 MB, con WiFi) para trabajar sin internet; luego ofrece guardar el satélite de la zona visible.
+- **Visor web:** fondo predeterminado **Ortofoto dron**, con opción de Satélite, Calles o Sin fondo.
+- **Para QGIS/ArcGIS:** `ORTHO_liviana_55cm.tif` (Cloud Optimized GeoTIFF, WebP calidad 80, 74 MB, con pirámides) en el Escritorio del equipo del administrador.
+- **Actualizar con un vuelo nuevo:** repetir el proceso con el nuevo archivo y reemplazar la carpeta `teselas/orto/`; cambie el nombre de la carpeta (por ejemplo `orto2027/`) para que los celulares no conserven teselas antiguas en caché.
 
 ## 8. Actualizar la cartografía
 
