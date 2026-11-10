@@ -1,4 +1,4 @@
-# Sanidad Vegetal 2.7 — Guía de instalación y uso
+# Sanidad Vegetal 2.8 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -149,6 +149,19 @@ SanidadData/
 - **Puntos** con `tipo = parada`: n, hora_inicio, hora_fin, duracion_min, lote, clase (con diagnóstico / sin actividad / sin señal GPS) y diagnosticos.
 
 **Uso en QGIS:** al abrir el `.geojson`, QGIS ofrece dos subcapas, una de puntos (diagnósticos) y otra de líneas (recorrido). Para consolidar varias jornadas, use *Vectorial → Herramientas de gestión de datos → Combinar capas vectoriales*.
+
+## 7.1 Visor web (administración)
+- **Dirección:** `https://jjbuila.github.io/Sanidad/visor.html` (también desde el menú de la app: **Visor web**, visible para administradores y supervisores).
+- **Acceso:** mismo usuario y contraseña de la app. Solo ingresan usuarios con rol **Administrador** o **Supervisor**; los operarios reciben un aviso. El rol *Supervisor* se asigna en `admin.html` y en la app de campo funciona como operario.
+- **Qué muestra:** todas las jornadas sincronizadas en el rango de fechas elegido (Hoy, 7 días, 30 días, Este mes o fechas libres, máximo un año):
+  - **Mapa:** lotes, recorridos (un color por operario), diagnósticos por estado, paradas y, desde zoom 17, las palmas de la cartografía coloreadas con su último diagnóstico.
+  - **Resumen:** jornadas, operarios, lotes, ha recorridas, palmas visitadas, km, diagnósticos, enfermas, fotos, tiempo en paradas, ha por operario-día, diagnósticos por estado, problemas más frecuentes y comparativo *por calle frente a buffer*.
+  - **Jornadas:** tabla ordenable; al tocar una se ve su detalle por lote y se **reproduce el recorrido** (×30 a ×600).
+  - **Lotes** y **Operarios:** totales del periodo; al tocar una fila se filtra por ese lote u operario.
+  - **Diagnósticos:** tabla con estado y problemas; al tocar uno se ubica en el mapa y se pueden **ver sus fotos** (se descargan del ZIP de la jornada solo cuando se piden).
+  - **Exportar:** GeoJSON filtrado, CSV de jornadas, lotes, operarios y diagnósticos (separador `;`, abre directo en Excel).
+- **Consumo de GitHub:** cada archivo se descarga una sola vez y queda en caché del navegador (los archivos sincronizados no cambian). Una consulta de 7 días con 120 operarios usa unas 850 solicitudes la primera vez y casi ninguna después; el límite es 5.000 por hora.
+- **Seguridad:** el token sigue cifrado en `datos/acceso.json`; solo se descifra en el navegador con la contraseña. Con «Recordar en este equipo» la sesión queda cifrada con una llave que no sale del navegador; use **Salir** en equipos compartidos.
 
 ## 8. Actualizar la cartografía
 

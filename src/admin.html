@@ -190,7 +190,7 @@ function filaUsuario(tbody,datos={}){
   const tr=document.createElement('tr');
   tr.innerHTML=`<td><input type="text" data-k="u" placeholder="jperez" value="${esc(datos.u||'')}" autocapitalize="none"></td>
     <td><input type="text" data-k="nombre" placeholder="Juan Pérez" value="${esc(datos.nombre||'')}"></td>
-    <td><select data-k="rol"><option value="operario">Operario</option><option value="admin" ${datos.rol==='admin'?'selected':''}>Administrador</option></select></td>
+    <td><select data-k="rol"><option value="operario">Operario</option><option value="admin" ${datos.rol==='admin'?'selected':''}>Administrador</option><option value="supervisor" ${datos.rol==='supervisor'?'selected':''}>Supervisor (visor web)</option></select></td>
     <td><div class="fila" style="flex-wrap:nowrap;gap:6px"><input type="text" data-k="clave" value="${esc(datos.clave||generarClave())}" style="min-width:110px;flex:1"><button class="btn chico" data-gen title="Generar contraseña" style="flex:none;min-width:0">🎲</button></div></td>
     <td><button class="btn chico peligro" data-x title="Quitar">✕</button></td>`;
   tr.querySelector('[data-gen]').onclick=()=>{tr.querySelector('[data-k=clave]').value=generarClave();};
@@ -274,7 +274,7 @@ $('#eAbrir').onclick=async()=>{
 };
 function pintarLista(){
   $('#eLista').innerHTML=ED.lista.map(x=>{const del=ED.eliminar.has(x.u),nueva=ED.claves.get(x.u);
-    return `<tr style="${del?'opacity:.45;text-decoration:line-through':''}"><td><b>${esc(x.u)}</b></td><td>${esc(x.nombre)}</td><td>${x.rol==='admin'?'Administrador':'Operario'}</td>
+    return `<tr style="${del?'opacity:.45;text-decoration:line-through':''}"><td><b>${esc(x.u)}</b></td><td>${esc(x.nombre)}</td><td>${x.rol==='admin'?'Administrador':x.rol==='supervisor'?'Supervisor':'Operario'}</td>
     <td><div class="fila" style="gap:6px"><button class="btn chico" data-clave="${esc(x.u)}" ${del?'disabled':''}>${nueva?'✓ Nueva: '+esc(nueva):'Nueva contraseña'}</button>
     <button class="btn chico peligro" data-del="${esc(x.u)}">${del?'Deshacer':'Eliminar'}</button></div></td></tr>`;}).join('');
   $$('[data-clave]').forEach(b=>b.onclick=()=>{const c=prompt('Nueva contraseña para '+b.dataset.clave+' (mín. 8, letras y números):',generarClave());

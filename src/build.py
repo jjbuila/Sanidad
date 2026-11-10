@@ -44,6 +44,15 @@ html = html.replace('__ISO__', 'data:image/png;base64,' + b64(os.path.join(MARCA
 with open(os.path.join(RAIZ, 'index.html'), 'w', encoding='utf-8') as f:
     f.write(html)
 
+vis = leer(os.path.join(RAIZ, 'src', 'visor.html')).replace('__VERSION__', VERSION)
+for k, v in reemplazos.items():
+    assert k in vis, k
+    vis = vis.replace(k, v, 1)
+vis = vis.replace('__LOGO__', 'data:image/png;base64,' + b64(os.path.join(MARCA, 'logo_900.png')))
+vis = vis.replace('__ISO__', 'data:image/png;base64,' + b64(os.path.join(MARCA, 'isotipo_256.png')))
+with open(os.path.join(RAIZ, 'visor.html'), 'w', encoding='utf-8') as f:
+    f.write(vis)
+
 adm = leer(os.path.join(RAIZ, 'src', 'admin.html'))
 adm = adm.replace('/*FUENTES*/', fuentes, 1).replace('/*LIB_JSZIP*/', seguro(leer(f'{NM}/jszip/dist/jszip.min.js')), 1)
 adm = adm.replace('__LOGO__', 'data:image/png;base64,' + b64(os.path.join(MARCA, 'logo_900.png')))

@@ -952,7 +952,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261109:1907</div>
+  <div id="splashVer">VERSIÓN 20261109:1936</div>
 </div>
 
 <div id="login" hidden>
@@ -966,7 +966,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261109:1907</div>
+  <div id="lgVer2">VERSIÓN 20261109:1936</div>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
 
@@ -1070,7 +1070,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261109:1907';
+const VERSION='20261109:1936';
 
 /* ---------- Catálogos del formulario ---------- */
 const ESTADOS=[
@@ -2526,6 +2526,7 @@ function menu(){
       ${mos('mSync','sync','Sincronizar','Enviar a GitHub')}
       ${mos('mExp','descarga','Exportar','Respaldo local')}
       ${mos('mZona','mapa','Mapa sin conexión','Guardar la zona visible')}
+      ${SES&&(SES.rol==='admin'||SES.rol==='supervisor')?mos('mVisor','mapa','Visor web','Todos los recorridos sincronizados'):''}
       ${mos('mCfg','config','Configuración',SES&&SES.rol==='admin'?'Mapa, voz, cartografía':'Mapa y voz')}
       ${mos('mSalir','candado','Cerrar sesión',SES?esc(SES.nombre):'')}
       ${estaInstalada()?'':mos('mInst','instalar','Instalar app','En este celular')}
@@ -2535,6 +2536,7 @@ function menu(){
   on('#mJor',()=>S.jornada?panelJornada():abrirPlanificador('nueva'));
   on('#mBD',()=>{cerrarHoja();abrirBD('diag');});on('#mRec',()=>{cerrarHoja();abrirBD('jor');});on('#mRes',()=>{cerrarHoja();abrirBD('res');});
   on('#mSync',panelSync);on('#mSalir',cerrarSesion);on('#mExp',menuExportar);on('#mZona',()=>{cerrarHoja();setTimeout(guardarZona,300);});on('#mCfg',abrirConfig);
+  on('#mVisor',()=>{cerrarHoja();window.open('visor.html','_blank');});
   on('#mInst',()=>{cerrarHoja();instalarApp();});
 }
 async function abrirConfig(){
