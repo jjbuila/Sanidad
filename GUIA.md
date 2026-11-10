@@ -1,4 +1,4 @@
-# Sanidad Vegetal 3.0 — Guía de instalación y uso
+# Sanidad Vegetal 3.1 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -82,14 +82,15 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
   2. **Tocar la etiqueta** que aparece sobre cada palma al acercar el mapa (zoom 20: «L3 · P14»; zoom 21: «IT43 · L3 · P14»). Las etiquetas con borde naranja están a 50 m o menos de usted; las tenues, más lejos.
   3. Botón **CERCANA**: lista de palmas a 50 m o menos, con filtro por línea y «solo pendientes».
   - **Regla:** solo se puede **registrar un diagnóstico nuevo** en palmas a **50 m o menos** del operario (radio configurable por el administrador) y con GPS activo. Si la palma está más lejos, la ficha muestra la distancia y el botón «Ver palmas a 50 m o menos». Los diagnósticos ya registrados en la jornada pueden consultarse y corregirse (si no se han sincronizado) desde cualquier distancia.
+- **Mensajes de voz:** al pulsar **Iniciar jornada** la app dice el mensaje motivacional de Palmas de Tumaco («Buenos días. Hoy inicia una nueva jornada…»), y al **finalizar**: «Muchas gracias por su labor. Feliz resto de día». Mientras suenan, los avisos de la guía no los interrumpen.
 - **🔊 Guía por voz** (botón flotante): anuncia «Lote I T 43, línea 3, palma 14» al llegar a 2 m o menos de la palma. Si la palma ya fue censada, también lo dice.
 - **REGISTRAR DIAGNÓSTICO** (formulario *Ramificación V6* de la plantación, 30 ramas, en `src/Formulario_Sanidad_RamificacionV6.xlsx`):
-  1. **Nivel 1 · Enfermedad principal** (una sola): PC, PE, DBP, Anillo rojo, Cercospora, Deficiencias, Espontánea, Hoja pequeña, Mal de juventud, Marchitez letal, Marchitez sorpresiva, Palma amarilla, Pestalotia, Rayo, Yarumo, o **Sin novedad (palma sana)**.
+  1. **Nivel 1 · Enfermedad principal** (una sola): PC, PE, DBP, Anillo rojo, Cercospora, Deficiencias, Espontánea, Hoja pequeña, Mal de juventud, Marchitez letal, Marchitez sorpresiva, Palma amarilla, Pestalotia, Rayo y Yarumo.
   2. **Nivel 2 · Opción** (una sola), solo si la enfermedad la tiene (por ejemplo PC INICIAL, CRATER, PE PARTIDA, YARUMO EN CALLE).
   3. **Nivel 3 · Enfermedad**: **automático** según los niveles anteriores (caso nuevo o seguimiento). CRATER existe en ambos: si la palma ya tiene un diagnóstico de PC en el celular es *Seguimiento PC*; si no, *PC caso nuevo*.
   4. **Nivel 4 · Síntomas**: la **única selección múltiple**; se muestran solo los de la rama elegida (si hay uno solo, queda marcado).
   5. Campos de la rama, **respuesta única y obligatoria** cuando aplican: estado del hongo (solo PE), cirugía, producción, raíces buenas y transitabilidad. Observación (texto) y fotos. Se muestra la fuente técnica de la rama.
-  - El **estado** (color en el mapa) se asigna solo: sana, enferma (caso nuevo o activo), en recuperación, de alta, erradicada u otra novedad (espontánea, yarumo, rayo).
+  - El **estado** (color en el mapa) se asigna solo: enferma (caso nuevo o activo), en recuperación, de alta, erradicada u otra novedad (espontánea, yarumo, rayo).
   - En cada jornada hay un diagnóstico por palma, que puede corregirse mientras no se haya sincronizado. Los diagnósticos hechos con el formulario anterior se conservan y se muestran como tales.
 - La aplicación **no permite crear palmas ni lotes**: solo se trabaja sobre la cartografía oficial.
 - Desde el botón **JORNADA** puede ver el avance por lote, **agregar lotes**, ver el recorrido hasta el momento o **FINALIZAR JORNADA**.
@@ -177,10 +178,10 @@ SanidadData/
   - Zoom 18: generado desde 27,6 cm (más nítido), WebP calidad 78: 2.571 teselas, 38 MB.
   - Zoom 12 a 17: desde 55 cm, 11 MB.
   - Total: 135 MB en `teselas/orto/` con su índice `indice.json`. Los zoom 18 y 19 van agrupados en **paquetes** (`p18/`, `p19/`, 699 archivos cada uno, de 4 y 16 teselas) para que el sitio tenga unos 2.400 archivos: con 13.440 archivos sueltos GitHub Pages superaba su límite de 10 minutos de publicación.
-- **App de campo:** mapa base predeterminado **«Ortofoto dron Palmas de Tumaco + satélite»** (fuera del área volada se ve el satélite).
+- **App de campo:** la **ortofoto del dron es el único mapa base** (se retiró el satélite de Esri).
   - **Menú → Mapa sin conexión:** descarga la ortofoto de toda la plantación hasta zoom 18 (unos 49 MB, con WiFi).
   - **Al iniciar una jornada con internet** se descarga en segundo plano el zoom 19 solo de los lotes elegidos (alrededor de 1 MB por lote), para tener el máximo detalle sin conexión sin cargar el celular.
-- **Visor web:** fondo predeterminado **Ortofoto dron**, con opción de Satélite, Calles o Sin fondo.
+- **Visor web:** fondo **Ortofoto dron** (o Sin fondo).
 - **Para QGIS/ArcGIS:** `ORTHO_liviana_55cm.tif` (Cloud Optimized GeoTIFF, WebP calidad 80, 74 MB, con pirámides) en el Escritorio del equipo del administrador.
 - **Actualizar con un vuelo nuevo:** repetir el proceso con el nuevo archivo y reemplazar la carpeta `teselas/orto/`; cambie el nombre de la carpeta (por ejemplo `orto2027/`) para que los celulares no conserven teselas antiguas en caché.
 

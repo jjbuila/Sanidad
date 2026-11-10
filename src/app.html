@@ -408,8 +408,10 @@ const SIN_EVALUAR='#ffc53d';
    r: rama · c: código · n1/n2/n3: niveles · s: síntomas (Nivel 4, selección múltiple) · h: estados del hongo (si aplica)
    cir/prod/rai/tra/obs: si aplican Cirugía, Producción, Raíces buenas, Transitabilidad y Observación · f: fuente. */
 const RAMAS=[{"r":1,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"PC INICIAL","n3":"PC CASO NUEVO","s":["Manchas necróticas de color café en la flecha más joven","Folíolos deformados con mordisco en forma de V"],"h":null,"cir":true,"prod":true,"rai":false,"tra":true,"obs":true,"f":"Cenipalma. Escala de severidad de la PC; ABC de la Pudrición del cogollo (PC); Guía de bolsillo Fedepalma-Cenipalma (2016)."},{"r":2,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"PC AVANZADA","n3":"PC CASO NUEVO","s":["Lesiones en la mayor parte del área de la flecha","Colapso de la flecha","Hoja clorótica (amarillamiento de las hojas cercanas al paquete de flechas)"],"h":null,"cir":true,"prod":true,"rai":false,"tra":true,"obs":true,"f":"Cenipalma. Escala de severidad de la PC; ABC de la Pudrición del cogollo (PC); Guía de bolsillo Fedepalma-Cenipalma (2016)."},{"r":3,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"CRATER","n3":"PC CASO NUEVO","s":["Emisión de flechas interrumpida","Palma sin tejidos jóvenes"],"h":null,"cir":true,"prod":true,"rai":false,"tra":true,"obs":true,"f":"Fedepalma-Cenipalma (2016). Guía de bolsillo para el reconocimiento y manejo de las principales enfermedades e insectos plaga en el cultivo de la palma de aceite."},{"r":4,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"PC EN RECUPERACIÓN","n3":"SEGUIMIENTO PC","s":["Hojas nuevas cortas, con apariencia similar a la deficiencia de boro"],"h":null,"cir":true,"prod":true,"rai":false,"tra":true,"obs":true,"f":"Martínez et al. (2009). Manejo integrado de la Pudrición del cogollo (PC) de la palma de aceite. Cartilla Técnica N.° 1. Cenipalma."},{"r":5,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"PC DE ALTA","n3":"SEGUIMIENTO PC","s":["Emisión de hojas nuevas de apariencia normal"],"h":null,"cir":true,"prod":true,"rai":false,"tra":true,"obs":true,"f":"Martínez, G. (2008). Cómo tratar y detener la Pudrición de Cogollo. El Palmicultor N.° 436, pp. 47-49. Fedepalma."},{"r":6,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"PC REINCIDENTE","n3":"SEGUIMIENTO PC","s":["Avance de la pudrición en las nuevas emisiones después de la cirugía"],"h":null,"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Martínez, G. (2008). Cómo tratar y detener la Pudrición de Cogollo. El Palmicultor N.° 436, pp. 47-49. Fedepalma."},{"r":7,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"PC INESTABLE","n3":"SEGUIMIENTO PC","s":["Alterna flechas sanas y flechas con lesiones","Recuperación irregular entre evaluaciones"],"h":null,"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":8,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"CRATER","n3":"SEGUIMIENTO PC","s":["Emisión de flechas interrumpida","Palma sin tejidos jóvenes"],"h":null,"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Fedepalma-Cenipalma (2016). Guía de bolsillo para el reconocimiento y manejo de las principales enfermedades e insectos plaga en el cultivo de la palma de aceite."},{"r":9,"c":"PC","n1":"PUDRICIÓN DE COGOLLO (PC)","n2":"ERRADICADA","n3":"SEGUIMIENTO PC","s":["Palma eliminada","Sitio vacío o con residuos de la erradicación"],"h":null,"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":10,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"PE INICIAL","n3":"PE CASO NUEVO","s":["Acumulación de flechas","Clorosis y doblamiento de las hojas bajeras"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Mestizo et al. Caracterización de síntomas e identificación de microorganismos asociados a la pudrición basal del estípite. Revista Palmas, Fedepalma."},{"r":11,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"PE AVANZADA","n3":"PE CASO NUEVO","s":["Enruanamiento y doblamiento de la punta de las hojas","Acumulación de raíces adventicias e inflorescencias masculinas"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Mestizo et al. Caracterización de síntomas e identificación de microorganismos asociados a la pudrición basal del estípite. Revista Palmas, Fedepalma."},{"r":12,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"PE EN RECUPERACIÓN","n3":"SEGUIMIENTO PE","s":["Lesión seca o cicatrizada en el estípite","Emisión normal de flechas","Sin avance de la pudrición"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":13,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"PE DE ALTA","n3":"SEGUIMIENTO PE","s":["Sin lesión activa en el estípite","Follaje de apariencia normal"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":14,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"PE REINCIDENTE","n3":"SEGUIMIENTO PE","s":["Reactivación de la lesión en el estípite","Nueva acumulación de flechas","Nueva clorosis de hojas bajeras"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":15,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"PE PARTIDA","n3":"SEGUIMIENTO PE","s":["Degradación de la base del estípite sin síntomas visibles en el follaje","Pérdida de anclaje y volcamiento de la palma"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Sarria, G. (Cenipalma). Tres pudriciones amenazan los buenos pronósticos del híbrido OxG. Publicaciones Fedepalma."},{"r":16,"c":"PE","n1":"PUDRICIÓN DE ESTÍPITE (PE)","n2":"ERRADICADA","n3":"SEGUIMIENTO PE","s":["Palma eliminada","Sitio vacío o con residuos de la erradicación"],"h":["FASE SEXUAL","FASE ASEXUAL","SIN NOVEDAD"],"cir":true,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":17,"c":"DBP","n1":"DESPRENDIMIENTO DE BASES PECIOLARES (DBP)","n2":null,"n3":null,"s":["Desprendimiento prematuro de bases peciolares","Lesiones marrones que avanzan desde el corte hacia la base","Secamiento de hojas inferiores","Reducción del área del estípite"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Sarria et al. (Cenipalma). Descripción de síntomas y estrategias de manejo del desprendimiento prematuro y pudrición de bases peciolares en cultivares híbrido OxG."},{"r":18,"c":"AR","n1":"ANILLO ROJO (AR)","n2":null,"n3":null,"s":["Clorosis y acortamiento de hojas jóvenes","Cogollo cerrado o apiñado","Frutos sin brillo y pudrición de racimos","Puntos anaranjados en peciolo y raquis"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Fedepalma-Cenipalma (2016). Guía de bolsillo para el reconocimiento y manejo de las principales enfermedades e insectos plaga en el cultivo de la palma de aceite."},{"r":19,"c":"CER","n1":"CERCOSPORA","n2":null,"n3":null,"s":["Manchas foliares pequeñas de color pardo con halo amarillo","Secamiento de folíolos en hojas bajeras"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":20,"c":"DEF","n1":"DEFICIENCIAS","n2":null,"n3":null,"s":["Amarillamiento generalizado (N)","Manchas anaranjadas en hojas del tercio inferior (K)","Bandas amarillas en folíolos de hojas bajeras (Mg)","Hojas arrugadas o en gancho (B)"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Pérez Rojas, P. A. (2012). Guía de prácticas agrícolas en el cultivo de palma de aceite ya establecido. Fedepalma."},{"r":21,"c":"ESP","n1":"ESPONTANEA","n2":null,"n3":null,"s":["Palma nacida de semilla fuera del sitio de siembra"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":22,"c":"HP","n1":"HOJA PEQUEÑA","n2":null,"n3":null,"s":["Hojas pequeñas y arrugadas, en gancho o espina de pescado","Folíolos cortos (asociado a deficiencia de boro)"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Pérez Rojas, P. A. (2012). Guía de prácticas agrícolas en el cultivo de palma de aceite ya establecido. Fedepalma."},{"r":23,"c":"MJ","n1":"MAL DE JUVENTUD (MJ)","n2":null,"n3":null,"s":["Hojas jóvenes arqueadas o dobladas","Lesión en el raquis de la flecha"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":24,"c":"ML","n1":"MARCHITEZ LETAL (ML)","n2":null,"n3":null,"s":["Necrosis en puntas de brácteas de inflorescencias inmaduras","Desprendimiento de frutos inmaduros sin olor fétido","Folíolos que secan de la punta a la base con franja amarilla","Inicia en el tercio inferior"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Martínez et al. (2011). Guía de bolsillo para el manejo de la marchitez letal (ML) de la palma de aceite. Cenipalma."},{"r":25,"c":"MS","n1":"MARCHITEZ SORPRESIVA (MS)","n2":null,"n3":null,"s":["Secamiento progresivo de hojas de abajo hacia arriba","Folíolos cloróticos con secamiento rojizo","Pudrición de racimos y caída de frutos verdes","Raíces deterioradas con pigmentación rojiza"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Fedepalma-Cenipalma (2016). Guía de bolsillo para el reconocimiento y manejo de las principales enfermedades e insectos plaga en el cultivo de la palma de aceite."},{"r":26,"c":"PA","n1":"PALMA AMARILLA","n2":null,"n3":null,"s":["Amarillamiento generalizado del follaje","Pérdida de vigor"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":27,"c":"PEST","n1":"PESTALOTIA","n2":null,"n3":null,"s":["Lesiones ovaladas acuosas con halo clorótico","Manchas marrón rojizo con halo oscuro","Zonas necróticas grisáceas y pérdida de área foliar"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Cenipalma (2023). Informe de Labores 2023, sección 2.3: Otras enfermedades de la palma de aceite."},{"r":28,"c":"RAYO","n1":"RAYO","n2":null,"n3":null,"s":["Follaje quemado de forma repentina","Hojas quebradas","Rajadura o quemadura en el estípite","Palmas vecinas afectadas"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":29,"c":"YAR","n1":"YARUMO","n2":"YARUMO EN CALLE","n3":null,"s":["Árbol de yarumo creciendo en la calle"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"},{"r":30,"c":"YAR","n1":"YARUMO","n2":"YARUMO EN LOTE","n3":null,"s":["Árbol de yarumo creciendo dentro del lote"],"h":null,"cir":false,"prod":true,"rai":true,"tra":true,"obs":true,"f":"Propuesta propia (sin fuente Cenipalma/Fedepalma; por validar)"}];
-const SIN_NOVEDAD={c:'SN',n1:'SIN NOVEDAD (PALMA SANA)'};
-const N1S=[SIN_NOVEDAD,...RAMAS.filter((x,i,a)=>a.findIndex(y=>y.c===x.c)===i).map(x=>({c:x.c,n1:x.n1}))];
+const SIN_NOVEDAD={c:'SN',n1:'SIN NOVEDAD (PALMA SANA)'}; // solo para leer registros antiguos
+const MSJ_INICIO='Buenos días. Hoy inicia una nueva jornada. Gracias por hacer bien su trabajo: su esfuerzo y dedicación hacen grande a esta empresa. Arranque con toda la actitud, porque hay vida y salud. Que Dios le bendiga y le proteja a usted y a su familia. Palmas de Tumaco le desea un excelente día.';
+const MSJ_FIN='Muchas gracias por su labor. Feliz resto de día.';
+const N1S=[...RAMAS.filter((x,i,a)=>a.findIndex(y=>y.c===x.c)===i).map(x=>({c:x.c,n1:x.n1}))];
 const PROBLEMAS=N1S.filter(x=>x.c!=='SN').map(x=>({id:x.c,n:x.n1.charAt(0)+x.n1.slice(1).toLowerCase().replace(/\(([a-z]+)\)/,(m,g)=>'('+g.toUpperCase()+')')}));
 const TRANSIT=['Transitable','Poco transitable','No transitable'];
 /* Nivel 3 automático. CRATER aparece como caso nuevo y como seguimiento: se decide por el historial de la palma. */
@@ -577,24 +579,12 @@ function capaOrto(base,v,bounds,PZ){
   return new C({maxZoom:22,maxNativeZoom:19,minNativeZoom:12,bounds,attribution:'Ortofoto dron Palmas de Tumaco'});
 }
 const ORTO={dir:'teselas/orto/',v:'3',url:'teselas/orto/{z}/{x}/{y}.webp?v=3',indice:'teselas/orto/indice.json',max:19,base:18,bounds:[[1.4563992,-78.8196864],[1.5846769,-78.7299481]]};
-const BASES={
-  dron:{n:'Ortofoto dron Palmas de Tumaco + satélite',url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',a:'Ortofoto dron Palmas de Tumaco · Imágenes © Esri',max:19},
-  esri:{n:'Satélite (Esri World Imagery)',url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',a:'Imágenes © Esri',max:19},
-  osm:{n:'Calles (OpenStreetMap)',url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',a:'© colaboradores de OpenStreetMap',max:19},
-  propia:{n:'Ortofoto propia (teselas XYZ)',url:'',a:'Ortofoto Palmas de Tumaco',max:20},
-  ninguna:{n:'Sin mapa base',url:''}
-};
+const BASES={dron:{n:'Ortofoto dron Palmas de Tumaco'}}; // único mapa base: la ortofoto del dron
 let capaBase=null;
-function urlBase(){return S.cfg.base==='propia'?S.cfg.urlPropia:(BASES[S.cfg.base]||{}).url;}
+function urlBase(){return ORTO.url;}
 function ponerBase(){
   if(capaBase){mapa.removeLayer(capaBase);capaBase=null;}
-  const b=BASES[S.cfg.base]||BASES.esri;const url=urlBase();if(!url)return;
-  const zmax=S.cfg.base==='propia'?Number(S.cfg.zmaxPropia||20):b.max;
-  const fondo=L.tileLayer(url,{maxZoom:22,maxNativeZoom:zmax,attribution:b.a,crossOrigin:true});
-  if(S.cfg.base==='dron'){ // ortofoto del dron sobre el satélite (fuera de la ortofoto se ve el satélite)
-    capaBase=L.layerGroup([fondo,capaOrto(ORTO.dir,ORTO.v,ORTO.bounds,17)]).addTo(mapa);
-    capaBase.eachLayer(l=>l.bringToBack());fondo.bringToBack();
-  }else{capaBase=fondo.addTo(mapa);capaBase.bringToBack();}
+  S.cfg.base='dron';capaBase=capaOrto(ORTO.dir,ORTO.v,ORTO.bounds,17).addTo(mapa);capaBase.bringToBack();
 }
 function radioPalma(){const z=mapa.getZoom();return z>=20?10:z>=19?8:z>=18?6:z>=17?4.5:z>=16?3:z>=15?2:1.4;}
 mapa.on('moveend',()=>{mapa.getContainer().classList.toggle('sin-etiquetas',mapa.getZoom()<13);dibujarPalmas();if(resalte)resalte.setRadius(radioPalma()+6);});
@@ -909,8 +899,8 @@ async function iniciarJornada(sel,evaluador){
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=evaluador;await guardarCfg();
   TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita);PAR.lista=[];capaParadas.clearLayers();
   await cargarPalmasJornada();iniciarGPS();pantallaEncendida(true);actualizarJornadaUI();dibujarLotes();encuadrar(sel.map(s=>s.lote));
-  if(VOZ.activa)hablar('Jornada iniciada.');
   toast(`▶ Jornada iniciada: ${sel.length} lote(s). Se está guardando el recorrido.`,4000);
+  hablar(MSJ_INICIO,true);
   setTimeout(()=>ortoLotes(sel.map(s=>s.lote),true),3000); // detalle de la ortofoto de los lotes elegidos, en segundo plano
 }
 async function cargarPalmasJornada(){
@@ -975,6 +965,7 @@ async function finalizarJornada(){
   S.jornada=null;S.cfg.jornadaActiva=null;await guardarCfg();VIS=null;
   S.palmas=null;S.hechos.clear();indexar();dibujarPalmas();capaTrack.clearLayers();TRACK.linea=null;TRACK.pts=[];PAR.lista=[];capaParadas.clearLayers();
   if(VOZ.activa)alternarVoz();pantallaEncendida(false);actualizarJornadaUI();dibujarLotes();
+  hablar(MSJ_FIN,true);
   const res=j.visita;
   abrirHoja('Jornada finalizada',`
     <div class="stats">
@@ -1403,8 +1394,11 @@ function elegirVoz(){if(!('speechSynthesis' in window))return;const vs=speechSyn
   VOZ.voz=vs.find(v=>/^es[-_]CO/i.test(v.lang))||vs.find(v=>/^es[-_](419|MX|US)/i.test(v.lang))||vs.find(v=>/^es/i.test(v.lang))||null;}
 if('speechSynthesis' in window){elegirVoz();speechSynthesis.onvoiceschanged=elegirVoz;}
 function paraVoz(t){return String(t??'').trim().replace(/([A-Za-zÑñ])(?=\d)/g,'$1 ').replace(/(\d)(?=[A-Za-zÑñ])/g,'$1 ').replace(/\b[A-ZÑ]{2,3}\b/g,m=>m.split('').join(' '));}
-function hablar(txt){VOZ.ultimaFrase=txt;if(!('speechSynthesis' in window))return;
-  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);u.lang=VOZ.voz?VOZ.voz.lang:'es-CO';if(VOZ.voz)u.voice=VOZ.voz;u.rate=Number(S.cfg.velocidadVoz)||1;speechSynthesis.speak(u);}catch(e){}}
+/* prio: mensajes de inicio y fin de jornada; mientras suenan, los avisos de la guía no los interrumpen. */
+function hablar(txt,prio){if(!prio&&Date.now()<(VOZ.bloq||0))return;VOZ.ultimaFrase=txt;if(!('speechSynthesis' in window))return;
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);u.lang=VOZ.voz?VOZ.voz.lang:'es-CO';if(VOZ.voz)u.voice=VOZ.voz;u.rate=Number(S.cfg.velocidadVoz)||1;
+    if(prio){VOZ.bloq=Date.now()+txt.length*90/(u.rate||1)+2000;u.onend=u.onerror=()=>{VOZ.bloq=0;};}else VOZ.bloq=0;
+    speechSynthesis.speak(u);}catch(e){}}
 function pitido(f=880,ms=140){
   try{if(VOZ.ctx){const o=VOZ.ctx.createOscillator(),g=VOZ.ctx.createGain();o.frequency.value=f;g.gain.setValueAtTime(.35,VOZ.ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(.001,VOZ.ctx.currentTime+ms/1000);o.connect(g).connect(VOZ.ctx.destination);o.start();o.stop(VOZ.ctx.currentTime+ms/1000);}}catch(e){}
@@ -1868,8 +1862,8 @@ async function guardarOrto(){
 }
 async function guardarZona(){
   if(!('caches' in window)){alert('Esta función requiere abrir la aplicación desde su dirección https.');return;}
-  if(S.cfg.base==='dron'&&navigator.onLine){const r=await guardarOrto();if(r===false)return;
-    if(!confirm('¿Desea guardar también el satélite de la zona visible (para las áreas fuera de la ortofoto)?'))return;}
+  if(!navigator.onLine){alert('Necesita conexión a internet para descargar la ortofoto.');return;}
+  await guardarOrto();return;
   const url=urlBase();if(!url){alert('Seleccione primero un mapa base.');return;}
   if(!navigator.onLine){alert('Necesita conexión a internet para descargar el mapa.');return;}
   const b=mapa.getBounds(),z0=Math.max(13,mapa.getZoom()),zTope=S.cfg.base==='propia'?Number(S.cfg.zmaxPropia||20):19,z1=Math.min(zTope,z0+3);
@@ -1981,9 +1975,7 @@ async function abrirConfig(){
     <div class="ficha">Versión <b>${esc(CARTO.paquete||CARTO.version||'—')}</b> · ${S.lotes?S.lotes.features.length:0} lotes · ${num(totalPalmasCarto())} palmas<br><span class="tenue">Origen: ${esc(CARTO.origen||'—')} · ${CARTO.fecha?fmtFecha(CARTO.fecha):''}</span></div>
     ${adm?`<button class="btn ancho" id="cCartoArch">Cargar cartografía desde archivos (administrador)</button>`:''}
     <h3>Mapa base</h3>
-    <select id="cBase">${Object.entries(BASES).map(([k,b])=>`<option value="${k}" ${S.cfg.base===k?'selected':''}>${esc(b.n)}</option>`).join('')}</select>
-    <div id="cPropia"><label class="campo">Dirección de las teselas de la ortofoto</label><input type="text" id="cUrl" value="${esc(S.cfg.urlPropia)}">
-      <label class="campo">Zoom máximo de la ortofoto</label><input type="number" id="cZmax" min="10" max="24" value="${esc(S.cfg.zmaxPropia)}"></div>
+    <div class="ficha">Ortofoto del dron de Palmas de Tumaco (único mapa base). Para usarla sin internet: Menú → Mapa sin conexión.</div>
     <h3>Guía por voz y recorrido</h3>
     <div class="fila"><div><label class="campo">Anunciar a menos de (m)</label><input type="number" id="cUmbral" min="1" max="15" step="0.5" value="${esc(S.cfg.umbralVoz)}"></div>
       <div><label class="campo">Precisión mínima voz (m)</label><input type="number" id="cPrec" min="3" max="50" value="${esc(S.cfg.precisionVoz)}"></div></div>
@@ -1994,12 +1986,12 @@ async function abrirConfig(){
     <h3>Dispositivo</h3>
     <p class="tenue">ID: ${esc(S.cfg.dispositivo)}<br>${esc(info)}</p>
     ${adm?'<button class="btn peligro ancho" id="cBorrar">Borrar datos de este dispositivo</button>':''}`);
-  const vis=()=>$('#cPropia').style.display=$('#cBase').value==='propia'?'':'none';$('#cBase').onchange=vis;vis();
+
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#cSalir',cerrarSesion);
   $('#cOk').onclick=async()=>{
     if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||5;S.cfg.metodoVisita=$('#cMet').value;S.cfg.radioSel=Number($('#cRad').value)||50;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
-    S.cfg.base=$('#cBase').value;S.cfg.urlPropia=$('#cUrl').value.trim();S.cfg.zmaxPropia=Number($('#cZmax').value)||20;
+    S.cfg.base='dron';
     S.cfg.umbralVoz=Number($('#cUmbral').value)||2;S.cfg.precisionVoz=Number($('#cPrec').value)||15;S.cfg.velocidadVoz=Number($('#cVel').value)||1;S.cfg.precisionTrack=Number($('#cPTrack').value)||30;
     await guardarCfg();ponerBase();estadoSync();cerrarHoja();toast('Configuración guardada.');programarSync(1500);};
   on('#cCartoArch',cartoDesdeArchivos);

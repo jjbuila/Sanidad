@@ -195,7 +195,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
         <label><input type="checkbox" id="cDiag" checked> Diagnósticos</label>
         <label><input type="checkbox" id="cPar" checked> Paradas</label>
         <label><input type="checkbox" id="cPalmas"> Palmas (zoom 17+)</label>
-        <label style="margin-top:2px"><select id="cBase" style="padding:3px 6px;font-size:12.5px"><option value="dron">Ortofoto dron</option><option value="sat">Satélite</option><option value="osm">Mapa de calles</option><option value="no">Sin fondo</option></select></label>
+        <label style="margin-top:2px"><select id="cBase" style="padding:3px 6px;font-size:12.5px"><option value="dron">Ortofoto dron</option><option value="no">Sin fondo</option></select></label>
       </div>
       <div class="leyenda glass" id="leyenda"></div>
       <div id="detalle" class="glass" hidden></div>
@@ -343,7 +343,7 @@ function capaOrto(base,v,bounds,PZ){
 }
 const ORTO_B=[[1.4563992,-78.8196864],[1.5846769,-78.7299481]];
 function ponerBase(){if(capaBase)mapa.removeLayer(capaBase);capaBase=null;const b=$('#cBase').value;
-  if(b==='dron'){const s=BASES.sat();capaBase=L.layerGroup([s,capaOrto('teselas/orto/','3',ORTO_B,17)]).addTo(mapa);s.bringToBack();return;}
+  if(b==='dron'){capaBase=capaOrto('teselas/orto/','3',ORTO_B,17).addTo(mapa);capaBase.bringToBack();return;}
   if(BASES[b]){capaBase=BASES[b]().addTo(mapa);capaBase.bringToBack();}}
 $('#cBase').onchange=ponerBase;
 const capaLotes=L.layerGroup().addTo(mapa),capaRec=L.layerGroup().addTo(mapa),capaDiag=L.layerGroup().addTo(mapa),capaPar=L.layerGroup().addTo(mapa),capaPalmas=L.layerGroup(),capaSel=L.layerGroup().addTo(mapa);
