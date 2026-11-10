@@ -1,4 +1,4 @@
-# Sanidad Vegetal 2.6 — Guía de instalación y uso
+# Sanidad Vegetal 2.7 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -77,6 +77,11 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 
 ### Censar
 - **CERCANA**: muestra un **círculo de 50 m** en el mapa y la **lista de palmas de la jornada dentro de ese radio**, ordenadas por distancia, con filtro por línea y opción «solo pendientes». Toque la palma que va a diagnosticar. El radio lo ajusta el administrador.
+- **Elegir la palma a diagnosticar (tres formas):**
+  1. **Tocar el punto de la palma** en el mapa.
+  2. **Tocar la etiqueta** que aparece sobre cada palma al acercar el mapa (zoom 20: «L3 · P14»; zoom 21: «IT43 · L3 · P14»). Las etiquetas con borde naranja están a 50 m o menos de usted; las tenues, más lejos.
+  3. Botón **CERCANA**: lista de palmas a 50 m o menos, con filtro por línea y «solo pendientes».
+  - **Regla:** solo se puede **registrar un diagnóstico nuevo** en palmas a **50 m o menos** del operario (radio configurable por el administrador) y con GPS activo. Si la palma está más lejos, la ficha muestra la distancia y el botón «Ver palmas a 50 m o menos». Los diagnósticos ya registrados en la jornada pueden consultarse y corregirse (si no se han sincronizado) desde cualquier distancia.
 - **🔊 Guía por voz** (botón flotante): anuncia «Lote I T 43, línea 3, palma 14» al llegar a 2 m o menos de la palma. Si la palma ya fue censada, también lo dice.
 - **REGISTRAR DIAGNÓSTICO**: estado, problemas, grado de PC, severidad, síntomas, acción, observaciones y fotos. En cada jornada hay un diagnóstico por palma, que puede corregirse mientras no se haya sincronizado.
 - La aplicación **no permite crear palmas ni lotes**: solo se trabaja sobre la cartografía oficial.

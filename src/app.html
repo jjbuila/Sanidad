@@ -93,6 +93,11 @@ button{cursor:pointer}
 .etq-lote.sel{background:var(--naranja);color:#fff;border-color:#fff}
 .etq-lote.jor{background:var(--acento2);color:#fff;border-color:#bff5df}
 .sin-etiquetas .etq-lote{display:none}
+.etq-palma-ic{background:none;border:0}
+.etq-palma{position:absolute;left:0;bottom:0;transform:translateX(-50%);white-space:nowrap;background:rgba(6,20,15,.86);color:#e8fff6;border:1px solid rgba(144,205,241,.45);border-radius:7px;font-family:var(--t);font-weight:700;font-size:12.5px;letter-spacing:.3px;padding:1px 6px;line-height:1.35;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.etq-palma.cerca{border-color:#ee7633;color:#fff}
+.etq-palma.hecha{opacity:.75}
+.etq-palma.lejos{opacity:.55}
 
 /* ---------- Paneles superiores ---------- */
 #superior{position:fixed;top:calc(var(--sup) + var(--hud) + 8px);left:10px;right:10px;z-index:950;display:flex;flex-direction:column;gap:8px;pointer-events:none}
@@ -526,13 +531,14 @@ function ocultarSplash(){const s=$('#splash');clearTimeout(ocultarSplash.t);s.cl
 function mostrarSplash(){const s=$('#splash');clearTimeout(ocultarSplash.t);s.hidden=false;s.classList.remove('fuera');}
 
 /* ---------- Mapa ---------- */
-const mapa=L.map('mapa',{preferCanvas:true,zoomControl:false,maxZoom:22,attributionControl:true}).setView([1.6,-78.75],11);
+const rend=L.canvas({padding:.5,tolerance:8}); // un solo lienzo para todo el mapa: así un toque nunca queda tapado por otra capa
+const mapa=L.map('mapa',{preferCanvas:true,renderer:rend,zoomControl:false,maxZoom:22,attributionControl:true}).setView([1.6,-78.75],11);
 L.control.zoom({position:'bottomright'}).addTo(mapa);
 L.control.scale({imperial:false,position:'bottomleft'}).addTo(mapa);
-const rend=L.canvas({padding:.5,tolerance:8});
 const capaLotes=L.layerGroup().addTo(mapa);
 const capaTrack=L.layerGroup().addTo(mapa);
 const capaPalmas=L.layerGroup().addTo(mapa);
+const capaEtqPalmas=L.layerGroup().addTo(mapa);
 const capaGps=L.layerGroup().addTo(mapa);
 let resalte=null;
 const BASES={
@@ -614,7 +620,7 @@ function estiloPalma(f){
 }
 function zMinPalmas(){return (S.palmas&&S.palmas.features.length>8000)?17:0;}
 function dibujarPalmas(){
-  capaPalmas.clearLayers();S.marcadores.clear();
+  capaPalmas.clearLayers();capaEtqPalmas.clearLayers();S.marcadores.clear();
   if(!S.palmas||!S.palmas.features.length||mapa.getZoom()<zMinPalmas())return;
   const b=mapa.getBounds().pad(.25);
   const i0=Math.floor(b.getWest()/CELDA),i1=Math.floor(b.getEast()/CELDA),j0=Math.floor(b.getSouth()/CELDA),j1=Math.floor(b.getNorth()/CELDA);
@@ -627,6 +633,30 @@ function dibujarPalmas(){
     const m=L.circleMarker([lat,lng],{renderer:rend,radius:r,...estiloPalma(f)});
     m.on('click',()=>{if(!PLAY.on)abrirPalma(id);});m.addTo(capaPalmas);S.marcadores.set(id,m);
   }
+  dibujarEtiquetasPalmas(grupos);
+}
+/* Etiqueta Lote · Línea · Palma sobre cada palma (zoom 20 o más). Tocarla equivale a tocar el punto. */
+function textoEtqPalma(p){const z=mapa.getZoom();const a=[];if(z>=21&&p._lote)a.push(p._lote);if(p._linea)a.push('L'+p._linea);if(p._num)a.push('P'+p._num);return a.length?a.join(' · '):String(p._id);}
+function dibujarEtiquetasPalmas(grupos){
+  capaEtqPalmas.clearLayers();if(PLAY.on||mapa.getZoom()<20)return;
+  const b=mapa.getBounds();const vis=[];
+  for(const arr of grupos)for(const f of arr){const [lng,lat]=f.geometry.coordinates;if(b.contains([lat,lng]))vis.push(f);}
+  if(vis.length>250)return;
+  const R=Number(S.cfg.radioSel)||50,off=radioPalma()+3;
+  for(const f of vis){const p=f.properties;const [lng,lat]=f.geometry.coordinates;
+    const d=S.gps?dist(S.gps.lat,S.gps.lng,lat,lng):null;
+    const cls='etq-palma'+(S.hechos.has(p._id)?' hecha':'')+(S.jornada&&d!=null?(d<=R?' cerca':' lejos'):'');
+    const mk=L.marker([lat,lng],{icon:L.divIcon({className:'etq-palma-ic',iconSize:[0,0],iconAnchor:[0,off],html:`<div class="${cls}">${esc(textoEtqPalma(p))}</div>`}),keyboard:false,zIndexOffset:500});
+    mk.on('click',e=>{if(e.originalEvent)L.DomEvent.stopPropagation(e.originalEvent);if(!PLAY.on)abrirPalma(p._id);});mk.addTo(capaEtqPalmas);}
+}
+/* Regla para diagnosticar: jornada activa, GPS disponible y palma a radioSel (50 m) o menos del operario. */
+function reglaDiagnostico(f){
+  const R=Number(S.cfg.radioSel)||50;
+  if(!S.jornada)return {ok:false,R,motivo:'Inicie una jornada para registrar diagnósticos.'};
+  if(!S.gps)return {ok:false,R,motivo:'Esperando señal GPS. Para diagnosticar, la palma debe estar a '+R+' m o menos de usted.'};
+  const [x,y]=f.geometry.coordinates;const d=dist(S.gps.lat,S.gps.lng,y,x);
+  if(d>R)return {ok:false,R,d,motivo:`Esta palma está a <b>${Math.round(d)} m</b> de usted. Solo puede diagnosticar palmas a <b>${R} m o menos</b>; acérquese o elija una dentro del círculo.`};
+  return {ok:true,R,d};
 }
 function repintarPalma(id){const m=S.marcadores.get(id),f=S.idx.get(id);if(m&&f)m.setStyle(estiloPalma(f));}
 function resaltar(lat,lng){
@@ -711,6 +741,7 @@ function pintarGPS(){
     gpsCirc=L.circle(ll,{radius:S.gps.acc,color:'#2f93d5',weight:1,fillOpacity:.12,interactive:false}).addTo(capaGps);
     gpsMarca=L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#2f93d5',fillOpacity:1,interactive:false}).addTo(capaGps);
   }else{gpsMarca.setLatLng(ll);gpsCirc.setLatLng(ll).setRadius(S.gps.acc);}
+  if(mapa.getZoom()>=20&&S.jornada&&Date.now()-(pintarGPS.ue||0)>4000){pintarGPS.ue=Date.now();dibujarPalmas();}
   const a=Math.round(S.gps.acc);$('#chGpsTxt').textContent='±'+a+' m';$('#chGps').className='chip '+(a<=6?'ok':a<=15?'med':'mal');
 }
 $('#chGps').onclick=()=>$('#btUbic').click();
@@ -1148,6 +1179,7 @@ function abrirPalma(id,dm){
   const hist=S.registros.filter(r=>r.palma_id===id).sort((a,b)=>String(b.creado).localeCompare(String(a.creado)));
   const hoy=S.hechos.get(id);
   const dGps=dm!=null?dm:(S.gps?dist(S.gps.lat,S.gps.lng,lat,lng):null);
+  const regla=reglaDiagnostico(f);
   abrirHoja(etiquetaPalma(p),`
     <div class="ficha gran"><div><div class="big">${esc(p._lote)}</div><span class="tenue">LOTE</span></div><div><div class="big">${esc(p._linea||'—')}</div><span class="tenue">LÍNEA</span></div><div><div class="big">${esc(p._num||'—')}</div><span class="tenue">PALMA</span></div></div>
     <div class="ficha" style="margin-top:8px">
@@ -1157,11 +1189,13 @@ function abrirPalma(id,dm){
       ${p._existe===false?'<div style="color:var(--ambar)"><b>Sitio sin palma según la cartografía</b></div>':''}
     </div>
     ${S.jornada?(hoy?`<button class="btn ancho ${hoy.sync==='sincronizado'?'':'prim'}" id="btDiag">${hoy.sync==='sincronizado'?IC.candado+' Ver diagnóstico de hoy':'✎ Editar diagnóstico de hoy'}</button>`
-      :`<button class="btn prim ancho grande" id="btDiag">${IC.mas} REGISTRAR DIAGNÓSTICO</button>`)
+      :(regla.ok?`<button class="btn prim ancho grande" id="btDiag">${IC.mas} REGISTRAR DIAGNÓSTICO</button>`
+        :`<div class="aviso">${regla.motivo}</div>${S.gps?`<button class="btn ancho" id="btVerRadio">Ver palmas a ${regla.R} m o menos</button>`:''}`))
       :'<div class="aviso">Inicie una jornada para registrar diagnósticos.</div>'}
     <h3>Historial (${hist.length})</h3>
     ${hist.map(tarjetaRegistro).join('')||'<p class="tenue">Esta palma aún no tiene diagnósticos.</p>'}`);
   const b=$('#btDiag');if(b)b.onclick=()=>abrirFormulario(hoy||{palma_id:id});
+  const vr=$('#btVerRadio');if(vr)vr.onclick=()=>{cerrarHoja();$('#btCercana').click();};
   enlazarTarjetas();
 }
 
@@ -1172,6 +1206,7 @@ async function abrirFormulario(base){
   if(!edit&&!S.jornada){toast('Inicie una jornada para registrar diagnósticos.');return;}
   const f0=S.idx.get(base.palma_id);
   if(!edit&&!f0){toast('Esa palma no pertenece a la jornada.');return;}
+  if(!edit){const rg=reglaDiagnostico(f0);if(!rg.ok){toast(rg.motivo.replace(/<[^>]+>/g,''),5000);return;}}
   const r=edit?JSON.parse(JSON.stringify(base)):{id:uid(),palma_id:base.palma_id,jornada_id:S.jornada.id,evaluador:S.jornada.evaluador,
     estado:'',problemas:[],sintomas:[],grado_pc:'',severidad:'',accion:'',observaciones:'',fotos:[],sync:'pendiente'};
   const bloq=r.sync==='sincronizado';
@@ -1484,7 +1519,7 @@ async function abrirPlay(jid){
   if(pts.length<2){toast('Esta jornada aún no tiene recorrido suficiente para reproducir.');return;}
   if(PILA.includes('hoja'))cerrarCapa('hoja');if(PILA.includes('bd'))cerrarCapa('bd');
   if(PLAY.on)detenerPlay();
-  PLAY.on=true;PLAY.pts=pts;PLAY.t0=pts[0].t;PLAY.t1=pts[pts.length-1].t;PLAY.t=PLAY.t0;PLAY.run=false;
+  PLAY.on=true;capaEtqPalmas.clearLayers();PLAY.pts=pts;PLAY.t0=pts[0].t;PLAY.t1=pts[pts.length-1].t;PLAY.t=PLAY.t0;PLAY.run=false;
   PLAY.acum=[0];for(let i=1;i<pts.length;i++){const d=dist(pts[i-1].lat,pts[i-1].lng,pts[i].lat,pts[i].lng);PLAY.acum.push(PLAY.acum[i-1]+(d<500?d:0));}
   PLAY.capa=L.layerGroup().addTo(mapa);
   L.polyline(pts.map(p=>[p.lat,p.lng]),{color:'#90cdf1',weight:3,opacity:.35,dashArray:'6 7',interactive:false}).addTo(PLAY.capa);
@@ -1526,7 +1561,7 @@ $('#plBtn').onclick=()=>{if(!PLAY.on)return;
 $('#plRango').oninput=()=>{if(!PLAY.on)return;PLAY.t=PLAY.t0+(PLAY.t1-PLAY.t0)*Number($('#plRango').value)/1000;pintarPlay();};
 $('#plCerrar').onclick=()=>cerrarCapa('play');
 function detenerPlay(){
-  PLAY.run=false;cancelAnimationFrame(PLAY.raf);if(PLAY.capa)mapa.removeLayer(PLAY.capa);PLAY.capa=null;PLAY.on=false;
+  PLAY.run=false;cancelAnimationFrame(PLAY.raf);if(PLAY.capa)mapa.removeLayer(PLAY.capa);PLAY.capa=null;PLAY.on=false;dibujarPalmas();
   $('#play').hidden=true;$('#dock').hidden=false;$('#superior').hidden=false;$('#flot').hidden=false;$('#btLeyenda').hidden=false;
 }
 
