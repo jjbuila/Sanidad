@@ -1,6 +1,6 @@
 /* Service worker de Sanidad Vegetal 2.0: permite abrir la aplicación y ver mapas sin conexión.
    Las llamadas a la API de GitHub no se guardan en caché. */
-const APP='sanidad-vegetal-20261109-2039';
+const APP='sanidad-vegetal-20261109-2131';
 const TESELAS='teselas-v1';
 const ARCHIVOS=['./','./index.html','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
 
@@ -15,7 +15,7 @@ self.addEventListener('activate',e=>{
   e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==APP&&k!==TESELAS).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
 });
 function esTesela(u){
-  return /arcgisonline\.com$/.test(u.hostname)||/tile\.openstreetmap\.org$/.test(u.hostname)||u.pathname.includes('/teselas/');
+  return /arcgisonline\.com$/.test(u.hostname)||/tile\.openstreetmap\.org$/.test(u.hostname)||(u.pathname.includes('/teselas/')&&!u.pathname.endsWith('.json'));
 }
 self.addEventListener('fetch',e=>{
   const req=e.request;if(req.method!=='GET')return;

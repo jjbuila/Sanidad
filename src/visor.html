@@ -324,7 +324,7 @@ const BASES={sat:()=>L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/se
 let capaBase=null;
 const ORTO_B=[[1.4563992,-78.8196864],[1.5846769,-78.7299481]];
 function ponerBase(){if(capaBase)mapa.removeLayer(capaBase);capaBase=null;const b=$('#cBase').value;
-  if(b==='dron'){const s=BASES.sat();capaBase=L.layerGroup([s,L.tileLayer('teselas/orto/{z}/{x}/{y}.webp',{maxZoom:22,maxNativeZoom:18,minNativeZoom:12,bounds:ORTO_B,attribution:'Ortofoto dron Palmas de Tumaco'})]).addTo(mapa);s.bringToBack();return;}
+  if(b==='dron'){const s=BASES.sat();capaBase=L.layerGroup([s,L.tileLayer('teselas/orto/{z}/{x}/{y}.webp?v=2',{maxZoom:22,maxNativeZoom:19,minNativeZoom:12,bounds:ORTO_B,attribution:'Ortofoto dron Palmas de Tumaco'})]).addTo(mapa);s.bringToBack();return;}
   if(BASES[b]){capaBase=BASES[b]().addTo(mapa);capaBase.bringToBack();}}
 $('#cBase').onchange=ponerBase;
 const capaLotes=L.layerGroup().addTo(mapa),capaRec=L.layerGroup().addTo(mapa),capaDiag=L.layerGroup().addTo(mapa),capaPar=L.layerGroup().addTo(mapa),capaPalmas=L.layerGroup(),capaSel=L.layerGroup().addTo(mapa);

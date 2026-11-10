@@ -952,7 +952,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261109:2039</div>
+  <div id="splashVer">VERSIÓN 20261109:2131</div>
 </div>
 
 <div id="login" hidden>
@@ -966,7 +966,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261109:2039</div>
+  <div id="lgVer2">VERSIÓN 20261109:2131</div>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
 
@@ -1070,7 +1070,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261109:2039';
+const VERSION='20261109:2131';
 
 /* ---------- Catálogos del formulario ---------- */
 const ESTADOS=[
@@ -1222,7 +1222,7 @@ const capaPalmas=L.layerGroup().addTo(mapa);
 const capaEtqPalmas=L.layerGroup().addTo(mapa);
 const capaGps=L.layerGroup().addTo(mapa);
 let resalte=null;
-const ORTO={url:'teselas/orto/{z}/{x}/{y}.webp',indice:'teselas/orto/indice.json',max:18,bounds:[[1.4563992,-78.8196864],[1.5846769,-78.7299481]]};
+const ORTO={url:'teselas/orto/{z}/{x}/{y}.webp?v=2',indice:'teselas/orto/indice.json',max:19,base:18,bounds:[[1.4563992,-78.8196864],[1.5846769,-78.7299481]]};
 const BASES={
   dron:{n:'Ortofoto dron Palmas de Tumaco + satélite',url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',a:'Ortofoto dron Palmas de Tumaco · Imágenes © Esri',max:19},
   esri:{n:'Satélite (Esri World Imagery)',url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',a:'Imágenes © Esri',max:19},
@@ -1557,6 +1557,7 @@ async function iniciarJornada(sel,evaluador){
   await cargarPalmasJornada();iniciarGPS();pantallaEncendida(true);actualizarJornadaUI();dibujarLotes();encuadrar(sel.map(s=>s.lote));
   if(VOZ.activa)hablar('Jornada iniciada.');
   toast(`▶ Jornada iniciada: ${sel.length} lote(s). Se está guardando el recorrido.`,4000);
+  setTimeout(()=>ortoLotes(sel.map(s=>s.lote),true),3000); // detalle de la ortofoto de los lotes elegidos, en segundo plano
 }
 async function cargarPalmasJornada(){
   const feats=[];
@@ -2456,14 +2457,30 @@ function menuExportar(){
    ===================================================================== */
 const lon2x=(l,z)=>Math.floor((l+180)/360*2**z);
 const lat2y=(a,z)=>{const r=a*Math.PI/180;return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*2**z);};
-async function guardarOrto(){
-  let ind;try{ind=await (await fetch(ORTO.indice,{cache:'no-store'})).json();}catch(e){alert('No se pudo leer el índice de la ortofoto. Verifique la conexión.');return;}
-  const L1=[];for(const [z,v] of Object.entries(ind.teselas))for(const [x,y] of v)L1.push(ORTO.url.replace('{z}',z).replace('{x}',x).replace('{y}',y));
-  if(!confirm(`Se descargará la ortofoto completa del dron: ${L1.length} teselas, unos ${Math.round(ind.bytes/1048576)} MB. Hágalo con WiFi. ¿Continuar?`))return false;
+/* Ortofoto sin conexión: zoom 12–18 de toda la plantación (base) y zoom 19 (máximo detalle) solo de los lotes de la jornada. */
+let ORTO_IND=null;
+async function indiceOrto(){if(ORTO_IND)return ORTO_IND;const r=await fetch(ORTO.indice,{cache:'no-store'});ORTO_IND=await r.json();return ORTO_IND;}
+const urlOrto=(z,x,y)=>ORTO.url.replace('{z}',z).replace('{x}',x).replace('{y}',y);
+async function bajarTeselas(L1,etiqueta){
   const c=await caches.open('teselas-v1');let ok=0,fal=0,i=0;
   const trab=async()=>{while(i<L1.length){const u=L1[i++];try{if(await c.match(u)){ok++;continue;}const r=await fetch(u);if(r.ok){await c.put(u,r);ok++;}else fal++;}catch(e){fal++;}
-    if((ok+fal)%100===0)toast(`Descargando ortofoto… ${ok+fal}/${L1.length}`,4000);}};
-  await Promise.all(Array.from({length:6},trab));
+    if(etiqueta&&(ok+fal)%100===0)toast(`${etiqueta}… ${ok+fal}/${L1.length}`,4000);}};
+  await Promise.all(Array.from({length:6},trab));return {ok,fal};
+}
+async function ortoLotes(lotes,silencio){
+  try{if(!('caches' in window)||!navigator.onLine||S.cfg.base!=='dron'||!S.lotes)return;
+    const ind=await indiceOrto();const z=ORTO.max;const hay=new Set((ind.teselas[z]||[]).map(([x,y])=>x+','+y));const L1=[];
+    for(const l of lotes){const f=S.lotes.features.find(x=>x.properties._lote===l);if(!f||!f._caja)continue;const [a,b,c,d]=f._caja;
+      for(let x=lon2x(a,z);x<=lon2x(c,z);x++)for(let y=lat2y(d,z);y<=lat2y(b,z);y++)if(hay.has(x+','+y))L1.push(urlOrto(z,x,y));}
+    if(!L1.length)return;const r=await bajarTeselas(L1,silencio?null:'Ortofoto de detalle');
+    if(!silencio)toast(`Ortofoto de detalle guardada para ${lotes.length} lote(s): ${r.ok} teselas.`,4000);}catch(e){}
+}
+async function guardarOrto(){
+  let ind;try{ind=await indiceOrto();}catch(e){alert('No se pudo leer el índice de la ortofoto. Verifique la conexión.');return;}
+  const zb=ind.zmaxBase||18;const L1=[];let by=0;for(const [z,v] of Object.entries(ind.teselas)){if(Number(z)>zb)continue;by+=(ind.bytesZ||{})[z]||0;for(const [x,y] of v)L1.push(urlOrto(z,x,y));}
+  if(!confirm(`Se descargará la ortofoto del dron de toda la plantación: ${L1.length} teselas, unos ${Math.round((by||ind.bytes)/1048576)} MB. Hágalo con WiFi.\n\nEl máximo detalle (zoom 19) se descarga solo para los lotes de cada jornada al iniciarla con internet.\n\n¿Continuar?`))return false;
+  const {ok,fal}=await bajarTeselas(L1,'Descargando ortofoto');
+  if(S.jornada)await ortoLotes(S.jornada.seleccion.map(s=>s.lote),true);
   try{localStorage.setItem('sv_orto_ok',String(Date.now()));}catch(e){}
   toast(`Ortofoto guardada para uso sin conexión: ${ok} teselas${fal?` (${fal} fallidas, repita para completarlas)`:''}.`,6000);return true;
 }

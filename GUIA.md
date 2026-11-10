@@ -165,8 +165,14 @@ SanidadData/
 
 ## 7.2 Ortofoto del dron
 - **Origen:** `ORTHO.tif` (9,2 cm por píxel, 108.480 × 154.151 píxeles, 4 bandas, sin comprimir, **66,9 GB**, MAGNA-SIRGAS Colombia Oeste Oeste EPSG:3114).
-- **Versión liviana:** se redujo a **55 cm por píxel** (promedio de bloques de 6 × 6 píxeles) y se cortó en teselas web (Web Mercator, formato WebP), zoom 12 a 18: **3.562 teselas, 35 MB**, en `teselas/orto/` con su índice `indice.json`. A 55 cm se distinguen las coronas de las palmas; desde el zoom 19 se amplía la misma imagen.
-- **App de campo:** mapa base predeterminado **«Ortofoto dron Palmas de Tumaco + satélite»** (fuera del área volada se ve el satélite). Menú → **Mapa sin conexión** descarga la ortofoto completa (35 MB, con WiFi) para trabajar sin internet; luego ofrece guardar el satélite de la zona visible.
+- **Versión liviana (alta definición):**
+  - Zoom 19: **27,6 cm por píxel** (bloques de 3 × 3 píxeles del original), WebP calidad 70: 9.878 teselas, 86 MB. Se ven las hojas de cada palma.
+  - Zoom 18: generado desde 27,6 cm (más nítido), WebP calidad 78: 2.571 teselas, 38 MB.
+  - Zoom 12 a 17: desde 55 cm, 11 MB.
+  - Total publicado: 12.449 teselas, 135 MB, en `teselas/orto/` con su índice `indice.json`.
+- **App de campo:** mapa base predeterminado **«Ortofoto dron Palmas de Tumaco + satélite»** (fuera del área volada se ve el satélite).
+  - **Menú → Mapa sin conexión:** descarga la ortofoto de toda la plantación hasta zoom 18 (unos 49 MB, con WiFi).
+  - **Al iniciar una jornada con internet** se descarga en segundo plano el zoom 19 solo de los lotes elegidos (alrededor de 1 MB por lote), para tener el máximo detalle sin conexión sin cargar el celular.
 - **Visor web:** fondo predeterminado **Ortofoto dron**, con opción de Satélite, Calles o Sin fondo.
 - **Para QGIS/ArcGIS:** `ORTHO_liviana_55cm.tif` (Cloud Optimized GeoTIFF, WebP calidad 80, 74 MB, con pirámides) en el Escritorio del equipo del administrador.
 - **Actualizar con un vuelo nuevo:** repetir el proceso con el nuevo archivo y reemplazar la carpeta `teselas/orto/`; cambie el nombre de la carpeta (por ejemplo `orto2027/`) para que los celulares no conserven teselas antiguas en caché.
