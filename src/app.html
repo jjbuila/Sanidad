@@ -49,6 +49,9 @@ button{cursor:pointer}
 #bannerInst .txt{flex:1;font-size:13.5px;line-height:1.35}
 #bannerInst .txt b{font-family:var(--t);font-size:16px;letter-spacing:.5px;display:block}
 @media(min-width:900px){#bannerInst{left:auto;width:420px}}
+#bannerAct{position:fixed;left:10px;right:10px;top:calc(var(--sup) + var(--hud) + 8px);z-index:1200;border-radius:16px;padding:10px 10px 10px 14px;display:flex;align-items:center;gap:10px;border-color:rgba(34,211,154,.6)}
+#bannerAct .txt{flex:1;font-size:13px;line-height:1.35}#bannerAct .txt b{font-family:var(--t);font-size:16px;letter-spacing:.5px;display:block}
+@media(min-width:900px){#bannerAct{left:auto;width:420px}}
 #splashVer,#lgVer2{font-family:var(--t);font-weight:700;letter-spacing:2px;font-size:14px;color:var(--acento);text-align:center}
 #splashMsg{color:var(--tenue);font-size:13px;min-height:18px;text-align:center}
 
@@ -309,6 +312,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   </form>
   <p id="lgRed"></p>
   <div id="lgVer2">VERSIÓN __VERSION__</div>
+  <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
 
@@ -383,6 +387,8 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 <div id="bannerInst" class="glass" hidden><span style="font-size:26px">📲</span><div class="txt"><b>Instale Sanidad Vegetal</b>Quedará como una aplicación en este celular y funcionará sin internet.</div>
   <button class="btn nar" id="biOk" style="padding:10px 12px;font-size:14px">INSTALAR</button><button class="icono" id="biNo" aria-label="Cerrar">✕</button></div>
 <div id="instalar" hidden><div class="caja glass"><div style="display:flex;align-items:center;gap:8px"><h2 class="tit" style="flex:1;margin:0;font-size:21px;letter-spacing:1px">📲 Instalar en el celular</h2><button class="icono" id="instCerrar" aria-label="Cerrar">✕</button></div><div id="instCuerpo"></div></div></div>
+<div id="bannerAct" class="glass" hidden><span style="font-size:24px">⟳</span><div class="txt"><b>Nueva versión disponible</b><span id="baTxt"></span></div>
+  <button class="btn prim" id="baOk" style="padding:9px 12px;font-size:14px">ACTUALIZAR</button><button class="icono" id="baNo" aria-label="Cerrar">✕</button></div>
 <div id="toast"></div>
 <div id="visor"><img alt=""></div>
 <input type="file" id="inFoto" accept="image/*" capture="environment" multiple hidden>
@@ -2014,6 +2020,30 @@ $('#instalar').onclick=e=>{if(e.target.id==='instalar')$('#instalar').hidden=tru
 $('#lgInstalar').onclick=instalarApp;
 $('#biOk').onclick=()=>{$('#bannerInst').hidden=true;instalarApp();};
 $('#biNo').onclick=()=>{$('#bannerInst').hidden=true;try{localStorage.setItem('sv_banner_inst',String(Date.now()));}catch(e){}};
+/* ---------- Actualización de la app ----------
+   Compara la versión instalada con version.json publicado (siempre desde la red). Si hay una más reciente,
+   actualiza el service worker, borra la copia guardada de la app (no los datos ni la ortofoto) y recarga. */
+let VERSION_NUEVA=null;
+const numVer=v=>Number(String(v||'').replace(/\D/g,''))||0;
+async function versionPublicada(){const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return (await r.json()).version;}
+async function buscarActualizacion(manual){
+  if(!navigator.onLine){if(manual)alert('Sin conexión a internet: no se puede verificar si hay una versión nueva.');return;}
+  let v;try{v=await versionPublicada();}catch(e){if(manual)alert('No se pudo consultar la versión publicada. Intente de nuevo con internet.');return;}
+  if(numVer(v)<=numVer(VERSION)){VERSION_NUEVA=null;$('#bannerAct').hidden=true;if(manual)toast(`✅ Tiene la última versión: ${VERSION}`,4500);return;}
+  VERSION_NUEVA=v;
+  if(manual){if(confirm(`Hay una versión nueva: ${v}\nVersión instalada: ${VERSION}\n\n¿Actualizar ahora? Sus datos y jornadas no se pierden.`))await aplicarActualizacion();}
+  else{$('#baTxt').textContent=`Versión ${v} disponible (tiene ${VERSION}).`;$('#bannerAct').hidden=false;}
+}
+async function aplicarActualizacion(){
+  toast('Actualizando la aplicación…',8000);
+  try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.update().catch(()=>{})));}}catch(e){}
+  try{for(const k of await caches.keys())if(k.startsWith('sanidad-vegetal-'))await caches.delete(k);}catch(e){}
+  setTimeout(()=>location.reload(),700);
+}
+$('#lgAct').onclick=()=>buscarActualizacion(true);
+$('#baOk').onclick=()=>{$('#bannerAct').hidden=true;aplicarActualizacion();};$('#baNo').onclick=()=>{$('#bannerAct').hidden=true;};
+setInterval(()=>{if(SES&&navigator.onLine)buscarActualizacion(false);},30*60000);
+window.addEventListener('online',()=>{if(SES)setTimeout(()=>buscarActualizacion(false),3000);});
 function ofrecerInstalacion(){
   if(estaInstalada())return;
   let ult=0;try{ult=Number(localStorage.getItem('sv_banner_inst'))||0;}catch(e){}
@@ -2035,6 +2065,7 @@ function menu(){
       ${mos('mExp','descarga','Exportar','Respaldo local')}
       ${mos('mZona','mapa','Mapa sin conexión','Guardar la zona visible')}
       ${SES&&(SES.rol==='admin'||SES.rol==='supervisor')?mos('mVisor','mapa','Visor web','Todos los recorridos sincronizados'):''}
+      ${mos('mAct','sync',VERSION_NUEVA?'¡Nueva versión!':'Actualizar versión',VERSION_NUEVA?'Instalar '+VERSION_NUEVA:'Actual: '+VERSION)}
       ${mos('mCfg','config','Configuración',SES&&SES.rol==='admin'?'Mapa, voz, cartografía':'Mapa y voz')}
       ${mos('mSalir','candado','Cerrar sesión',SES?esc(SES.nombre):'')}
       ${estaInstalada()?'':mos('mInst','instalar','Instalar app','En este celular')}
@@ -2043,6 +2074,7 @@ function menu(){
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#mJor',()=>S.jornada?panelJornada():abrirPlanificador('nueva'));
   on('#mBD',()=>{cerrarHoja();abrirBD('diag');});on('#mRec',()=>{cerrarHoja();abrirBD('jor');});on('#mRes',()=>{cerrarHoja();abrirBD('res');});
+  on('#mAct',()=>{cerrarHoja();buscarActualizacion(true);});
   on('#mSync',panelSync);on('#mSalir',cerrarSesion);on('#mExp',menuExportar);on('#mZona',()=>{cerrarHoja();setTimeout(guardarZona,300);});on('#mCfg',abrirConfig);
   on('#mVisor',()=>{cerrarHoja();window.open('visor.html','_blank');});
   on('#mInst',()=>{cerrarHoja();instalarApp();});
@@ -2235,6 +2267,7 @@ async function despuesDeIngresar(){
   iniciarGPS();ocultarSplash();
   if(SES)toast(`Bienvenido, ${SES.nombre}.`);
   ofrecerInstalacion();
+  setTimeout(()=>buscarActualizacion(false),4000);
   programarSync(5000);
 }
 </script>

@@ -1,6 +1,6 @@
 /* Service worker de Sanidad Vegetal 2.0: permite abrir la aplicación y ver mapas sin conexión.
    Las llamadas a la API de GitHub no se guardan en caché. */
-const APP='sanidad-vegetal-20261110-2249';
+const APP='sanidad-vegetal-20261111-0021';
 const TESELAS='teselas-v1';
 const ARCHIVOS=['./','./index.html','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
 
@@ -34,6 +34,11 @@ self.addEventListener('fetch',e=>{
       try{const r=await fetch(req,{cache:'no-store'});if(r.ok){c.put(req,r.clone());return r;}throw new Error();}
       catch(err){return (await c.match(req,{ignoreSearch:true}))||new Response('',{status:504,statusText:'Offline'});}
     }));
+    return;
+  }
+  // Versión publicada: siempre de la red, nunca de la copia guardada (para «Actualizar versión»).
+  if(u.origin===self.location.origin&&u.pathname.endsWith('/version.json')){
+    e.respondWith(fetch(req,{cache:'no-store'}).catch(()=>new Response('{}',{status:503,headers:{'Content-Type':'application/json'}})));
     return;
   }
   // Visor web y página de administración: siempre de la red (la copia guardada solo sin conexión), nunca la app.

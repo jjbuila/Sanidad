@@ -67,4 +67,6 @@ sw = leer(sw_ruta)
 sw = re.sub(r"const APP='[^']*';", "const APP='sanidad-vegetal-" + VERSION.replace(':', '-') + "';", sw, count=1)
 with open(sw_ruta, 'w', encoding='utf-8') as f:
     f.write(sw)
+with open(os.path.join(RAIZ, 'version.json'), 'w', encoding='utf-8') as f:
+    f.write('{"version": "%s"}\n' % VERSION)
 print('Versión', VERSION, '| index.html', os.path.getsize(os.path.join(RAIZ, 'index.html')), 'bytes')
