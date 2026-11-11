@@ -716,6 +716,14 @@ button{cursor:pointer}
 #bannerAct{position:fixed;left:10px;right:10px;top:calc(var(--sup) + var(--hud) + 8px);z-index:1200;border-radius:16px;padding:10px 10px 10px 14px;display:flex;align-items:center;gap:10px;border-color:rgba(34,211,154,.6)}
 #bannerAct .txt{flex:1;font-size:13px;line-height:1.35}#bannerAct .txt b{font-family:var(--t);font-size:16px;letter-spacing:.5px;display:block}
 @media(min-width:900px){#bannerAct{left:auto;width:420px}}
+#camara{position:fixed;inset:0;z-index:7000;background:#000;display:flex;align-items:center;justify-content:center}
+#camVid{width:100%;height:100%;object-fit:contain;background:#000}
+#camFlash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}
+#camara .cam-sup{position:absolute;top:calc(env(safe-area-inset-top) + 12px);left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-family:var(--t);font-weight:700;font-size:17px}
+#camara .cam-inf{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 26px);left:0;right:0;display:flex;justify-content:space-around;align-items:center}
+#camDisparo{width:76px;height:76px;border-radius:50%;border:5px solid #fff;background:var(--naranja);box-shadow:0 0 0 4px rgba(0,0,0,.35)}
+#camDisparo:active{transform:scale(.92)}
+#camara .cam-lat{min-width:76px;height:48px;border-radius:24px;border:1px solid rgba(255,255,255,.5);background:rgba(0,0,0,.45);color:#fff;font-family:var(--t);font-weight:700;font-size:15px}
 #splashVer,#lgVer2{font-family:var(--t);font-weight:700;letter-spacing:2px;font-size:14px;color:var(--acento);text-align:center}
 #splashMsg{color:var(--tenue);font-size:13px;min-height:18px;text-align:center}
 
@@ -961,7 +969,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261111:1551</div>
+  <div id="splashVer">VERSIÓN 20261111:1737</div>
 </div>
 
 <div id="login" hidden>
@@ -975,7 +983,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261111:1551</div>
+  <div id="lgVer2">VERSIÓN 20261111:1737</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1056,6 +1064,10 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 <div id="toast"></div>
 <div id="visor"><img alt=""></div>
 <input type="file" id="inFoto" accept="image/*" capture="environment" multiple hidden>
+<input type="file" id="inGaleria" accept="image/*" multiple hidden>
+<div id="camara" hidden><video id="camVid" playsinline autoplay muted></video><div id="camFlash"></div>
+  <div class="cam-sup"><span id="camN">0 fotos</span><button type="button" class="icono" id="camX" aria-label="Cerrar">✕</button></div>
+  <div class="cam-inf"><button type="button" class="cam-lat" id="camGal" aria-label="Galería">🖼</button><button type="button" id="camDisparo" aria-label="Tomar foto"></button><button type="button" class="cam-lat" id="camOk">LISTO</button></div></div>
 <input type="file" id="inCarto" accept=".geojson,.json,.zip" multiple hidden>
 
 <script>/* @preserve
@@ -1084,7 +1096,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261111:1551';
+const VERSION='20261111:1737';
 /* Si un service worker antiguo entregó la app en la dirección del visor o de administración, se actualiza y se recarga una vez. */
 if(/\/(visor|admin)\.html$/.test(location.pathname)){try{if(!sessionStorage.getItem('sv_redir')){sessionStorage.setItem('sv_redir','1');
   (navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.update()))):Promise.resolve()).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),1200));}}catch(e){}}
@@ -1217,7 +1229,7 @@ const S={
   lotes:null,palmas:null,idx:new Map(),registros:[],ultimo:new Map(),hechos:new Map(),marcadores:new Map(),
   gps:null,seguir:false,jornada:null,plan:[],planAbierto:false,planModo:'nueva',
   cfg:{evaluador:'',dispositivo:'',base:'dron',urlPropia:'teselas/{z}/{x}/{y}.png',zmaxPropia:20,
-    umbralVoz:2,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:5,radioSel:50,metodoVisita:'calle',paramVer:4,paradaRadio:20,paradaMin:5,soloWifi:true,esperaSync:2,jornadaActiva:null,
+    umbralVoz:2,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:5,radioSel:50,metodoVisita:'calle',paramVer:5,paradaRadio:20,paradaMin:5,soloWifi:false,esperaSync:2,jornadaActiva:null,
     gh:{owner:'jjbuila',repo:'Sanidad-datos',rama:'main',token:''}}
 };
 let CARTO={version:'',lotes:{}};
@@ -1541,7 +1553,20 @@ async function pantallaEncendida(on){
     if(!on&&bloqueoPantalla){await bloqueoPantalla.release();bloqueoPantalla=null;}
   }catch(e){}
 }
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(S.jornada||VOZ.activa)pantallaEncendida(true);programarSync(1500);}});
+let OCULTA_DESDE=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'){OCULTA_DESDE=Date.now();if(S.jornada)avisoJornada(true);return;}
+  if(S.jornada||VOZ.activa)pantallaEncendida(true);programarSync(1500);
+  if(S.jornada&&OCULTA_DESDE){const m=(Date.now()-OCULTA_DESDE)/60000;if(m>=1.5){const t=`Atención: la aplicación estuvo en segundo plano ${Math.round(m)} minutos y el recorrido pudo cortarse. Mantenga la aplicación abierta y la pantalla encendida.`;toast('⚠ '+t,8000);hablar(t);if(navigator.vibrate)navigator.vibrate([300,150,300]);}}
+  OCULTA_DESDE=0;});
+/* Aviso persistente mientras hay jornada: permite volver a la app con un toque desde la barra de notificaciones. */
+async function avisoJornada(on){
+  try{if(!('serviceWorker' in navigator)||!('Notification' in window))return;const reg=await navigator.serviceWorker.ready;
+    if(!on){(await reg.getNotifications({tag:'jornada'})).forEach(n=>n.close());return;}
+    if(Notification.permission!=='granted')return;const j=S.jornada;if(!j)return;
+    await reg.showNotification('Sanidad Vegetal · Jornada en curso',{tag:'jornada',renotify:false,silent:true,requireInteraction:true,
+      body:`${SES?SES.nombre:''} · desde las ${hhmm(j.inicio)}. Toque aquí para volver: el recorrido solo se registra con la app abierta.`,icon:'icons/icon-192.png',badge:'icons/icon-192.png'});
+  }catch(e){}}
 
 /* =====================================================================
    PLANIFICACIÓN Y JORNADA
@@ -1619,6 +1644,7 @@ async function iniciarJornada(sel,evaluador){
   toast(`▶ Jornada iniciada: ${sel.length} lote(s). Se está guardando el recorrido.`,4000);
   hablar(MSJ_INICIO,true);
   setTimeout(()=>ortoLotes(sel.map(s=>s.lote),true),3000); // detalle de la ortofoto de los lotes elegidos, en segundo plano
+  try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission().then(()=>avisoJornada(true));else avisoJornada(true);}catch(e){}
 }
 async function cargarPalmasJornada(){
   const feats=[];
@@ -1684,7 +1710,7 @@ async function finalizarJornada(){
   S.jornada=null;S.cfg.jornadaActiva=null;await guardarCfg();VIS=null;
   S.palmas=null;S.hechos.clear();indexar();dibujarPalmas();capaTrack.clearLayers();TRACK.linea=null;TRACK.pts=[];PAR.lista=[];capaParadas.clearLayers();
   if(VOZ.activa)alternarVoz();pantallaEncendida(false);actualizarJornadaUI();dibujarLotes();
-  hablar(MSJ_FIN,true);
+  hablar(MSJ_FIN,true);avisoJornada(false);
   const res=j.visita;
   abrirHoja('Jornada finalizada',`
     <div class="stats">
@@ -2064,7 +2090,7 @@ async function abrirFormulario(base){
     $('#secFuente').textContent=rama.f?'Fuente: '+rama.f:'';};
   const vis=()=>{pintarN2();pintarResto();};
   frm.addEventListener('change',vis);vis();
-  const bf=$('#btFoto');if(bf)bf.onclick=()=>{const i=$('#inFoto');i.value='';i.click();};
+  const bf=$('#btFoto');if(bf)bf.onclick=()=>abrirCamara();
   const bb=$('#btBorrarReg');if(bb)bb.onclick=()=>borrarRegistro(r.id);
   frm.onsubmit=e=>{e.preventDefault();if(!bloq)guardarRegistro(frm);};
 }
@@ -2076,6 +2102,33 @@ function agregarMiniatura(fid,blob,nueva,bloq){
   const b=d.querySelector('button');if(b)b.onclick=()=>{if(nueva)F.fotosNuevas=F.fotosNuevas.filter(x=>x.id!==fid);else F.fotosQuitar.push(fid);d.remove();};
   $('#fotos').appendChild(d);
 }
+/* Cámara dentro de la app: no abre la cámara del sistema (en celulares con poca memoria Android cerraba el navegador
+   mientras la cámara estaba abierta y se perdía la foto) y no maneja fotos de 50 MP: captura a 1920×1080 y guarda a 1280 px. */
+const CAM={stream:null,n:0};
+async function abrirCamara(){
+  if(!F)return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){const i=$('#inFoto');i.value='';i.click();return;}
+  try{CAM.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});}
+  catch(e){toast('No se pudo abrir la cámara dentro de la app; se usará la del celular.',4000);const i=$('#inFoto');i.value='';i.click();return;}
+  CAM.n=0;$('#camN').textContent='0 fotos';const v=$('#camVid');v.srcObject=CAM.stream;$('#camara').hidden=false;try{await v.play();}catch(e){}
+}
+function cerrarCamara(){try{CAM.stream&&CAM.stream.getTracks().forEach(t=>t.stop());}catch(e){}CAM.stream=null;$('#camVid').srcObject=null;$('#camara').hidden=true;}
+$('#camX').onclick=cerrarCamara;$('#camOk').onclick=cerrarCamara;
+$('#camGal').onclick=()=>{cerrarCamara();const i=$('#inGaleria');i.value='';i.click();};
+$('#camDisparo').onclick=async()=>{
+  const v=$('#camVid');if(!v.videoWidth||!F)return;const M=1280;const k=Math.min(1,M/Math.max(v.videoWidth,v.videoHeight));
+  const c=document.createElement('canvas');c.width=Math.round(v.videoWidth*k);c.height=Math.round(v.videoHeight*k);c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+  const fl=$('#camFlash');fl.style.opacity=.85;setTimeout(()=>fl.style.opacity=0,120);if(navigator.vibrate)navigator.vibrate(40);
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.78));c.width=c.height=0;if(!blob)return;
+  const id=uid();const buf=await blob.arrayBuffer();F.fotosNuevas.push({id,buf,type:'image/jpeg'});agregarMiniatura(id,blob,true,false);
+  CAM.n++;$('#camN').textContent=CAM.n+(CAM.n===1?' foto':' fotos');
+};
+$('#inGaleria').onchange=()=>procesarArchivosFoto($('#inGaleria'));
+async function procesarArchivosFoto(inp){
+  const files=Array.from(inp.files||[]);if(!F)return;
+  for(const file of files){try{const c=await comprimir(file);const id=uid();F.fotosNuevas.push({id,...c});agregarMiniatura(id,new Blob([c.buf],{type:c.type}),true,false);}
+    catch(e){toast('No se pudo procesar la foto: '+e.message);}}
+}
 $('#inFoto').onchange=async()=>{
   const files=Array.from($('#inFoto').files||[]);if(!F)return;
   for(const file of files){try{const c=await comprimir(file);const id=uid();F.fotosNuevas.push({id,...c});agregarMiniatura(id,new Blob([c.buf],{type:c.type}),true,false);}
@@ -2083,6 +2136,11 @@ $('#inFoto').onchange=async()=>{
 };
 function cargarImg(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file);const i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i);};i.onerror=()=>rej(new Error('formato no soportado'));i.src=u;});}
 async function comprimir(file){
+  // Reduce la imagen al decodificarla (evita cargar en memoria fotos de 50 MP completas).
+  if(window.createImageBitmap&&file.size>1500000){try{let bm=await createImageBitmap(file,{resizeWidth:1280,resizeQuality:'medium'});
+    if(bm.height>1600){const w=Math.round(bm.width*1280/bm.height);bm.close();bm=await createImageBitmap(file,{resizeHeight:1280,resizeWidth:w,resizeQuality:'medium'});}
+    const c=document.createElement('canvas');c.width=bm.width;c.height=bm.height;c.getContext('2d').drawImage(bm,0,0);bm.close();
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.74));c.width=c.height=0;if(blob)return {buf:await blob.arrayBuffer(),type:'image/jpeg'};}catch(e){}}
   const img=await cargarImg(file);const M=1280;const k=Math.min(1,M/Math.max(img.naturalWidth,img.naturalHeight));
   const c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);
   c.getContext('2d').drawImage(img,0,0,c.width,c.height);
@@ -2499,9 +2557,9 @@ async function sincronizar(manual){
   if(!manual&&!redPermitida()){estadoSync();return;}
   const lista=await jornadasPorSincronizar();
   if(!lista.length){SYNC.turno=0;estadoSync();if(manual)toast(S.jornada?'La jornada en curso se sincronizará completa al finalizarla.':'✓ Todo está sincronizado.',3500);return;}
-  if(manual&&!redPermitida()&&!confirm('No está conectado a WiFi. ¿Desea sincronizar usando datos móviles?'))return;
+
   if(!manual){ // escalonamiento: cada celular espera un turno aleatorio (0 a 10 min) para no coincidir con los demás
-    if(!SYNC.turno){SYNC.turno=Date.now()+Math.random()*10*60000;estadoSync();programarSync(SYNC.turno-Date.now());return;}
+    if(!SYNC.turno){SYNC.turno=Date.now()+Math.random()*3*60000;estadoSync();programarSync(SYNC.turno-Date.now());return;}
     if(Date.now()<SYNC.turno){programarSync(SYNC.turno-Date.now());return;}
   }
   SYNC.activo=true;estadoSync();let n=0,nd=0;
@@ -2566,6 +2624,7 @@ function panelSync(){
   jornadasPorSincronizar().then(l=>{const e=$('#sJor');if(e)e.textContent=l.length;});
 }
 window.addEventListener('online',()=>{estadoSync();programarSync(2000);});
+setInterval(()=>{if(navigator.onLine&&!SYNC.activo&&!SYNC.t)programarSync(1000);},5*60000); // reintento periódico si quedó algo pendiente
 window.addEventListener('offline',estadoSync);
 if(navigator.connection&&navigator.connection.addEventListener)navigator.connection.addEventListener('change',()=>{estadoSync();programarSync(2000);});
 setInterval(()=>{if(!SYNC.activo&&redPermitida())sincronizar(false);},90000);
@@ -2768,7 +2827,7 @@ async function abrirConfig(){
       <span class="tenue">Datos: ${esc(S.cfg.gh.owner)}/${esc(S.cfg.gh.repo)} (${esc(S.cfg.gh.rama)}) · token cifrado en el paquete de acceso</span></div>
     <button class="btn ancho" id="cSalir">${IC.candado} Cerrar sesión</button>
     ${adm?`<h3>Sincronización</h3>
-    <label class="chip-op" style="display:inline-block"><input type="checkbox" id="cWifi" ${S.cfg.soloWifi?'checked':''}><span>Sincronizar automáticamente solo con WiFi</span></label>
+    <label class="chip-op" style="display:inline-block"><input type="checkbox" id="cWifi" ${S.cfg.soloWifi?'checked':''}><span>Sincronizar automáticamente solo con WiFi (desmarcado: también con datos móviles)</span></label>
     <p class="tenue">Cada jornada se envía completa una sola vez, después de finalizarla.</p>
     <h3>Cálculo de hectáreas recorridas</h3>
     <div class="fila"><div><label class="campo">Densidad (palmas/ha)</label><input type="number" id="cDens" min="50" max="250" value="${esc(S.cfg.densidad)}"></div>
@@ -2915,7 +2974,8 @@ async function asegurarCartografia(){
   const c=await dbGet('config','cfg');if(c){const pv=S.cfg.paramVer;S.cfg={...S.cfg,...c.v,gh:{...S.cfg.gh,...(c.v.gh||{}),token:''}};
     if((c.v.paramVer||1)<2){S.cfg.bufferVisita=5;S.cfg.umbralVoz=2;S.cfg.radioSel=50;}
     if((c.v.paramVer||1)<3){S.cfg.metodoVisita='calle';}
-    if((c.v.paramVer||1)<4){if(!c.v.base||c.v.base==='esri')S.cfg.base='dron';S.cfg.paramVer=pv;}}
+    if((c.v.paramVer||1)<4){if(!c.v.base||c.v.base==='esri')S.cfg.base='dron';}
+    if((c.v.paramVer||1)<5){S.cfg.soloWifi=false;S.cfg.paramVer=pv;}}
   if(!S.cfg.dispositivo)S.cfg.dispositivo='DISP-'+uid().slice(0,8).toUpperCase();
   await guardarCfg();
   avance('Verificando acceso…');await cargarAcceso();

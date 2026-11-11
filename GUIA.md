@@ -1,4 +1,4 @@
-# Sanidad Vegetal 3.2 — Guía de instalación y uso
+# Sanidad Vegetal 3.3 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -63,7 +63,7 @@ Los celulares toman los cambios la próxima vez que abran la aplicación con int
 4. **Voz sin internet:** *Ajustes → Sistema → Idiomas → Salida de texto a voz → Servicios de voz de Google → Instalar datos de voz → Español*.
 5. **Mapa sin conexión:** con internet, recorra en el mapa los lotes de trabajo o use **Menú → Mapa sin conexión**.
 
-Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que ya tiene la sesión iniciada, planifica la jornada, censa y finaliza. Al llegar a una zona con WiFi, la información se sincroniza sola.
+Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que ya tiene la sesión iniciada, planifica la jornada, censa y finaliza. En cuanto el celular tiene internet (WiFi o datos móviles), la información pendiente se sincroniza sola.
 
 ## 6. Trabajo en campo
 
@@ -85,6 +85,8 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 - **Secuencias por lote:** cada entrada a un lote abre una secuencia (1 RI01, 2 RI02, 3 RI01…). Por secuencia se registran hora de inicio y fin, tiempo total, paradas, **tiempo efectivo** (total − paradas), palmas visitadas (por primera vez), hectáreas y diagnósticos. Lo recorrido fuera de los lotes aparece como **Desplazamiento** y cuenta como tiempo efectivo. Los cambios de lote de menos de 60 s se ignoran (ruido del GPS en los bordes). La barra de la jornada muestra la secuencia, el lote actual y el tiempo efectivo acumulado; el panel de la jornada y el resumen final traen la tabla completa, que también se sincroniza (`secuencias` en el GeoJSON).
 - **Colores de las palmas diagnosticadas:** uno por enfermedad principal (PC rojo, PE morado, DBP naranja, Anillo rojo vino, Cercospora café, Deficiencias lima, Espontánea cian, Hoja pequeña índigo, Mal de juventud rosado, ML negro, MS azul, Palma amarilla oliva, Pestalotia verde azulado, Rayo blanco, Yarumo verde oscuro); si la palma está **de alta**, verde brillante.
 - **Reproducción del recorrido:** las palmas visitadas aparecen a medida que avanza el operario, con su contador (app y visor).
+- **Fotos:** el botón «📷 Tomar o adjuntar foto» abre la **cámara dentro de la app** (se pueden tomar varias seguidas y pulsar LISTO; 🖼 abre la galería). Las fotos se guardan a 1280 px. Así no se abre la cámara del sistema, que en celulares con poca memoria (por ejemplo Xiaomi Redmi con 4 GB) hacía que Android cerrara el navegador y se perdiera la foto.
+- **Segundo plano:** al iniciar la jornada la app muestra el aviso persistente «Jornada en curso» en la barra de notificaciones (tocarlo vuelve a la app). Si la app estuvo más de 1,5 minutos en segundo plano, al volver avisa por voz que el recorrido pudo cortarse. Una aplicación web no puede registrar GPS con la app cerrada o la pantalla apagada: mantenga la app abierta y la pantalla encendida (la app la mantiene encendida sola).
 - **Mensajes de voz:** al pulsar **Iniciar jornada** la app dice el mensaje motivacional de Palmas de Tumaco («Buenos días. Hoy inicia una nueva jornada…»), y al **finalizar**: «Muchas gracias por su labor. Feliz resto de día». Mientras suenan, los avisos de la guía no los interrumpen.
 - **🔊 Guía por voz** (botón flotante): anuncia «Lote I T 43, línea 3, palma 14» al llegar a 2 m o menos de la palma. Si la palma ya fue censada, también lo dice.
 - **REGISTRAR DIAGNÓSTICO** (formulario *Ramificación V6* de la plantación, 30 ramas, en `src/Formulario_Sanidad_RamificacionV6.xlsx`):
@@ -136,7 +138,7 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 
 **Regla: una jornada, una sincronización.**
 - **Durante la jornada no se envía nada.** Los diagnósticos se pueden corregir mientras la jornada no se haya sincronizado.
-- **Al finalizar la jornada**, en cuanto el celular tenga **WiFi**, se envía la **jornada completa** en un solo envío. Con datos móviles solo se envía si el usuario pulsa **Sincronizar ahora** y lo confirma.
+- **Al finalizar la jornada**, en cuanto el celular tenga **internet (WiFi o datos móviles)**, se envía la **jornada completa** en un solo envío. Si no hay conexión, se reintenta sola al recuperarla, al abrir la app y cada 5 minutos. El administrador puede limitarlo a WiFi en *Configuración*.
 - **Escalonamiento:** para que los 120 celulares no envíen al mismo tiempo, cada uno espera un **turno aleatorio de 0 a 10 minutos**. El botón *Sincronizar ahora* envía de inmediato.
 - **Pausas de GitHub:** si GitHub pide esperar por exceso de solicitudes, la aplicación respeta la pausa y **reintenta sola**. El indicador de la cabecera muestra «Espera».
 - **Bloqueo:** una vez enviada, la jornada queda **🔒 bloqueada**: sus diagnósticos no se pueden editar ni eliminar.
@@ -204,4 +206,4 @@ Mantenga el `ID Palma`, porque es el identificador que vincula los diagnósticos
 - **Pantalla encendida:** el navegador solo registra el recorrido con la aplicación abierta y la pantalla encendida. La aplicación mantiene la pantalla encendida durante la jornada; no la bloquee ni cambie de aplicación. Si la aplicación se cierra, al abrirla la jornada se recupera y el recorrido continúa.
 - **Precisión:** solo se guardan puntos de recorrido con una precisión de 30 m o mejor, y se descartan los saltos del GPS.
 - **Fotos:** se reducen a 1 280 px (unos 60 a 150 KB cada una). GitHub recomienda que un repositorio no supere unos 5 GB. Para un volumen alto de fotos, conviene archivar cada año en otro repositorio.
-- **Detección de WiFi:** solo funciona en Chrome para Android. En iPhone y en computadores, la aplicación sincroniza con cualquier conexión.
+- **Detección de WiFi** (solo si el administrador limita la sincronización a WiFi): funciona en Chrome para Android. En iPhone y en computadores, la aplicación sincroniza con cualquier conexión.

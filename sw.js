@@ -1,6 +1,6 @@
 /* Service worker de Sanidad Vegetal 2.0: permite abrir la aplicación y ver mapas sin conexión.
    Las llamadas a la API de GitHub no se guardan en caché. */
-const APP='sanidad-vegetal-20261111-1551';
+const APP='sanidad-vegetal-20261111-1737';
 const TESELAS='teselas-v1';
 const ARCHIVOS=['./','./index.html','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
 
@@ -58,4 +58,12 @@ self.addEventListener('fetch',e=>{
       return (await red)||new Response('Sin conexión',{status:503});
     }));
   }
+});
+
+// Tocar el aviso de «Jornada en curso» vuelve a abrir la aplicación.
+self.addEventListener('notificationclick',e=>{
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(cs=>{
+    for(const c of cs){if(!/\/(visor|admin)\.html/.test(c.url)&&'focus' in c)return c.focus();}
+    return self.clients.openWindow('./');}));
 });
