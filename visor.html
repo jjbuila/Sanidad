@@ -722,7 +722,8 @@ main{display:grid;grid-template-columns:var(--lat) minmax(0,1fr);min-height:0;ov
 aside{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;border-right:1px solid var(--borde);background:var(--panel2)}
 #filtros{padding:12px 14px;border-bottom:1px solid var(--borde);display:grid;gap:8px}
 #filtros .fila{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
-#filtros .fila3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#filtros .fila3,#filtros .fila4{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#filtros .fila4{grid-template-columns:repeat(4,minmax(0,1fr))}
 #filtros select,#filtros input{width:100%}
 #filtros .acc{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .atajos{display:flex;gap:6px;flex-wrap:wrap}
@@ -730,7 +731,7 @@ aside{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidde
 #prog b{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acento),var(--celeste));transition:width .2s}
 #progTxt{font-size:12.5px;min-height:18px}
 nav.tabs{display:flex;border-bottom:1px solid var(--borde);overflow-x:auto}
-nav.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:9px 6px;cursor:pointer;font-family:var(--t);font-weight:700;letter-spacing:1px;color:var(--tenue);white-space:nowrap}
+nav.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:9px 4px;font-size:12.5px;cursor:pointer;font-family:var(--t);font-weight:700;letter-spacing:1px;color:var(--tenue);white-space:nowrap}
 nav.tabs button.on{color:var(--texto);border-bottom-color:var(--acento)}
 #panel{flex:1;overflow:auto;padding:12px 14px 30px}
 .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
@@ -757,7 +758,8 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .leaflet-container{font:inherit}
 .capas{position:absolute;top:10px;right:10px;z-index:900;border-radius:14px;padding:8px 10px;display:grid;gap:4px;font-size:13px}
 .capas label{display:flex;gap:6px;align-items:center;cursor:pointer}
-.leyenda{position:absolute;left:10px;bottom:24px;z-index:900;border-radius:14px;padding:8px 10px;font-size:12px;max-width:240px}
+.leyenda{position:absolute;left:10px;bottom:24px;z-index:900;border-radius:14px;padding:8px 10px;font-size:11px;max-width:330px;display:grid;grid-template-columns:1fr 1fr;column-gap:10px}
+.leyenda b.tit,.leyenda .tenue{grid-column:1/-1}
 .leyenda div{margin:2px 0}
 .etq-lote{background:rgba(6,20,15,.78);color:#d8efe6;border:1px solid rgba(144,205,241,.35);border-radius:6px;font-family:var(--t);font-weight:700;font-size:12px;padding:0 5px;box-shadow:none}
 .etq-lote::before{display:none}
@@ -813,7 +815,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261110:2041</div>
+    <div id="lgVer">VERSIÓN 20261110:2120</div>
   </div>
 </div>
 
@@ -838,7 +840,8 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
           <div class="atajos"><button class="btn mini" data-dias="0">Hoy</button><button class="btn mini" data-dias="6">7 días</button><button class="btn mini" data-dias="29">30 días</button><button class="btn mini" data-mes="1">Este mes</button></div>
           <button class="btn prim" id="btCargar" style="margin-left:auto">CARGAR</button>
         </div>
-        <div class="fila3">
+        <div class="fila4">
+          <div><label class="campo" for="fProg">Programa</label><select id="fProg"><option value="">Todos</option></select></div>
           <div><label class="campo" for="fOp">Operario</label><select id="fOp"><option value="">Todos</option></select></div>
           <div><label class="campo" for="fLote">Lote</label><select id="fLote"><option value="">Todos</option></select></div>
           <div><label class="campo" for="fEst">Estado</label><select id="fEst"><option value="">Todos</option></select></div>
@@ -847,7 +850,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
         <div id="progTxt" class="tenue"></div>
       </div>
       <nav class="tabs">
-        <button data-tab="resumen" class="on">RESUMEN</button><button data-tab="jornadas">JORNADAS</button><button data-tab="lotes">LOTES</button><button data-tab="operarios">OPERARIOS</button><button data-tab="diag">DIAGNÓSTICOS</button>
+        <button data-tab="resumen" class="on">RESUMEN</button><button data-tab="jornadas">JORNADAS</button><button data-tab="lotes">LOTES</button><button data-tab="secuencias">SECUENCIAS</button><button data-tab="operarios">OPERARIOS</button><button data-tab="diag">DIAGNÓSTICOS</button>
       </nav>
       <div id="panel"></div>
     </aside>
@@ -898,7 +901,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261110:2041';
+const VERSION='20261110:2120';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -912,6 +915,10 @@ const ESTADOS=[
   {id:'alta',n:'De alta',c:'#7bed9f'},{id:'erradicada',n:'Erradicada',c:'#9e9e9e'},{id:'novedad',n:'Otra novedad (no fitosanitaria)',c:'#b388ff'},
   {id:'muerta',n:'Muerta',c:'#1a1a1a',leg:1},{id:'faltante',n:'Sitio vacío / faltante',c:'#ffffff',leg:1},{id:'resiembra',n:'Resiembra',c:'#3fa9ff',leg:1}];
 const estadoDe=id=>ESTADOS.find(e=>e.id===id);
+const COLOR_N1={PC:'#e53935',PE:'#8e24aa',DBP:'#fb8c00',AR:'#ad1457',CER:'#795548',DEF:'#c0ca33',ESP:'#00acc1',HP:'#3949ab',MJ:'#f48fb1',ML:'#212121',MS:'#1e88e5',PA:'#827717',PEST:'#26a69a',RAYO:'#ffffff',YAR:'#33691e'};
+const COLOR_ALTA='#00e676';
+const codN1=d=>d.n1_codigo||String(d.problemas||'').split('|').filter(Boolean)[0]||'';
+function colorD(d){if(!d)return '#999';if(d.estado==='alta')return COLOR_ALTA;return COLOR_N1[codN1(d)]||(estadoDe(d.estado)||{c:'#ccc'}).c;}
 const PROBLEMAS={PC:'Pudrición de cogollo (PC)',PE:'Pudrición de estípite (PE)',DBP:'Desprendimiento de bases peciolares (DBP)',AR:'Anillo rojo (AR)',CER:'Cercospora',DEF:'Deficiencias',
   ESP:'Espontánea',HP:'Hoja pequeña',MJ:'Mal de juventud (MJ)',ML:'Marchitez letal (ML)',MS:'Marchitez sorpresiva (MS)',PA:'Palma amarilla',PEST:'Pestalotia',RAYO:'Rayo',YAR:'Yarumo',
   RP:'Rhynchophorus palmarum (picudo)',SA:'Strategus aloeus',LG:'Leptopharsa / Pestalotiopsis',OC:'Opsiphanes cassina',SV:'Sagalassa valida',DF:'Otros defoliadores',RT:'Daño por roedores',DN:'Deficiencia nutricional',OT:'Otro'};
@@ -1006,6 +1013,11 @@ const BASES={sat:()=>L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/se
 let capaBase=null;
 /* Capa de la ortofoto del dron: zoom 12–17 en teselas sueltas; zoom 18–19 en paquetes (.bin) de 4 o 16 teselas
    para que el sitio tenga pocos archivos. Formato del paquete: 'SVT1' + uint32 largo de cabecera + JSON {"x,y":[desplazamiento,largo]} + WebP. */
+let IND_ORTO=null;const IND_SETS=new Map();
+const IND_P=fetch('teselas/orto/indice.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{IND_ORTO=j;}).catch(()=>{});
+function existeOrto(z,x,y,PZ){const I=IND_ORTO;if(!I)return true;const s=z+'';
+  if(z<=PZ){if(!IND_SETS.has(s))IND_SETS.set(s,new Set(((I.teselas||{})[s]||[]).map(a=>a[0]+','+a[1])));return IND_SETS.get(s).has(x+','+y);}
+  const sh=z-PZ,kk='p'+z;if(!IND_SETS.has(kk))IND_SETS.set(kk,new Set(((I.paquetes||{})[z]||[]).map(a=>a[0]+','+a[1])));return IND_SETS.get(kk).has((x>>sh)+','+(y>>sh));}
 function capaOrto(base,v,bounds,PZ){
   PZ=PZ||17;const mem=new Map();
   const paquete=(z,X,Y)=>{const k=z+'/'+X+'_'+Y;if(mem.has(k))return mem.get(k);
@@ -1014,11 +1026,13 @@ function capaOrto(base,v,bounds,PZ){
       return {buf,h:JSON.parse(new TextDecoder().decode(new Uint8Array(buf,8,hl))),o:8+hl};}).catch(()=>null);
     p.then(x=>{if(!x)mem.delete(k);});mem.set(k,p);if(mem.size>48)mem.delete(mem.keys().next().value);return p;};
   const C=L.GridLayer.extend({createTile(c,done){
-    const img=document.createElement('img');img.alt='';img.setAttribute('role','presentation');
-    img.onload=()=>{if(img._u){URL.revokeObjectURL(img._u);img._u=null;}done(null,img);};img.onerror=()=>{img.style.visibility='hidden';img.removeAttribute('src');done(null,img);}; // tesela inexistente: sin ícono de imagen rota
-    if(c.z<=PZ)img.src=`${base}${c.z}/${c.x}/${c.y}.webp?v=${v}`;
-    else{const s=c.z-PZ;paquete(c.z,c.x>>s,c.y>>s).then(b=>{const e=b&&b.h[c.x+','+c.y];if(!e){img.style.visibility='hidden';setTimeout(()=>done(null,img),0);return;}
-      img._u=URL.createObjectURL(new Blob([new Uint8Array(b.buf,b.o+e[0],e[1])],{type:'image/webp'}));img.src=img._u;});}
+    const img=document.createElement('img');img.alt='';img.setAttribute('role','presentation');img.style.visibility='hidden'; // visible solo al cargar: nunca se ve un ícono de imagen rota
+    img.onload=()=>{if(img._u){URL.revokeObjectURL(img._u);img._u=null;}img.style.visibility='';done(null,img);};img.onerror=()=>{img.removeAttribute('src');done(null,img);};
+    IND_P.then(()=>{ // espera el índice: solo se piden teselas que existen
+      if(IND_ORTO&&!existeOrto(c.z,c.x,c.y,PZ)){done(null,img);return;}
+      if(c.z<=PZ)img.src=`${base}${c.z}/${c.x}/${c.y}.webp?v=${v}`;
+      else{const s=c.z-PZ;paquete(c.z,c.x>>s,c.y>>s).then(b=>{const e=b&&b.h[c.x+','+c.y];if(!e){done(null,img);return;}
+        img._u=URL.createObjectURL(new Blob([new Uint8Array(b.buf,b.o+e[0],e[1])],{type:'image/webp'}));img.src=img._u;});}});
     return img;}});
   return new C({maxZoom:22,maxNativeZoom:19,minNativeZoom:12,bounds,attribution:'Ortofoto dron Palmas de Tumaco'});
 }
@@ -1032,12 +1046,19 @@ const vis=(id,capa)=>{$(id).onchange=()=>{$(id).checked?capa.addTo(mapa):mapa.re
 vis('#cLotes',capaLotes);vis('#cRec',capaRec);vis('#cDiag',capaDiag);vis('#cPar',capaPar);vis('#cPalmas',capaPalmas);
 mapa.on('zoomend moveend',()=>{mapa.getContainer().classList.toggle('sin-etq',mapa.getZoom()<14);dibujarPalmas();});
 function pintarLeyenda(){
-  $('#leyenda').innerHTML='<b class="tit" style="font-size:13px">Diagnósticos</b>'+ESTADOS.filter(e=>!e.leg).map(e=>`<div><span class="punto" style="background:${e.c}"></span>${esc(e.n)}</div>`).join('')+
+  $('#leyenda').innerHTML='<b class="tit" style="font-size:13px">Enfermedad principal</b>'+Object.entries(COLOR_N1).map(([k,c])=>`<div><span class="punto" style="background:${c}"></span>${esc(PROBLEMAS[k]||k)}</div>`).join('')+
+  `<div><span class="punto" style="background:${COLOR_ALTA}"></span>De alta</div><div><span class="punto" style="background:#4dd0e1"></span>Palma visitada (reproducción)</div>`+
   '<div style="margin-top:4px"><span class="punto" style="background:#ff9f1c;border:2px solid #fff"></span>Parada</div><div class="tenue">Recorridos: un color por operario.</div>';
 }
 
 /* ---------- Cartografía (cifrada) ---------- */
-let LOTES=null,PALMASZIP=null;const CHUNK=new Map();
+let LOTES=null,PALMASZIP=null;const CHUNK=new Map();const PROG=new Map();
+function enAnillo(x,y,r){let d=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const [xi,yi]=r[i],[xj,yj]=r[j];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))d=!d;}return d;}
+function loteDe(lat,lng){if(!LOTES)return '';
+  for(const f of LOTES.features){let k=f._k;if(!k){let a=1e9,b=1e9,c=-1e9,d=-1e9;const ps=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;for(const p of ps)for(const [x,y] of p[0]){a=Math.min(a,x);b=Math.min(b,y);c=Math.max(c,x);d=Math.max(d,y);}k=f._k=[a,b,c,d];}
+    if(lng<k[0]||lng>k[2]||lat<k[1]||lat>k[3])continue;const ps=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+    for(const p of ps)if(enAnillo(lng,lat,p[0])&&!p.slice(1).some(h=>enAnillo(lng,lat,h)))return f.properties._lote;}
+  return '';}
 async function cargarCartografia(){
   const c=ACCESO.carto;if(!c)return;
   progreso(0.05,'Descargando la cartografía cifrada…');
@@ -1050,6 +1071,9 @@ async function cargarCartografia(){
   L.geoJSON(LOTES,{renderer:rend,style:{color:'#90cdf1',weight:1.2,fillColor:'#90cdf1',fillOpacity:.04},
     onEachFeature:(f,l)=>{const n=nombre(f.properties);f.properties._lote=n;l.bindTooltip(esc(n),{permanent:true,direction:'center',className:'etq-lote'});
       l.on('click',e=>{L.DomEvent.stopPropagation(e);popupLote(n,e.latlng);});}}).addTo(capaLotes);
+  for(const f of LOTES.features){const p=f.properties;PROG.set(p._lote,p.Programa||p.programa||'');f._b=null;}
+  const progs=[...new Set([...PROG.values()].filter(Boolean))].sort(ordenNat);
+  $('#fProg').innerHTML='<option value="">Todos</option>'+progs.map(x=>`<option>${esc(x)}</option>`).join('');
   const lista=LOTES.features.map(f=>f.properties._lote).filter(Boolean).sort(ordenNat);
   $('#fLote').innerHTML='<option value="">Todos</option>'+lista.map(l=>`<option>${esc(l)}</option>`).join('');
   try{mapa.fitBounds(L.geoJSON(LOTES).getBounds(),{padding:[20,20],animate:false});}catch(e){}
@@ -1063,7 +1087,7 @@ function dibujarPalmas(){clearTimeout(palmasT);palmasT=setTimeout(async()=>{
   const b=mapa.getBounds();const diag=new Map();for(const d of DIAGF)diag.set(String(d.palma_id),d);
   for(const f of LOTES.features){const lb=f._b||(f._b=L.geoJSON(f).getBounds());if(!lb.intersects(b))continue;
     for(const a of await chunkLote(f.properties._lote)){if(!b.contains([a[5],a[4]]))continue;const d=diag.get(String(a[0]));
-      L.circleMarker([a[5],a[4]],{renderer:rend,radius:mapa.getZoom()>=19?6:4,weight:1,color:'#3a2a00',fillColor:d?(estadoDe(d.estado)||{c:'#fff'}).c:(a[3]===0?'#ffffff':'#ffc53d'),fillOpacity:a[3]===0?.2:.85,interactive:false}).addTo(capaPalmas);}}
+      L.circleMarker([a[5],a[4]],{renderer:rend,radius:mapa.getZoom()>=19?6:4,weight:1,color:'#3a2a00',fillColor:d?colorD(d):(a[3]===0?'#ffffff':'#ffc53d'),fillOpacity:a[3]===0?.2:.85,interactive:false}).addTo(capaPalmas);}}
 },150);}
 
 /* ---------- Datos ---------- */
@@ -1131,16 +1155,46 @@ function normalizar(g,f,zipSha){
     inicio:h.inicio,fin:h.fin,hora_inicio:h.hora_inicio||hhmm(h.inicio),hora_fin:h.hora_fin||hhmm(h.fin),duracion_min:h.duracion_min,km:Number(h.km)||0,
     ha:Number(h.ha_recorridas)||0,palmas:Number(h.palmas_visitadas)||0,metodo:h.metodo||'buffer',comp:h.comparativo_buffer||null,
     n_paradas:Number(h.n_paradas)||paradas.length,min_paradas:Number(h.minutos_paradas)||0,min_mov:h.minutos_movimiento,por_lote:h.por_lote||[],
-    densidad:h.densidad_palmas_ha||115,app:h.app||'',sincronizado:h.sincronizado,lotes,diags,paradas,track,header:h};
+    densidad:h.densidad_palmas_ha||115,app:h.app||'',sincronizado:h.sincronizado,lotes,diags,paradas,track,header:h,secuencias:h.secuencias&&h.secuencias.length?h.secuencias:null};
 }
+/* ---------- Secuencias por lote ----------
+   La app las calcula al finalizar la jornada. Para jornadas antiguas se reconstruyen aquí con el recorrido y los polígonos
+   (sin palmas visitadas por secuencia). Tiempo efectivo = total − paradas; el desplazamiento entre lotes es tiempo efectivo. */
+const minHM=m=>{if(m==null||isNaN(m))return '—';m=Math.round(Number(m));return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');};
+function secuenciasDe(j){
+  if(j.secuencias)return j.secuencias;
+  const tr=j.track;if(!tr||tr.t.length!==tr.c.length||tr.t.length<2||!LOTES)return [];
+  const ls=tr.c.map(c=>loteDe(c[1],c[0]));let runs=[];
+  ls.forEach((l,i)=>{const r=runs[runs.length-1];if(r&&r.l===l)r.i1=i;else runs.push({l,i0:i,i1:i});});
+  const t0=Date.parse(j.inicio)||tr.t[0],t1=Date.parse(j.fin)||tr.t[tr.t.length-1];
+  const ini=k=>k===0?Math.min(t0,tr.t[0]):tr.t[runs[k].i0],fin=k=>k===runs.length-1?Math.max(t1,tr.t[tr.t.length-1]):tr.t[runs[k+1].i0];
+  let cambio=true;while(cambio&&runs.length>1){cambio=false;for(let k=0;k<runs.length;k++){if(fin(k)-ini(k)>=60000)continue;if(k>0)runs[k-1].i1=runs[k].i1;else runs[1].i0=runs[0].i0;runs.splice(k,1);cambio=true;break;}
+    const m=[];for(const r of runs){const u=m[m.length-1];if(u&&u.l===r.l)u.i1=r.i1;else m.push(r);}runs=m;}
+  const par=j.paradas.map(p=>({a:Date.parse(p.inicio),b:Date.parse(p.fin)})).filter(p=>p.a&&p.b);let n=0;
+  j.secuencias=runs.map((r,k)=>{const a=ini(k),b=fin(k);let pm=0,np=0;for(const p of par){const s=Math.max(a,p.a),e=Math.min(b,p.b);if(e>s){pm+=e-s;np++;}}
+    const dg=j.diags.filter(d=>{const t=Date.parse(d.creado);return t>=a&&t<=b;}).length;
+    return {secuencia:r.l?++n:null,tipo:r.l?'lote':'desplazamiento',lote:r.l||'',inicio:new Date(a).toISOString(),fin:new Date(b).toISOString(),hora_inicio:hhmm(a),hora_fin:hhmm(b),
+      min_total:+((b-a)/60000).toFixed(1),min_paradas:+(pm/60000).toFixed(1),min_efectivo:+((b-a-pm)/60000).toFixed(1),paradas:np,palmas_visitadas:null,ha:null,diagnosticos:dg,reconstruida:true};});
+  return j.secuencias;
+}
+function filasSecuencias(){const lote=$('#fLote').value;const out=[];
+  for(const j of JORF)for(const s of secuenciasDe(j)){if(lote&&s.lote!==lote&&s.tipo!=='desplazamiento')continue;if(s.tipo==='lote'&&!enProg(s.lote))continue;if(lote&&s.tipo==='desplazamiento')continue;
+    out.push({_j:j,fecha:j.fecha,evaluador:j.evaluador,usuario:j.usuario,sec:s.secuencia??0,lote:s.tipo==='desplazamiento'?'Desplazamiento':s.lote,ini:s.hora_inicio,fin:s.hora_fin,
+      tot:Number(s.min_total)||0,par:Number(s.min_paradas)||0,efe:Number(s.min_efectivo)||0,palmas:s.palmas_visitadas,ha:s.ha,diag:s.diagnosticos||0,orden:Date.parse(s.inicio)||0});}
+  return out;}
 function aplicarFiltros(ajustar){
   const op=$('#fOp').value,lote=$('#fLote').value,est=$('#fEst').value;
-  JORF=JOR.filter(j=>(!op||j.usuario===op)&&(!lote||j.lotes.has(lote)));
-  DIAGF=[];for(const j of JORF)for(const d of j.diags)if((!lote||d.lote===lote)&&(!est||d.estado===est))DIAGF.push({...d,_j:j});
+  const pr=$('#fProg').value;
+  JORF=JOR.filter(j=>(!op||j.usuario===op)&&(!lote||j.lotes.has(lote))&&(!pr||[...j.lotes].some(enProg)));
+  DIAGF=[];for(const j of JORF)for(const d of j.diags)if((!lote||d.lote===lote)&&enProg(d.lote)&&(!est||d.estado===est))DIAGF.push({...d,_j:j});
   if(SEL&&!JORF.includes(SEL))cerrarDetalle();
   pintarMapa(ajustar);pintarPanel();dibujarPalmas();
 }
 ['#fOp','#fLote','#fEst'].forEach(s=>$(s).onchange=()=>aplicarFiltros(true));
+$('#fProg').onchange=()=>{const pr=$('#fProg').value;const sel=$('#fLote').value;
+  const lista=LOTES?LOTES.features.map(f=>f.properties._lote).filter(l=>l&&(!pr||PROG.get(l)===pr)).sort(ordenNat):[];
+  $('#fLote').innerHTML='<option value="">Todos</option>'+lista.map(l=>`<option ${l===sel?'selected':''}>${esc(l)}</option>`).join('');aplicarFiltros(true);};
+const enProg=l=>{const pr=$('#fProg').value;return !pr||PROG.get(l)===pr;};
 
 /* ---------- Pintar en el mapa ---------- */
 function pintarMapa(ajustar){
@@ -1155,8 +1209,8 @@ function pintarMapa(ajustar){
       L.circleMarker([p.lat,p.lng],{renderer:rend,radius:7,color:'#fff',weight:2,fillColor:'#ff9f1c',fillOpacity:.95})
         .bindPopup(`<b class="h">⏸ Parada ${esc(p.n||'')}</b><br>${esc(j.evaluador)} · ${esc(j.fecha)}<br>${esc(p.hora_inicio)}–${esc(p.hora_fin)} · <b>${esc(p.duracion_min)} min</b><br>Lote: ${esc(p.lote||'—')}${p.clase?'<br>'+esc(p.clase):''}`).addTo(capaPar);}
   }
-  for(const d of DIAGF){const e=estadoDe(d.estado)||{c:'#ccc',n:d.estado_nombre||d.estado};
-    const m=L.circleMarker([d.lat,d.lng],{renderer:rend,radius:6,color:'#fff',weight:1.5,fillColor:e.c,fillOpacity:1}).addTo(capaDiag);
+  for(const d of DIAGF){
+    const m=L.circleMarker([d.lat,d.lng],{renderer:rend,radius:6,color:'#fff',weight:1.5,fillColor:colorD(d),fillOpacity:1}).addTo(capaDiag);
     m.on('click',ev=>{L.DomEvent.stopPropagation(ev);popupDiag(d,ev.latlng);});caja.extend([d.lat,d.lng]);}
   if(lote&&LOTES){const f=LOTES.features.find(x=>x.properties._lote===lote);if(f)caja.extend(L.geoJSON(f).getBounds());}
   if(ajustar&&caja.isValid()){mapa.stop();mapa.fitBounds(caja,{padding:[30,30],maxZoom:18,animate:false});}
@@ -1164,7 +1218,7 @@ function pintarMapa(ajustar){
 function etiquetaDiag(d){return [d.lote,d.linea!=null&&d.linea!==''?'L'+d.linea:null,d.palma!=null&&d.palma!==''?'P'+d.palma:null].filter(Boolean).join(' · ');}
 function htmlDiag(d){const e=estadoDe(d.estado)||{c:'#ccc',n:d.estado_nombre||d.estado||'—'};
   const probs=String(d.problemas||'').split('|').filter(Boolean).map(p=>PROBLEMAS[p]||p);
-  return `<b class="h">${esc(etiquetaDiag(d))}</b><br><span class="punto" style="background:${e.c}"></span><b>${esc(e.n)}</b>
+  return `<b class="h">${esc(etiquetaDiag(d))}</b><br><span class="punto" style="background:${colorD(d)}"></span><b>${esc(e.n)}</b>
     <div style="margin-top:6px;display:grid;gap:2px">
     ${d.nivel1?`<div><b>Nivel 1:</b> ${esc(d.nivel1)}</div>${d.nivel2?`<div><b>Nivel 2:</b> ${esc(d.nivel2)}</div>`:''}${d.nivel3?`<div><b>Nivel 3:</b> ${esc(d.nivel3)}</div>`:''}`:(probs.length?`<div><b>Problemas:</b> ${esc(probs.join(', '))}</div>`:'')}
     ${d.estado_hongo?`<div><b>Hongo:</b> ${esc(d.estado_hongo)}</div>`:''}${d.cirugia?`<div><b>Cirugía:</b> ${esc(d.cirugia)}</div>`:''}${d.produccion?`<div><b>Producción:</b> ${esc(d.produccion)}</div>`:''}
@@ -1221,18 +1275,33 @@ function abrirDetalle(j){
       <div><b>Método:</b> ${j.metodo==='calle_entre_lineas'?'Por calle':'Buffer'}</div><div>${j.comp?`<b>Buffer ${esc(j.comp.buffer_m)} m:</b> ${num(j.comp.palmas_visitadas)} palmas`:''}</div></div>
     ${conT?`<div class="play"><div class="fila"><button class="btn mini prim" id="pBt">▶</button><input type="range" id="pRg" min="0" max="1000" value="0"><span class="reloj" id="pRel">${esc(hhmm(tr.t[0]))}</span></div>
       <div class="fila"><span class="tenue" style="font-size:12px">Velocidad</span><select id="pVel" style="padding:3px 6px;font-size:12.5px"><option value="30">×30</option><option value="60" selected>×60</option><option value="180">×180</option><option value="600">×600</option></select>
-      <span class="tenue" style="font-size:12px;margin-left:auto">${num(tr.c.length)} puntos</span></div></div>`:'<div class="tenue" style="margin:6px 0">Recorrido sin tiempos: no se puede reproducir.</div>'}
+      <span class="tenue" style="font-size:12px;margin-left:auto">${num(tr.c.length)} puntos</span></div>
+      <div class="fila" style="font-size:13px"><span class="punto" style="background:#4dd0e1"></span>Palmas visitadas: <b id="pVis" style="font-family:var(--t);font-size:18px">0</b><span class="tenue" id="pVisTot" style="margin-left:4px"></span></div></div>`:'<div class="tenue" style="margin:6px 0">Recorrido sin tiempos: no se puede reproducir.</div>'}
+    <h3 style="margin-top:6px">Secuencias por lote</h3>
+    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Sec.</th><th>Lote</th><th>Inicio</th><th>Fin</th><th class="n">Total</th><th class="n">Paradas</th><th class="n">Efectivo</th><th class="n">Palmas</th><th class="n">Ha</th></tr></thead><tbody>${
+      secuenciasDe(j).map(s=>`<tr${s.tipo==='desplazamiento'?' class="tenue"':''}><td><b>${s.secuencia??'—'}</b></td><td><b>${s.tipo==='desplazamiento'?'Desplazamiento':esc(s.lote)}</b></td><td>${esc(s.hora_inicio)}</td><td>${esc(s.hora_fin)}</td><td class="n">${minHM(s.min_total)}</td><td class="n">${minHM(s.min_paradas)}</td><td class="n"><b>${minHM(s.min_efectivo)}</b></td><td class="n">${s.palmas_visitadas==null?'—':num(s.palmas_visitadas)}</td><td class="n">${s.ha==null?'—':num(s.ha,2)}</td></tr>`).join('')||'<tr><td colspan="9" class="tenue">Sin recorrido con tiempos.</td></tr>'}</tbody></table></div>
+    ${secuenciasDe(j).some(s=>s.reconstruida)?'<div class="tenue" style="font-size:11.5px">Jornada anterior a la versión con secuencias: reconstruidas con el recorrido (sin palmas por secuencia).</div>':''}
     <h3 style="margin-top:6px">Por lote</h3>
     <table class="t"><thead><tr><th>Lote</th><th class="n">Palmas</th><th class="n">Ha</th><th class="n">Diag.</th><th class="n">Paradas</th></tr></thead><tbody>${filas||'<tr><td colspan="5" class="tenue">Sin datos por lote.</td></tr>'}</tbody></table>
     <div class="tenue" style="font-size:12px;margin-top:8px">${esc(j.app)} · Dispositivo ${esc(j.dispositivo||'—')} · Sincronizada ${esc(j.sincronizado?new Date(j.sincronizado).toLocaleString('es-CO'):'—')}</div>
     <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn mini" id="dGeo">⬇ GeoJSON de la jornada</button></div>`;
   $('#detalle').hidden=false;$('#dX').onclick=cerrarDetalle;
   $('#dGeo').onclick=()=>descargar(`jornada_${j.id}.geojson`,JSON.stringify(geoDeJornadas([j])),'application/geo+json');
+  PLAY.vis=[];PLAY.visN=0;PLAY.capaVis=L.layerGroup().addTo(capaSel);
+  palmasVisitadasJ(j).then(v=>{if(SEL!==j)return;PLAY.vis=v;PLAY.visN=0;const e=$('#pVisTot');if(e)e.textContent=`de ${num(v.length)}`;if(conT)ponerT(PLAY.t);}).catch(()=>{});
   if(conT){PLAY.t=tr.t[0];ponerT(tr.t[0]);
     $('#pBt').onclick=()=>PLAY.on?pararPlay():iniciarPlay();
     $('#pRg').oninput=e=>{pararPlay();ponerT(tr.t[0]+(tr.t[tr.t.length-1]-tr.t[0])*e.target.value/1000);};
     $('#pVel').onchange=e=>{PLAY.vel=Number(e.target.value);};PLAY.vel=Number($('#pVel').value);}
   marcarFila();
+}
+/* Palmas visitadas de una jornada con el instante de su primera visita (t_visita, desde la versión con secuencias). */
+async function palmasVisitadasJ(j){
+  const h=j.header||{};const t0=Date.parse(h.t0_visita)||null;const out=[];
+  for(const x of j.por_lote){const ids=x.ids_palmas_visitadas||[];if(!ids.length)continue;const tv=x.t_visita||[];
+    const pos=new Map();for(const a of await chunkLote(x.lote))pos.set(String(a[0]),[a[5],a[4]]);
+    ids.forEach((id,k)=>{const c=pos.get(String(id));if(c)out.push({t:t0&&tv[k]!=null?t0+tv[k]*1000:-Infinity,ll:c,m:null});});}
+  return out.sort((a,b)=>a.t-b.t);
 }
 function cerrarDetalle(){pararPlay();SEL=null;capaSel.clearLayers();$('#detalle').hidden=true;marcarFila();}
 function ponerT(t){const tr=SEL&&SEL.track;if(!tr)return;PLAY.t=t;
@@ -1240,6 +1309,10 @@ function ponerT(t){const tr=SEL&&SEL.track;if(!tr)return;PLAY.t=t;
   const a=tr.c[i],b=tr.c[Math.min(i+1,tr.c.length-1)];const ta=tr.t[i],tb=tr.t[Math.min(i+1,tr.t.length-1)];const k=tb>ta?Math.min(1,Math.max(0,(t-ta)/(tb-ta))):0;
   const pos=[a[1]+(b[1]-a[1])*k,a[0]+(b[0]-a[0])*k];
   PLAY.marca.setLatLng(pos);PLAY.estela.setLatLngs(tr.c.slice(0,i+1).map(c=>[c[1],c[0]]).concat([pos]));
+  if(PLAY.vis&&PLAY.capaVis){let k=PLAY.visN;const rv=mapa.getZoom()>=19?6:mapa.getZoom()>=18?4.5:3;
+    while(k<PLAY.vis.length&&PLAY.vis[k].t<=t){const q=PLAY.vis[k];q.m=L.circleMarker(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
+    while(k>0&&PLAY.vis[k-1].t>t){k--;const q=PLAY.vis[k];if(q.m){PLAY.capaVis.removeLayer(q.m);q.m=null;}}
+    PLAY.visN=k;const e=$('#pVis');if(e)e.textContent=num(k);}
   const r=$('#pRel');if(r)r.textContent=hhmm(t);const rg=$('#pRg');if(rg&&!PLAY.arrastre)rg.value=Math.round(1000*(t-tr.t[0])/Math.max(1,tr.t[tr.t.length-1]-tr.t[0]));
 }
 function iniciarPlay(){const tr=SEL&&SEL.track;if(!tr)return;if(PLAY.t>=tr.t[tr.t.length-1])PLAY.t=tr.t[0];PLAY.on=true;$('#pBt').textContent='❚❚';
@@ -1250,16 +1323,17 @@ function pararPlay(){PLAY.on=false;cancelAnimationFrame(PLAY.raf);const b=$('#pB
 /* ---------- Agregados ---------- */
 function resumenLotes(){
   const lote=$('#fLote').value;const m=new Map();const fila=l=>{if(!m.has(l))m.set(l,{lote:l,tipo:'',jornadas:0,operarios:new Set(),palmas:0,ha:0,diag:0,enfermas:0,paradas:0,min_par:0});return m.get(l);};
-  for(const j of JORF)for(const x of j.por_lote){if(lote&&x.lote!==lote)continue;const f=fila(x.lote);f.jornadas++;f.operarios.add(j.usuario);f.palmas+=Number(x.palmas_visitadas)||0;f.ha+=Number(x.ha)||0;
+  for(const j of JORF)for(const x of j.por_lote){if((lote&&x.lote!==lote)||!enProg(x.lote))continue;const f=fila(x.lote);f.jornadas++;f.operarios.add(j.usuario);f.palmas+=Number(x.palmas_visitadas)||0;f.ha+=Number(x.ha)||0;
     f.paradas+=Number(x.paradas)||0;f.min_par+=Number(x.minutos_paradas)||0;if(x.tipo_lote)f.tipo=x.tipo_lote;}
   for(const d of DIAGF){const f=fila(d.lote||'—');f.diag++;if(d.estado==='enferma')f.enfermas++;}
   return [...m.values()].map(f=>({...f,operarios:f.operarios.size,ha:+f.ha.toFixed(2)}));
 }
 function resumenOperarios(){
   const m=new Map();
-  for(const j of JORF){let f=m.get(j.usuario);if(!f)m.set(j.usuario,f={usuario:j.usuario,evaluador:j.evaluador,jornadas:0,dias:new Set(),km:0,ha:0,palmas:0,diag:0,min:0,min_par:0,lotes:new Set()});
-    f.jornadas++;f.dias.add(j.fecha);f.km+=j.km;f.ha+=j.ha;f.palmas+=j.palmas;f.diag+=j.diags.length;f.min+=Number(j.duracion_min)||0;f.min_par+=j.min_paradas;j.lotes.forEach(l=>f.lotes.add(l));}
-  return [...m.values()].map(f=>({...f,dias:f.dias.size,lotes:f.lotes.size,km:+f.km.toFixed(2),ha:+f.ha.toFixed(2),ha_dia:f.dias.size?+(f.ha/f.dias.size).toFixed(2):0,horas:+(f.min/60).toFixed(1)}));
+  for(const j of JORF){let f=m.get(j.usuario);if(!f)m.set(j.usuario,f={usuario:j.usuario,evaluador:j.evaluador,jornadas:0,dias:new Set(),km:0,ha:0,palmas:0,diag:0,min:0,min_par:0,min_efe:0,secs:0,lotes:new Set()});
+    const ss=secuenciasDe(j);const tot=ss.length?ss.reduce((a,s)=>a+(Number(s.min_total)||0),0):Number(j.duracion_min)||0;const pm=ss.length?ss.reduce((a,s)=>a+(Number(s.min_paradas)||0),0):j.min_paradas;
+    f.jornadas++;f.dias.add(j.fecha);f.km+=j.km;f.ha+=j.ha;f.palmas+=j.palmas;f.diag+=j.diags.length;f.min+=tot;f.min_par+=pm;f.min_efe+=tot-pm;f.secs+=ss.filter(s=>s.tipo==='lote').length;j.lotes.forEach(l=>f.lotes.add(l));}
+  return [...m.values()].map(f=>({...f,dias:f.dias.size,lotes:f.lotes.size,km:+f.km.toFixed(2),ha:+f.ha.toFixed(2),ha_dia:f.dias.size?+(f.ha/f.dias.size).toFixed(2):0,horas:+(f.min/60).toFixed(1),min:Math.round(f.min),min_par:Math.round(f.min_par),min_efe:Math.round(f.min_efe)}));
 }
 
 /* ---------- Panel lateral ---------- */
@@ -1282,7 +1356,7 @@ function barraEstados(){
 function barraProblemas(){
   const c=new Map();for(const d of DIAGF)for(const p of String(d.problemas||'').split('|').filter(Boolean))c.set(p,(c.get(p)||0)+1);
   const v=[...c.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);const mx=v.length?v[0][1]:1;
-  return v.map(([p,n])=>`<div class="barra"><span title="${esc(PROBLEMAS[p]||p)}">${esc(PROBLEMAS[p]?(PROBLEMAS[p].length>16?p:PROBLEMAS[p]):p)}</span><span class="b"><i style="width:${100*n/mx}%;background:var(--naranja)"></i></span><span class="n">${num(n)}</span></div>`).join('')||'<div class="tenue">Sin problemas registrados.</div>';
+  return v.map(([p,n])=>`<div class="barra"><span title="${esc(PROBLEMAS[p]||p)}"><span class="punto" style="background:${COLOR_N1[p]||'#ee7633'}"></span>${esc(PROBLEMAS[p]?(PROBLEMAS[p].length>16?p:PROBLEMAS[p]):p)}</span><span class="b"><i style="width:${100*n/mx}%;background:${COLOR_N1[p]||'var(--naranja)'}"></i></span><span class="n">${num(n)}</span></div>`).join('')||'<div class="tenue">Sin problemas registrados.</div>';
 }
 function pintarPanel(){
   const P=$('#panel');
@@ -1312,13 +1386,22 @@ function pintarPanel(){
       resumenLotes(),f=>{$('#fLote').value=f.lote;aplicarFiltros(true);});
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque un lote para filtrar por él.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xLot">⬇ CSV lotes</button></div>`;
     $('#xLot').onclick=()=>csv(`lotes_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['lote','tipo','jornadas','operarios','palmas','ha','diag','enfermas','paradas','min_par'],resumenLotes());
+  }else if(TAB==='secuencias'){
+    const filas=filasSecuencias();
+    const t=tabla('tSec',[{k:'orden',t:'Fecha',asc:false,f:x=>esc(x.fecha)},{k:'evaluador',t:'Operario'},{k:'sec',t:'Sec.',n:1,f:x=>x.sec||'—'},{k:'lote',t:'Lote',f:x=>x.lote==='Desplazamiento'?'<span class="tenue">Desplazamiento</span>':'<b>'+esc(x.lote)+'</b>'},{k:'ini',t:'Inicio'},{k:'fin',t:'Fin'},
+      {k:'tot',t:'T. total',n:1,f:x=>minHM(x.tot)},{k:'par',t:'Paradas',n:1,f:x=>minHM(x.par)},{k:'efe',t:'T. efectivo',n:1,f:x=>'<b>'+minHM(x.efe)+'</b>'},{k:'palmas',t:'Palmas',n:1,f:x=>x.palmas==null?'—':num(x.palmas)},{k:'ha',t:'Ha',n:1,f:x=>x.ha==null?'—':num(x.ha,2)},{k:'diag',t:'Diag.',n:1}],filas,f=>abrirDetalle(f._j));
+    const s=k=>filas.reduce((a,x)=>a+(Number(x[k])||0),0);
+    P.innerHTML=`<div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><b>${minHM(s('tot'))}</b><span>Tiempo total</span></div><div class="kpi"><b>${minHM(s('par'))}</b><span>Paradas</span></div><div class="kpi"><b style="color:var(--acento)">${minHM(s('efe'))}</b><span>Tiempo efectivo</span></div></div>
+      <div class="tenue" style="margin-bottom:6px;font-size:12.5px">Cada entrada a un lote abre una secuencia (1 RI01, 2 RI02, 3 RI01…). T. efectivo = T. total − paradas; el desplazamiento entre lotes cuenta como efectivo. Tiempos en horas:minutos. Toque una fila para ver la jornada.</div>`+t.html+
+      `<div style="margin-top:10px"><button class="btn mini" id="xSec">⬇ CSV secuencias</button></div>`;
+    $('#xSec').onclick=()=>csv(`secuencias_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['fecha','usuario','evaluador','sec','lote','ini','fin','tot','par','efe','palmas','ha','diag'],filas.map(x=>({...x,sec:x.sec||''})));
   }else if(TAB==='operarios'){
-    const t=tabla('tOp',[{k:'evaluador',t:'Operario'},{k:'jornadas',t:'Jornadas',n:1},{k:'dias',t:'Días',n:1},{k:'horas',t:'Horas',n:1,f:x=>num(x.horas,1)},{k:'km',t:'Km',n:1,f:x=>num(x.km,2)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'ha_dia',t:'Ha/día',n:1,f:x=>num(x.ha_dia,2)},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'diag',t:'Diag.',n:1},{k:'min_par',t:'Min. paradas',n:1},{k:'lotes',t:'Lotes',n:1}],
+    const t=tabla('tOp',[{k:'evaluador',t:'Operario'},{k:'jornadas',t:'Jorn.',n:1},{k:'secs',t:'Sec.',n:1},{k:'min',t:'T. total',n:1,f:x=>minHM(x.min)},{k:'min_par',t:'Paradas',n:1,f:x=>minHM(x.min_par)},{k:'min_efe',t:'T. efectivo',n:1,f:x=>'<b>'+minHM(x.min_efe)+'</b>'},{k:'km',t:'Km',n:1,f:x=>num(x.km,2)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'ha_dia',t:'Ha/día',n:1,f:x=>num(x.ha_dia,2)},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'diag',t:'Diag.',n:1},{k:'lotes',t:'Lotes',n:1}],
       resumenOperarios(),f=>{$('#fOp').value=f.usuario;aplicarFiltros(true);});
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque un operario para filtrar sus recorridos.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xOp">⬇ CSV operarios</button></div>`;
-    $('#xOp').onclick=()=>csv(`operarios_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['usuario','evaluador','jornadas','dias','horas','km','ha','ha_dia','palmas','diag','min_par','lotes'],resumenOperarios());
+    $('#xOp').onclick=()=>csv(`operarios_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['usuario','evaluador','jornadas','dias','secs','min','min_par','min_efe','km','ha','ha_dia','palmas','diag','lotes'],resumenOperarios());
   }else{
-    const filas=DIAGF.map(d=>({_d:d,fecha:d._j.fecha,hora:hhmm(d.creado),palma:etiquetaDiag(d),lote:d.lote,estado:(estadoDe(d.estado)||{n:d.estado_nombre||d.estado}).n,_c:(estadoDe(d.estado)||{c:'#ccc'}).c,problemas:d.nivel1?[d.n1_codigo||d.nivel1,d.nivel2,d.nivel3].filter(Boolean).join(' › '):String(d.problemas||'').split('|').filter(Boolean).join(', '),evaluador:d.evaluador,fotos:Number(d.n_fotos)||0}));
+    const filas=DIAGF.map(d=>({_d:d,fecha:d._j.fecha,hora:hhmm(d.creado),palma:etiquetaDiag(d),lote:d.lote,estado:(estadoDe(d.estado)||{n:d.estado_nombre||d.estado}).n,_c:colorD(d),problemas:d.nivel1?[d.n1_codigo||d.nivel1,d.nivel2,d.nivel3].filter(Boolean).join(' › '):String(d.problemas||'').split('|').filter(Boolean).join(', '),evaluador:d.evaluador,fotos:Number(d.n_fotos)||0}));
     const t=tabla('tDiag',[{k:'fecha',t:'Fecha',asc:false},{k:'hora',t:'Hora'},{k:'palma',t:'Palma'},{k:'estado',t:'Estado',f:x=>`<span class="punto" style="background:${x._c}"></span>${esc(x.estado)}`},{k:'problemas',t:'Diagnóstico'},{k:'evaluador',t:'Operario'},{k:'fotos',t:'Fotos',n:1}],
       filas,f=>{mapa.setView([f._d.lat,f._d.lng],Math.max(mapa.getZoom(),19));popupDiag(f._d);});
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">${num(DIAGF.length)} diagnóstico(s). Toque uno para ubicarlo y ver sus fotos.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xDiag">⬇ CSV diagnósticos</button></div>`;$('#xDiag').onclick=()=>csvDiag();

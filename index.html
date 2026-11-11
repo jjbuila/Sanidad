@@ -953,7 +953,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261110:2041</div>
+  <div id="splashVer">VERSIÓN 20261110:2120</div>
 </div>
 
 <div id="login" hidden>
@@ -967,7 +967,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261110:2041</div>
+  <div id="lgVer2">VERSIÓN 20261110:2120</div>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
 
@@ -986,6 +986,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div id="pj" class="glass" hidden>
     <div class="pj-fila"><span class="rec"></span><span id="pjTiempo">00:00:00</span><span class="sep"></span><span><small>KM</small><span id="pjKm">0.00</span></span><span class="sep"></span><span><small>CENSO</small><span id="pjCenso">0 / 0</span></span></div>
     <div class="pj-fila pj2"><span><small>INICIO</small><span id="pjIni">--:--</span></span><span class="sep"></span><span><small>VISITADAS</small><span id="pjVis">0</span></span><span class="sep"></span><span><small>HA</small><span id="pjHa">0.00</span></span><span class="sep"></span><span><small>PARADAS</small><span id="pjPar">0</span></span></div>
+    <div class="pj-fila pj2"><span><small>SECUENCIA</small><span id="pjSec">—</span></span><span class="sep"></span><span><small>LOTE</small><span id="pjSecLote">—</span></span><span class="sep"></span><span><small>T. EFECTIVO</small><span id="pjEfec">0:00</span></span></div>
     <div class="barra"><i id="pjBarra"></i></div>
   </div>
   <div id="guia" class="glass" hidden><div class="txt"><div id="guiaTxt">—</div><div id="guiaSub"></div></div><button class="redondo" id="guiaRepetir" aria-label="Repetir" data-ic="repetir"></button></div>
@@ -1034,7 +1035,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <input type="range" id="plRango" min="0" max="1000" value="0">
     <select id="plVel"><option value="10">×10</option><option value="30">×30</option><option value="60" selected>×60</option><option value="120">×120</option><option value="300">×300</option></select>
   </div>
-  <div class="play-pie"><span>Transcurrido <b id="plTrans">00:00:00</b></span><span>Distancia <b id="plDist">0.00 km</b></span><span>Diagnósticos <b id="plDiag">0</b></span><label><input type="checkbox" id="plSeguir" checked> Seguir</label></div>
+  <div class="play-pie"><span>Transcurrido <b id="plTrans">00:00:00</b></span><span>Distancia <b id="plDist">0.00 km</b></span><span>Palmas visitadas <b id="plVis">0</b></span><span>Diagnósticos <b id="plDiag">0</b></span><label><input type="checkbox" id="plSeguir" checked> Seguir</label></div>
 </section>
 
 <div id="bannerInst" class="glass" hidden><span style="font-size:26px">📲</span><div class="txt"><b>Instale Sanidad Vegetal</b>Quedará como una aplicación en este celular y funcionará sin internet.</div>
@@ -1071,7 +1072,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261110:2041';
+const VERSION='20261110:2120';
 /* Si un service worker antiguo entregó la app en la dirección del visor o de administración, se actualiza y se recarga una vez. */
 if(/\/(visor|admin)\.html$/.test(location.pathname)){try{if(!sessionStorage.getItem('sv_redir')){sessionStorage.setItem('sv_redir','1');
   (navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.update()))):Promise.resolve()).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),1200));}}catch(e){}}
@@ -1088,6 +1089,10 @@ const ESTADOS=[
   {id:'muerta',n:'Muerta',c:'#1a1a1a',leg:1},{id:'faltante',n:'Sitio vacío / faltante',c:'#ffffff',leg:1},{id:'resiembra',n:'Resiembra',c:'#3fa9ff',leg:1}
 ];
 const SIN_EVALUAR='#ffc53d';
+/* Color de la palma diagnosticada: uno por enfermedad principal (Nivel 1); si la palma está de alta, el color de «De alta». */
+const COLOR_N1={PC:'#e53935',PE:'#8e24aa',DBP:'#fb8c00',AR:'#ad1457',CER:'#795548',DEF:'#c0ca33',ESP:'#00acc1',HP:'#3949ab',MJ:'#f48fb1',ML:'#212121',MS:'#1e88e5',PA:'#827717',PEST:'#26a69a',RAYO:'#ffffff',YAR:'#33691e'};
+const COLOR_ALTA='#00e676';
+function colorReg(r){if(!r)return '#999';if(r.estado==='alta')return COLOR_ALTA;const c=r.n1_codigo||(r.problemas||[])[0];return COLOR_N1[c]||(estadoDe(r.estado)||{c:'#999'}).c;}
 /* Formulario de sanidad · Ramificación V6 (Palmas de Tumaco). Una fila por combinación Nivel 1 → Nivel 2 → Nivel 3.
    r: rama · c: código · n1/n2/n3: niveles · s: síntomas (Nivel 4, selección múltiple) · h: estados del hongo (si aplica)
    cir/prod/rai/tra/obs: si aplican Cirugía, Producción, Raíces buenas, Transitabilidad y Observación · f: fuente. */
@@ -1246,6 +1251,11 @@ const capaGps=L.layerGroup().addTo(mapa);
 let resalte=null;
 /* Capa de la ortofoto del dron: zoom 12–17 en teselas sueltas; zoom 18–19 en paquetes (.bin) de 4 o 16 teselas
    para que el sitio tenga pocos archivos. Formato del paquete: 'SVT1' + uint32 largo de cabecera + JSON {"x,y":[desplazamiento,largo]} + WebP. */
+let IND_ORTO=null;const IND_SETS=new Map();
+const IND_P=fetch('teselas/orto/indice.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{IND_ORTO=j;}).catch(()=>{});
+function existeOrto(z,x,y,PZ){const I=IND_ORTO;if(!I)return true;let k=z,s=z+'';
+  if(z<=PZ){if(!IND_SETS.has(s))IND_SETS.set(s,new Set(((I.teselas||{})[s]||[]).map(a=>a[0]+','+a[1])));return IND_SETS.get(s).has(x+','+y);}
+  const sh=z-PZ,kk='p'+z;if(!IND_SETS.has(kk))IND_SETS.set(kk,new Set(((I.paquetes||{})[z]||[]).map(a=>a[0]+','+a[1])));return IND_SETS.get(kk).has((x>>sh)+','+(y>>sh));}
 function capaOrto(base,v,bounds,PZ){
   PZ=PZ||17;const mem=new Map();
   const paquete=(z,X,Y)=>{const k=z+'/'+X+'_'+Y;if(mem.has(k))return mem.get(k);
@@ -1254,11 +1264,13 @@ function capaOrto(base,v,bounds,PZ){
       return {buf,h:JSON.parse(new TextDecoder().decode(new Uint8Array(buf,8,hl))),o:8+hl};}).catch(()=>null);
     p.then(x=>{if(!x)mem.delete(k);});mem.set(k,p);if(mem.size>48)mem.delete(mem.keys().next().value);return p;};
   const C=L.GridLayer.extend({createTile(c,done){
-    const img=document.createElement('img');img.alt='';img.setAttribute('role','presentation');
-    img.onload=()=>{if(img._u){URL.revokeObjectURL(img._u);img._u=null;}done(null,img);};img.onerror=()=>{img.style.visibility='hidden';img.removeAttribute('src');done(null,img);}; // tesela inexistente: sin ícono de imagen rota
-    if(c.z<=PZ)img.src=`${base}${c.z}/${c.x}/${c.y}.webp?v=${v}`;
-    else{const s=c.z-PZ;paquete(c.z,c.x>>s,c.y>>s).then(b=>{const e=b&&b.h[c.x+','+c.y];if(!e){img.style.visibility='hidden';setTimeout(()=>done(null,img),0);return;}
-      img._u=URL.createObjectURL(new Blob([new Uint8Array(b.buf,b.o+e[0],e[1])],{type:'image/webp'}));img.src=img._u;});}
+    const img=document.createElement('img');img.alt='';img.setAttribute('role','presentation');img.style.visibility='hidden'; // visible solo al cargar: nunca se ve un ícono de imagen rota
+    img.onload=()=>{if(img._u){URL.revokeObjectURL(img._u);img._u=null;}img.style.visibility='';done(null,img);};img.onerror=()=>{img.removeAttribute('src');done(null,img);};
+    IND_P.then(()=>{ // espera el índice: solo se piden teselas que existen
+      if(IND_ORTO&&!existeOrto(c.z,c.x,c.y,PZ)){done(null,img);return;}
+      if(c.z<=PZ)img.src=`${base}${c.z}/${c.x}/${c.y}.webp?v=${v}`;
+      else{const s=c.z-PZ;paquete(c.z,c.x>>s,c.y>>s).then(b=>{const e=b&&b.h[c.x+','+c.y];if(!e){done(null,img);return;}
+        img._u=URL.createObjectURL(new Blob([new Uint8Array(b.buf,b.o+e[0],e[1])],{type:'image/webp'}));img.src=img._u;});}});
     return img;}});
   return new C({maxZoom:22,maxNativeZoom:19,minNativeZoom:12,bounds,attribution:'Ortofoto dron Palmas de Tumaco'});
 }
@@ -1328,7 +1340,7 @@ function indexar(){
 }
 function estiloPalma(f){
   const h=S.hechos.get(f.properties._id);
-  if(h){const e=estadoDe(h.estado)||{c:'#fff'};return {fillColor:e.c,fillOpacity:1,color:'#ffffff',weight:2};}
+  if(h)return {fillColor:colorReg(h),fillOpacity:1,color:'#ffffff',weight:2};
   if(VIS&&VIS.set.has(f.properties._id))return f.properties._existe===false?{fillColor:'#4dd0e1',fillOpacity:.25,color:'#4dd0e1',weight:1}:{fillColor:'#4dd0e1',fillOpacity:.95,color:'#0b3d44',weight:1};
   if(f.properties._existe===false)return {fillColor:'#ffffff',fillOpacity:.12,color:'#b0bec5',weight:1};
   return {fillColor:SIN_EVALUAR,fillOpacity:.95,color:'#3a2a00',weight:1};
@@ -1379,7 +1391,8 @@ function resaltar(lat,lng){
   resalte=L.circleMarker([lat,lng],{radius:radioPalma()+6,color:'#00e5ff',weight:3,fill:false,interactive:false}).addTo(capaGps);
 }
 function pintarLeyenda(){
-  $('#leyenda').innerHTML=ESTADOS.filter(e=>!e.leg).map(e=>`<div><span class="punto" style="background:${e.c}"></span>${esc(e.n)}</div>`).join('')+
+  $('#leyenda').innerHTML='<div style="font-weight:700;margin-bottom:2px">Enfermedad principal</div>'+N1S.map(x=>`<div><span class="punto" style="background:${COLOR_N1[x.c]||'#999'}"></span>${esc((probDe(x.c)||{n:x.n1}).n)}</div>`).join('')+
+  `<div><span class="punto" style="background:${COLOR_ALTA}"></span>De alta</div>`+
   `<div><span class="punto" style="background:${SIN_EVALUAR}"></span>Pendiente por censar</div>
    <div><span class="punto" style="background:#4dd0e1"></span>Visitada por el recorrido (sin diagnóstico)</div>
    <div><span class="punto" style="background:#ff9f1c;border:2px solid #fff"></span>Parada sin actividad</div>
@@ -1604,7 +1617,7 @@ function actualizarJornadaUI(){
   const a=!!S.jornada;$('#pj').hidden=!a;
   $('#btJornada').classList.toggle('activa',a);
   $('#btJornadaIc').innerHTML=a?IC.ruta:IC.play;$('#btJornadaTxt').textContent=a?'Jornada':'Iniciar';
-  if(a){actualizarCenso();relojJornada();actualizarVisitaUI();actualizarParadas();}else $('#pj').classList.remove('parado');actualizarCab();
+  if(a){actualizarCenso();relojJornada();actualizarVisitaUI();actualizarParadas();try{actualizarSecUI();}catch(e){}}else $('#pj').classList.remove('parado');actualizarCab();
 }
 function relojJornada(){if(!S.jornada)return;$('#pjIni').textContent=hhmm(S.jornada.inicio);$('#pjTiempo').textContent=fmtDur(Date.now()-Date.parse(S.jornada.inicio));$('#pjKm').textContent=(S.jornada.km||0).toFixed(2);}
 setInterval(relojJornada,1000);
@@ -1625,6 +1638,7 @@ function panelJornada(){
       <div class="stat"><b>${num(regs.length)}</b><span>Diagnósticos</span></div>
     </div>
     <p class="tenue">Evaluador: <b>${esc(j.evaluador)}</b> · ${num(TRACK.n)} puntos de recorrido</p>
+    <h3>Secuencias por lote</h3>${tablaSecuencias(secuenciasEnCurso())}
     <h3>Recorrido por lote</h3>${tablaLotes(res,j)}
     <h3>Paradas</h3>${tablaParadas(PAR.lista,resumenParadas(PAR.lista,j))}
     <h3>Avance del censo (diagnósticos)</h3>${filas}
@@ -1641,8 +1655,9 @@ async function finalizarJornada(){
   if(!confirm(`¿Finalizar la jornada?\n\nCensadas: ${c.hec} de ${c.tot} palmas.\nSe detendrá el registro del recorrido.`))return;
   j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
-  const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer');const par=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);
+  const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true);const par=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);
   j.paradas=par;j.resumen_paradas=resumenParadas(par,j);j.visita=paradasEnLotes(resumenVisita(E,regs,true),par);
+  j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin),paradas:par,regs,densidad:j.densidad});
   if(E.metodo==='calle'){const Eb=await calcularVisita(pts,j.densidad,j.buffer,'buffer');const rb=resumenVisita(Eb,regs);
     j.visita.comparativo_buffer={buffer_m:Eb.buffer,palmas_visitadas:rb.palmas_visitadas,ha_recorridas:rb.ha_recorridas,por_lote:rb.por_lote.map(x=>({lote:x.lote,palmas_visitadas:x.palmas_visitadas,ha:x.ha}))};}
   await dbPut('jornadas',j);
@@ -1660,6 +1675,7 @@ async function finalizarJornada(){
       <div class="stat"><b>${res.ha_recorridas.toFixed(2)}</b><span>Ha recorridas</span></div>
       <div class="stat"><b>${num(regs.length)}</b><span>Diagnósticos</span></div>
     </div>
+    <h3>Secuencias por lote</h3>${tablaSecuencias(j.secuencias)}
     <h3>Recorrido por lote</h3>${tablaLotes(res,j)}
     <h3>Paradas</h3>${tablaParadas(par,j.resumen_paradas)}
     <p class="tenue">Censadas ${num(c.hec)} de ${num(c.tot)} palmas seleccionadas. La jornada completa se sincronizará con GitHub en cuanto haya WiFi; después quedará bloqueada.</p>
@@ -1689,8 +1705,9 @@ async function registrarPunto(g){
   const p={j:S.jornada.id,t,lat:+g.lat.toFixed(7),lng:+g.lng.toFixed(7),acc:Math.round(g.acc*10)/10,s:0};
   TRACK.ultimo=p;TRACK.n++;(TRACK.pts||(TRACK.pts=[])).push(p);
   if(TRACK.linea){TRACK.linea.addLatLng([p.lat,p.lng]);TRACK.brillo.addLatLng([p.lat,p.lng]);}
-  if(VIS){try{const nv=await visitarTramo(VIS,p);if(nv.length){nv.forEach(repintarPalma);actualizarVisitaUI();}}catch(e){}}
+  if(VIS){try{const nv=await visitarTramo(VIS,p);p._nv=nv.length;if(nv.length){nv.forEach(repintarPalma);actualizarVisitaUI();}}catch(e){}}
   try{actualizarParadas();}catch(e){}
+  try{actualizarSecUI();}catch(e){}
   try{await dbPut('track',p);if(TRACK.n%10===0)await dbPut('jornadas',S.jornada);}catch(e){}
 }
 async function puntosTrack(jid){return (await dbIndice('track','j',jid)).sort((a,b)=>a.t-b.t);}
@@ -1789,15 +1806,17 @@ async function visitarTramo(E,p){
   }
   return nuevos;
 }
-async function calcularVisita(pts,densidad,buffer,metodo){const E=nuevoEstadoVisita(densidad,buffer,metodo);for(const p of pts)await visitarTramo(E,p);return E;}
+/* conT: guarda en cada punto cuántas palmas nuevas visitó (_nv) y el segundo de la primera visita de cada palma (para secuencias y reproducción). */
+async function calcularVisita(pts,densidad,buffer,metodo,conT){const E=nuevoEstadoVisita(densidad,buffer,metodo);const t0=pts.length?pts[0].t:0;if(conT){E.tv=new Map();E.t0=t0;}
+  for(const p of pts){const nv=await visitarTramo(E,p);if(conT){p._nv=nv.length;for(const id of nv)E.tv.set(String(id),Math.round((p.t-t0)/1000));}}return E;}
 function resumenVisita(E,regs,conIds){
   const filas=new Map();const fila=l=>{if(!filas.has(l))filas.set(l,{lote:l,palmas_visitadas:0,palmas_existentes:0,sitios_vacios:0,ha:0,diagnosticos:0});return filas.get(l);};
-  for(const [l,r] of E.lotes){const x=fila(l);x.palmas_visitadas=r.v;x.palmas_existentes=r.v-r.vac;x.sitios_vacios=r.vac;x.ha=+(r.v/E.densidad).toFixed(2);if(E.tipos&&E.tipos.has(l))x.tipo_lote=E.tipos.get(l);if(conIds)x.ids_palmas_visitadas=r.ids;}
+  for(const [l,r] of E.lotes){const x=fila(l);x.palmas_visitadas=r.v;x.palmas_existentes=r.v-r.vac;x.sitios_vacios=r.vac;x.ha=+(r.v/E.densidad).toFixed(2);if(E.tipos&&E.tipos.has(l))x.tipo_lote=E.tipos.get(l);if(conIds){x.ids_palmas_visitadas=r.ids;if(E.tv)x.t_visita=r.ids.map(id=>E.tv.has(String(id))?E.tv.get(String(id)):null);}}
   for(const r of regs||[])fila(r.lote||'—').diagnosticos++;
   const por_lote=[...filas.values()].sort((a,b)=>ordenNat(a.lote,b.lote));
   const tv=por_lote.reduce((a,x)=>a+x.palmas_visitadas,0);
   return {metodo:E.metodo==='calle'?'calle_entre_lineas':'buffer',densidad_palmas_ha:E.densidad,buffer_m:E.metodo==='calle'?null:E.buffer,buffer_terraza_m:E.metodo==='calle'?E.buffer:undefined,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),
-    ha_recorridas:+(tv/E.densidad).toFixed(2),por_lote};
+    ha_recorridas:+(tv/E.densidad).toFixed(2),...(E.tv&&conIds?{t0_visita:E.t0?new Date(E.t0).toISOString():null}:{}),por_lote};
 }
 let VIS=null;
 function actualizarVisitaUI(){
@@ -1841,6 +1860,47 @@ function resumenParadas(lista,j){
   return {parada_radio_m:Number(j&&j.paradaRadio)||20,parada_minimo_min:Number(j&&j.paradaMin)||5,n_paradas:lista.length,
     minutos_paradas:min,minutos_movimiento:Math.max(0,dur-min)};
 }
+/* ---------- Secuencias por lote ----------
+   Cada entrada a un lote abre una secuencia (1 RI01, 2 RI02, 3 RI01…). Lo que ocurre fuera de los lotes es «Desplazamiento»
+   y cuenta como tiempo efectivo (no es improductivo). Tiempo efectivo = tiempo total − paradas de esa secuencia.
+   Los cambios de lote de menos de 60 s se ignoran (ruido del GPS en los bordes). Los tiempos son continuos: suman la jornada. */
+const SEQ_MIN=60000;
+function lotePunto(p){if(p._l===undefined)p._l=loteDe(p.lat,p.lng)||'';return p._l;}
+function secuenciasDe(pts,o){
+  if(!pts||!pts.length)return [];
+  let runs=[];for(let i=0;i<pts.length;i++){const l=lotePunto(pts[i]);const r=runs[runs.length-1];if(r&&r.l===l)r.i1=i;else runs.push({l,i0:i,i1:i});}
+  const ini=k=>k===0?Math.min(o.inicio||pts[0].t,pts[0].t):pts[runs[k].i0].t;
+  const fin=k=>k===runs.length-1?Math.max(o.fin||pts[pts.length-1].t,pts[pts.length-1].t):pts[runs[k+1].i0].t;
+  let cambio=true;
+  while(cambio&&runs.length>1){cambio=false;
+    for(let k=0;k<runs.length;k++){if(fin(k)-ini(k)>=SEQ_MIN)continue;
+      if(k>0)runs[k-1].i1=runs[k].i1;else runs[1].i0=runs[0].i0;runs.splice(k,1);cambio=true;break;}
+    const m=[];for(const r of runs){const u=m[m.length-1];if(u&&u.l===r.l)u.i1=r.i1;else m.push(r);}runs=m;}
+  let n=0;const dens=Number(o.densidad)||115;
+  return runs.map((r,k)=>{const a=ini(k),b=fin(k);let par=0,np=0;
+    for(const p of o.paradas||[]){const s=Math.max(a,p.inicio),e=Math.min(b,p.fin);if(e>s){par+=e-s;np++;}}
+    let pv=0,km=0;for(let i=r.i0;i<=r.i1;i++){pv+=pts[i]._nv||0;if(i>r.i0){const d=dist(pts[i-1].lat,pts[i-1].lng,pts[i].lat,pts[i].lng);if(d<500)km+=d/1000;}}
+    if(k>0){const d=dist(pts[r.i0-1].lat,pts[r.i0-1].lng,pts[r.i0].lat,pts[r.i0].lng);if(d<500)km+=d/1000;}
+    const ult=k===runs.length-1;const dg=(o.regs||[]).filter(x=>{const t=Date.parse(x.creado);return t>=a&&(t<b||(ult&&t<=b+60000));}).length;
+    return {secuencia:r.l?++n:null,tipo:r.l?'lote':'desplazamiento',lote:r.l||'',inicio:new Date(a).toISOString(),fin:new Date(b).toISOString(),hora_inicio:hhmm(a),hora_fin:hhmm(b),
+      min_total:+((b-a)/60000).toFixed(1),min_paradas:+(par/60000).toFixed(1),min_efectivo:+((b-a-par)/60000).toFixed(1),paradas:np,
+      palmas_visitadas:pv,ha:+(pv/dens).toFixed(2),diagnosticos:dg,km:+km.toFixed(3)};});
+}
+const minHM=m=>{m=Math.round(Number(m)||0);return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');};
+function tablaSecuencias(ls){
+  if(!ls||!ls.length)return '<p class="tenue">Aún sin recorrido.</p>';
+  const tot=k=>ls.reduce((a,x)=>a+(Number(x[k])||0),0);
+  const filas=ls.map(x=>`<tr${x.tipo==='desplazamiento'?' class="tenue"':''}><td><b>${x.secuencia??'—'}</b></td><td><b>${x.tipo==='desplazamiento'?'Desplazamiento':esc(x.lote)}</b></td><td>${esc(x.hora_inicio)}</td><td>${esc(x.hora_fin)}</td><td>${minHM(x.min_total)}</td><td>${minHM(x.min_paradas)}</td><td><b>${minHM(x.min_efectivo)}</b></td><td>${num(x.palmas_visitadas)}</td><td>${Number(x.ha).toFixed(2)}</td><td>${num(x.diagnosticos)}</td></tr>`).join('');
+  return `<div style="overflow-x:auto"><table class="res"><thead><tr><th>Sec.</th><th>Lote</th><th>Inicio</th><th>Fin</th><th>T. total</th><th>Paradas</th><th>T. efectivo</th><th>Palmas</th><th>Ha</th><th>Diag.</th></tr></thead><tbody>${filas}
+    <tr><td></td><td><b>TOTAL</b></td><td>${esc(ls[0].hora_inicio)}</td><td>${esc(ls[ls.length-1].hora_fin)}</td><td><b>${minHM(tot('min_total'))}</b></td><td><b>${minHM(tot('min_paradas'))}</b></td><td><b>${minHM(tot('min_efectivo'))}</b></td><td><b>${num(tot('palmas_visitadas'))}</b></td><td><b>${tot('ha').toFixed(2)}</b></td><td><b>${num(tot('diagnosticos'))}</b></td></tr></tbody></table></div>
+    <p class="tenue">Tiempos en horas:minutos. Cada entrada a un lote abre una secuencia. T. efectivo = T. total − paradas; el desplazamiento entre lotes cuenta como tiempo efectivo. Palmas = palmas visitadas por primera vez en esa secuencia.</p>`;
+}
+function secuenciasEnCurso(){const j=S.jornada;if(!j||!TRACK.pts)return [];return secuenciasDe(TRACK.pts,{inicio:Date.parse(j.inicio),fin:Date.now(),paradas:PAR.lista,regs:S.registros.filter(r=>r.jornada_id===j.id),densidad:j.densidad});}
+function actualizarSecUI(){const e=$('#pjSec');if(!e||!S.jornada)return;const ls=secuenciasEnCurso();const u=ls[ls.length-1];
+  if(!u){e.textContent='—';$('#pjSecLote').textContent='—';$('#pjEfec').textContent='0:00';return;}
+  const sec=[...ls].reverse().find(x=>x.secuencia);e.textContent=sec?sec.secuencia:'—';$('#pjSecLote').textContent=u.tipo==='desplazamiento'?'En tránsito':u.lote;
+  $('#pjEfec').textContent=minHM(ls.reduce((a,x)=>a+x.min_efectivo,0));}
+setInterval(()=>{try{actualizarSecUI();}catch(e){}},15000);
 function paradasEnLotes(res,lista){
   if(!res)return res;
   for(const x of res.por_lote){x.paradas=0;x.minutos_paradas=0;}
@@ -2270,8 +2330,10 @@ async function abrirPlay(jid){
   L.polyline(pts.map(p=>[p.lat,p.lng]),{color:'#90cdf1',weight:3,opacity:.35,dashArray:'6 7',interactive:false}).addTo(PLAY.capa);
   PLAY.brillo=L.polyline([],{color:'#22d39a',weight:12,opacity:.2,interactive:false}).addTo(PLAY.capa);
   PLAY.estela=L.polyline([],{color:'#22d39a',weight:4.5,opacity:1,interactive:false}).addTo(PLAY.capa);
-  PLAY.regs=S.registros.filter(r=>r.jornada_id===jid&&r.lat!=null).map(r=>({t:Date.parse(r.creado),m:L.circleMarker([r.lat,r.lng],{radius:7,color:'#fff',weight:2,fillColor:(estadoDe(r.estado)||{c:'#999'}).c,fillOpacity:1}).bindTooltip(`${etiquetaReg(r)} · ${(estadoDe(r.estado)||{}).n||''} · ${fmtHora(Date.parse(r.creado))}`),on:false})).sort((a,b)=>a.t-b.t);
+  PLAY.regs=S.registros.filter(r=>r.jornada_id===jid&&r.lat!=null).map(r=>({t:Date.parse(r.creado),m:L.circleMarker([r.lat,r.lng],{radius:7,color:'#fff',weight:2,fillColor:colorReg(r),fillOpacity:1}).bindTooltip(`${etiquetaReg(r)} · ${esc(textoDiag(r)||(estadoDe(r.estado)||{}).n||'')} · ${fmtHora(Date.parse(r.creado))}`),on:false})).sort((a,b)=>a.t-b.t);
   PLAY.paradas=(j.paradas||detectarParadas(pts,j.paradaRadio,j.paradaMin,S.registros.filter(r=>r.jornada_id===jid))).map(p=>({t:p.inicio,p,m:null}));
+  PLAY.capaVis=L.layerGroup().addTo(PLAY.capa);PLAY.vis=[];PLAY.visN=0;
+  try{PLAY.vis=await palmasVisitadasPlay(j,pts);}catch(e){PLAY.vis=[];}
   PLAY.marca=L.circleMarker([pts[0].lat,pts[0].lng],{radius:9,color:'#fff',weight:3,fillColor:'#ee7633',fillOpacity:1,interactive:false}).addTo(PLAY.capa);
   $('#plTit').textContent='Recorrido · '+fmtFecha(j.inicio).slice(0,10);
   $('#plSub').textContent=`${j.evaluador} · ${fmtHora(PLAY.t0)} – ${fmtHora(PLAY.t1)} · ${(PLAY.acum[PLAY.acum.length-1]/1000).toFixed(2)} km · ${PLAY.regs.length} diagnósticos · ${(PLAY.paradas||[]).length} paradas`;
@@ -2279,6 +2341,17 @@ async function abrirPlay(jid){
   abrirCapa('play');S.seguir=false;$('#btUbic').classList.remove('on');
   mapa.fitBounds(L.latLngBounds(pts.map(p=>[p.lat,p.lng])),{padding:[40,40],maxZoom:18});
   pintarPlay();$('#plBtn').innerHTML=IC.play;
+}
+/* Palmas visitadas con el instante de su primera visita, para verlas aparecer durante la reproducción. */
+async function palmasVisitadasPlay(j,pts){
+  let t0,porLote=null;
+  if(j.visita&&j.visita.t0_visita&&j.visita.por_lote.some(x=>x.t_visita)){t0=Date.parse(j.visita.t0_visita);porLote=j.visita.por_lote.map(x=>({lote:x.lote,ids:x.ids_palmas_visitadas||[],t:x.t_visita||[]}));}
+  else{const E=await calcularVisita(pts.map(p=>({...p})),j.densidad,j.buffer,j.metodoVisita||'buffer',true);t0=E.t0;porLote=[...E.lotes].map(([l,r])=>({lote:l,ids:r.ids,t:r.ids.map(id=>E.tv.get(String(id)))}));}
+  const out=[];
+  for(const x of porLote){if(!x.ids.length)continue;let pos=new Map();
+    try{for(const a of await leerChunk(x.lote))pos.set(String(a[0]),[a[5],a[4]]);}catch(e){}
+    x.ids.forEach((id,k)=>{const c=pos.get(String(id));if(c&&x.t[k]!=null)out.push({t:t0+x.t[k]*1000,ll:c,m:null});});}
+  return out.sort((a,b)=>a.t-b.t);
 }
 function idxPlay(t){let lo=0,hi=PLAY.pts.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(PLAY.pts[m].t<=t)lo=m;else hi=m-1;}return lo;}
 function pintarPlay(){
@@ -2288,6 +2361,10 @@ function pintarPlay(){
   const ll=P.slice(0,i+1).map(p=>[p.lat,p.lng]);ll.push([lat,lng]);
   PLAY.estela.setLatLngs(ll);PLAY.brillo.setLatLngs(ll);PLAY.marca.setLatLng([lat,lng]);
   for(const q of PLAY.paradas||[]){const v=q.t<=PLAY.t;if(v&&!q.m)q.m=marcadorParada(q.p,PLAY.capa);else if(!v&&q.m){PLAY.capa.removeLayer(q.m);q.m=null;}}
+  if(PLAY.vis){let k=PLAY.visN;const rv=Math.max(2.5,radioPalma()-1);
+    while(k<PLAY.vis.length&&PLAY.vis[k].t<=PLAY.t){const q=PLAY.vis[k];q.m=L.circleMarker(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
+    while(k>0&&PLAY.vis[k-1].t>PLAY.t){k--;const q=PLAY.vis[k];if(q.m){PLAY.capaVis.removeLayer(q.m);q.m=null;}}
+    PLAY.visN=k;$('#plVis').textContent=num(k);}
   let n=0;for(const r of PLAY.regs){const v=r.t<=PLAY.t;if(v)n++;if(v&&!r.on){r.m.addTo(PLAY.capa);r.on=true;}else if(!v&&r.on){PLAY.capa.removeLayer(r.m);r.on=false;}}
   const dkm=(PLAY.acum[i]+(i+1<P.length?dist(a.lat,a.lng,lat,lng):0))/1000;
   $('#plReloj').textContent=fmtHora(PLAY.t);$('#plTrans').textContent=fmtDur(PLAY.t-PLAY.t0);$('#plDist').textContent=dkm.toFixed(2)+' km';$('#plDiag').textContent=n;
@@ -2389,7 +2466,7 @@ function geoJornada(j,regs,pts,ahora,archivoFotos){
   return {type:'FeatureCollection',name:'jornada_'+j.id,
     jornada:{id:j.id,evaluador:j.evaluador,usuario:j.usuario||'',dispositivo:j.dispositivo||S.cfg.dispositivo,fecha:fechaLocal(j.inicio),
       hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),duracion_min:j.fin?Math.round((Date.parse(j.fin)-Date.parse(j.inicio))/60000):null,inicio:j.inicio,fin:j.fin,
-      km:+(j.km||0).toFixed(3),...(j.visita||{}),...(j.resumen_paradas||{}),lotes_seleccionados:j.seleccion,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
+      km:+(j.km||0).toFixed(3),...(j.visita||{}),...(j.resumen_paradas||{}),secuencias:j.secuencias||[],lotes_seleccionados:j.seleccion,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
       archivo_fotos:archivoFotos||null,cartografia:j.carto_version||'',app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
     features:feats};
 }
@@ -2411,7 +2488,8 @@ async function sincronizar(manual){
     for(const j of lista){
       const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
       if(!j.paradas){j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);}
-      if(!j.visita){const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer');j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);}
+      if(!j.visita||!j.secuencias){const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true);if(!j.visita)j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);
+        j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin||new Date().toISOString()),paradas:j.paradas||[],regs,densidad:j.densidad});}
       const ahora=new Date().toISOString();const base=`jornadas/${fechaLocal(j.inicio)}/${j.id}`;
       const archivos=[];let nombreZip=null;
       const ids=regs.flatMap(r=>r.fotos||[]);
@@ -2814,7 +2892,7 @@ async function despuesDeIngresar(){
           j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';await dbPut('jornadas',j);S.cfg.jornadaActiva=null;await guardarCfg();}
         else{ocultarSplash();await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};await mostrarLogin('Ingrese con el usuario '+j.usuario+' para continuar su jornada.');return despuesDeIngresar();}
       }else{S.jornada=j;const pts=await puntosTrack(j.id);TRACK.ultimo=pts[pts.length-1]||null;TRACK.n=pts.length;prepararTrack(pts.map(p=>[p.lat,p.lng]));
-        VIS=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer');TRACK.pts=pts;
+        VIS=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true);TRACK.pts=pts;
         await cargarPalmasJornada();pantallaEncendida(true);toast('Jornada en curso recuperada. El recorrido continúa.',4000);}}
     else{S.cfg.jornadaActiva=null;await guardarCfg();}}
   actualizarJornadaUI();estadoSync();dibujarLotes();

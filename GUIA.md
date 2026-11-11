@@ -1,4 +1,4 @@
-# Sanidad Vegetal 3.1 — Guía de instalación y uso
+# Sanidad Vegetal 3.2 — Guía de instalación y uso
 
 **Palmas de Tumaco S.A.S.** · Censo fitosanitario georreferenciado sin conexión
 
@@ -82,6 +82,9 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
   2. **Tocar la etiqueta** que aparece sobre cada palma al acercar el mapa (zoom 20: «L3 · P14»; zoom 21: «IT43 · L3 · P14»). Las etiquetas con borde naranja están a 50 m o menos de usted; las tenues, más lejos.
   3. Botón **CERCANA**: lista de palmas a 50 m o menos, con filtro por línea y «solo pendientes».
   - **Regla:** solo se puede **registrar un diagnóstico nuevo** en palmas a **50 m o menos** del operario (radio configurable por el administrador) y con GPS activo. Si la palma está más lejos, la ficha muestra la distancia y el botón «Ver palmas a 50 m o menos». Los diagnósticos ya registrados en la jornada pueden consultarse y corregirse (si no se han sincronizado) desde cualquier distancia.
+- **Secuencias por lote:** cada entrada a un lote abre una secuencia (1 RI01, 2 RI02, 3 RI01…). Por secuencia se registran hora de inicio y fin, tiempo total, paradas, **tiempo efectivo** (total − paradas), palmas visitadas (por primera vez), hectáreas y diagnósticos. Lo recorrido fuera de los lotes aparece como **Desplazamiento** y cuenta como tiempo efectivo. Los cambios de lote de menos de 60 s se ignoran (ruido del GPS en los bordes). La barra de la jornada muestra la secuencia, el lote actual y el tiempo efectivo acumulado; el panel de la jornada y el resumen final traen la tabla completa, que también se sincroniza (`secuencias` en el GeoJSON).
+- **Colores de las palmas diagnosticadas:** uno por enfermedad principal (PC rojo, PE morado, DBP naranja, Anillo rojo vino, Cercospora café, Deficiencias lima, Espontánea cian, Hoja pequeña índigo, Mal de juventud rosado, ML negro, MS azul, Palma amarilla oliva, Pestalotia verde azulado, Rayo blanco, Yarumo verde oscuro); si la palma está **de alta**, verde brillante.
+- **Reproducción del recorrido:** las palmas visitadas aparecen a medida que avanza el operario, con su contador (app y visor).
 - **Mensajes de voz:** al pulsar **Iniciar jornada** la app dice el mensaje motivacional de Palmas de Tumaco («Buenos días. Hoy inicia una nueva jornada…»), y al **finalizar**: «Muchas gracias por su labor. Feliz resto de día». Mientras suenan, los avisos de la guía no los interrumpen.
 - **🔊 Guía por voz** (botón flotante): anuncia «Lote I T 43, línea 3, palma 14» al llegar a 2 m o menos de la palma. Si la palma ya fue censada, también lo dice.
 - **REGISTRAR DIAGNÓSTICO** (formulario *Ramificación V6* de la plantación, 30 ramas, en `src/Formulario_Sanidad_RamificacionV6.xlsx`):
@@ -165,7 +168,9 @@ SanidadData/
   - **Mapa:** lotes, recorridos (un color por operario), diagnósticos por estado, paradas y, desde zoom 17, las palmas de la cartografía coloreadas con su último diagnóstico.
   - **Resumen:** jornadas, operarios, lotes, ha recorridas, palmas visitadas, km, diagnósticos, enfermas, fotos, tiempo en paradas, ha por operario-día, diagnósticos por estado, problemas más frecuentes y comparativo *por calle frente a buffer*.
   - **Jornadas:** tabla ordenable; al tocar una se ve su detalle por lote y se **reproduce el recorrido** (×30 a ×600).
-  - **Lotes** y **Operarios:** totales del periodo; al tocar una fila se filtra por ese lote u operario.
+  - **Secuencias:** una fila por operario, jornada, secuencia y lote, con inicio, fin, tiempo total, paradas, tiempo efectivo, palmas, ha y diagnósticos; totales del periodo y CSV. Las jornadas sincronizadas antes de esta versión se reconstruyen con el recorrido (sin palmas por secuencia).
+  - **Lotes** y **Operarios:** totales del periodo (operarios con tiempo total, paradas y tiempo efectivo); al tocar una fila se filtra por ese lote u operario.
+  - **Filtro de Programa** (IT, IS, RI, CU…), además de operario, lote y estado.
   - **Diagnósticos:** tabla con estado y problemas; al tocar uno se ubica en el mapa y se pueden **ver sus fotos** (se descargan del ZIP de la jornada solo cuando se piden).
   - **Exportar:** GeoJSON filtrado, CSV de jornadas, lotes, operarios y diagnósticos (separador `;`, abre directo en Excel).
 - **Consumo de GitHub:** cada archivo se descarga una sola vez y queda en caché del navegador (los archivos sincronizados no cambian). Una consulta de 7 días con 120 operarios usa unas 850 solicitudes la primera vez y casi ninguna después; el límite es 5.000 por hora.
