@@ -391,6 +391,9 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
 const VERSION='__VERSION__';
+/* Si un service worker antiguo entregó la app en la dirección del visor o de administración, se actualiza y se recarga una vez. */
+if(/\/(visor|admin)\.html$/.test(location.pathname)){try{if(!sessionStorage.getItem('sv_redir')){sessionStorage.setItem('sv_redir','1');
+  (navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.update()))):Promise.resolve()).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),1200));}}catch(e){}}
 
 /* ---------- Catálogos del formulario ---------- */
 /* Estado de la palma: se deriva automáticamente del diagnóstico (sirve para colores del mapa y resúmenes). */
@@ -571,9 +574,9 @@ function capaOrto(base,v,bounds,PZ){
     p.then(x=>{if(!x)mem.delete(k);});mem.set(k,p);if(mem.size>48)mem.delete(mem.keys().next().value);return p;};
   const C=L.GridLayer.extend({createTile(c,done){
     const img=document.createElement('img');img.alt='';img.setAttribute('role','presentation');
-    img.onload=()=>{if(img._u){URL.revokeObjectURL(img._u);img._u=null;}done(null,img);};img.onerror=()=>done(null,img);
+    img.onload=()=>{if(img._u){URL.revokeObjectURL(img._u);img._u=null;}done(null,img);};img.onerror=()=>{img.style.visibility='hidden';img.removeAttribute('src');done(null,img);}; // tesela inexistente: sin ícono de imagen rota
     if(c.z<=PZ)img.src=`${base}${c.z}/${c.x}/${c.y}.webp?v=${v}`;
-    else{const s=c.z-PZ;paquete(c.z,c.x>>s,c.y>>s).then(b=>{const e=b&&b.h[c.x+','+c.y];if(!e){setTimeout(()=>done(null,img),0);return;}
+    else{const s=c.z-PZ;paquete(c.z,c.x>>s,c.y>>s).then(b=>{const e=b&&b.h[c.x+','+c.y];if(!e){img.style.visibility='hidden';setTimeout(()=>done(null,img),0);return;}
       img._u=URL.createObjectURL(new Blob([new Uint8Array(b.buf,b.o+e[0],e[1])],{type:'image/webp'}));img.src=img._u;});}
     return img;}});
   return new C({maxZoom:22,maxNativeZoom:19,minNativeZoom:12,bounds,attribution:'Ortofoto dron Palmas de Tumaco'});

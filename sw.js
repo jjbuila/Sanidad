@@ -1,6 +1,6 @@
 /* Service worker de Sanidad Vegetal 2.0: permite abrir la aplicación y ver mapas sin conexión.
    Las llamadas a la API de GitHub no se guardan en caché. */
-const APP='sanidad-vegetal-20261110-1004';
+const APP='sanidad-vegetal-20261110-2041';
 const TESELAS='teselas-v1';
 const ARCHIVOS=['./','./index.html','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
 
@@ -36,9 +36,18 @@ self.addEventListener('fetch',e=>{
     }));
     return;
   }
+  // Visor web y página de administración: siempre de la red (la copia guardada solo sin conexión), nunca la app.
+  if(u.origin===self.location.origin&&/\/(visor|admin)\.html$/.test(u.pathname)){
+    e.respondWith(caches.open(APP).then(async c=>{
+      try{const r=await fetch(req,{cache:'no-store'});if(r.ok)c.put(req,r.clone());return r;}
+      catch(err){return (await c.match(req,{ignoreSearch:true}))||new Response('Sin conexión',{status:503});}
+    }));
+    return;
+  }
   if(u.origin===self.location.origin){
     e.respondWith(caches.open(APP).then(async c=>{
-      const m=await c.match(req,{ignoreSearch:true})||(req.mode==='navigate'?await c.match('./index.html'):null);
+      const raiz=/\/(index\.html)?$/.test(u.pathname);
+      const m=await c.match(req,{ignoreSearch:true})||(req.mode==='navigate'&&raiz?await c.match('./index.html'):null);
       const red=fetch(req).then(r=>{if(r.ok)c.put(req,r.clone());return r;}).catch(()=>null);
       if(m){e.waitUntil(red);return m;}
       return (await red)||new Response('Sin conexión',{status:503});
