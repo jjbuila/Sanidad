@@ -953,7 +953,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261110:2120</div>
+  <div id="splashVer">VERSIÓN 20261110:2140</div>
 </div>
 
 <div id="login" hidden>
@@ -967,7 +967,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261110:2120</div>
+  <div id="lgVer2">VERSIÓN 20261110:2140</div>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
 
@@ -1072,7 +1072,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261110:2120';
+const VERSION='20261110:2140';
 /* Si un service worker antiguo entregó la app en la dirección del visor o de administración, se actualiza y se recarga una vez. */
 if(/\/(visor|admin)\.html$/.test(location.pathname)){try{if(!sessionStorage.getItem('sv_redir')){sessionStorage.setItem('sv_redir','1');
   (navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.update()))):Promise.resolve()).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),1200));}}catch(e){}}
@@ -2364,6 +2364,7 @@ function pintarPlay(){
   if(PLAY.vis){let k=PLAY.visN;const rv=Math.max(2.5,radioPalma()-1);
     while(k<PLAY.vis.length&&PLAY.vis[k].t<=PLAY.t){const q=PLAY.vis[k];q.m=L.circleMarker(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
     while(k>0&&PLAY.vis[k-1].t>PLAY.t){k--;const q=PLAY.vis[k];if(q.m){PLAY.capaVis.removeLayer(q.m);q.m=null;}}
+    if(k>PLAY.visN){for(const r of PLAY.regs)if(r.on)r.m.bringToFront();PLAY.marca.bringToFront();} // diagnósticos por encima de las palmas visitadas
     PLAY.visN=k;$('#plVis').textContent=num(k);}
   let n=0;for(const r of PLAY.regs){const v=r.t<=PLAY.t;if(v)n++;if(v&&!r.on){r.m.addTo(PLAY.capa);r.on=true;}else if(!v&&r.on){PLAY.capa.removeLayer(r.m);r.on=false;}}
   const dkm=(PLAY.acum[i]+(i+1<P.length?dist(a.lat,a.lng,lat,lng):0))/1000;

@@ -1683,6 +1683,7 @@ function pintarPlay(){
   if(PLAY.vis){let k=PLAY.visN;const rv=Math.max(2.5,radioPalma()-1);
     while(k<PLAY.vis.length&&PLAY.vis[k].t<=PLAY.t){const q=PLAY.vis[k];q.m=L.circleMarker(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
     while(k>0&&PLAY.vis[k-1].t>PLAY.t){k--;const q=PLAY.vis[k];if(q.m){PLAY.capaVis.removeLayer(q.m);q.m=null;}}
+    if(k>PLAY.visN){for(const r of PLAY.regs)if(r.on)r.m.bringToFront();PLAY.marca.bringToFront();} // diagnósticos por encima de las palmas visitadas
     PLAY.visN=k;$('#plVis').textContent=num(k);}
   let n=0;for(const r of PLAY.regs){const v=r.t<=PLAY.t;if(v)n++;if(v&&!r.on){r.m.addTo(PLAY.capa);r.on=true;}else if(!v&&r.on){PLAY.capa.removeLayer(r.m);r.on=false;}}
   const dkm=(PLAY.acum[i]+(i+1<P.length?dist(a.lat,a.lng,lat,lng):0))/1000;
