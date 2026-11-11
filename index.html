@@ -769,6 +769,11 @@ button{cursor:pointer}
 #superior>*{pointer-events:auto}
 @media(min-width:900px){#superior{right:auto;width:440px}}
 #pj{border-radius:16px;padding:9px 12px 10px;cursor:pointer}
+#usuarioBar{display:flex;align-items:center;gap:10px;border-radius:14px;padding:6px 12px 6px 6px;pointer-events:auto}
+#usuarioBar .av{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--acento),#0f9d6b);color:#03140d;font-family:var(--t);font-weight:700;font-size:15px;letter-spacing:.5px}
+#usuarioBar .txt{min-width:0;flex:1}
+#usuarioBar b{display:block;font-family:var(--t);font-weight:700;font-size:15.5px;letter-spacing:.4px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#usuarioBar small{display:block;font-size:11.5px;color:var(--acento);letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pj-fila{display:flex;align-items:center;gap:10px;font-family:var(--t);font-weight:700;font-size:18px;letter-spacing:.5px}
 .pj-fila .sep{width:1px;height:18px;background:var(--borde)}
 .pj-fila.pj2{font-size:14.5px;margin-top:5px;flex-wrap:wrap;row-gap:2px}
@@ -953,7 +958,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261110:2140</div>
+  <div id="splashVer">VERSIÓN 20261110:2249</div>
 </div>
 
 <div id="login" hidden>
@@ -967,7 +972,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261110:2140</div>
+  <div id="lgVer2">VERSIÓN 20261110:2249</div>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
 
@@ -983,6 +988,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 <div id="mapa"></div>
 
 <div id="superior">
+  <div id="usuarioBar" class="glass" hidden><span class="av" id="ubIni">--</span><div class="txt"><b id="ubNombre">—</b><small id="ubCargo">—</small></div></div>
   <div id="pj" class="glass" hidden>
     <div class="pj-fila"><span class="rec"></span><span id="pjTiempo">00:00:00</span><span class="sep"></span><span><small>KM</small><span id="pjKm">0.00</span></span><span class="sep"></span><span><small>CENSO</small><span id="pjCenso">0 / 0</span></span></div>
     <div class="pj-fila pj2"><span><small>INICIO</small><span id="pjIni">--:--</span></span><span class="sep"></span><span><small>VISITADAS</small><span id="pjVis">0</span></span><span class="sep"></span><span><small>HA</small><span id="pjHa">0.00</span></span><span class="sep"></span><span><small>PARADAS</small><span id="pjPar">0</span></span></div>
@@ -1072,7 +1078,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261110:2140';
+const VERSION='20261110:2249';
 /* Si un service worker antiguo entregó la app en la dirección del visor o de administración, se actualiza y se recarga una vez. */
 if(/\/(visor|admin)\.html$/.test(location.pathname)){try{if(!sessionStorage.getItem('sv_redir')){sessionStorage.setItem('sv_redir','1');
   (navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.update()))):Promise.resolve()).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),1200));}}catch(e){}}
@@ -1449,6 +1455,14 @@ function actualizarCab(){
   else if(S.lotes)t=`${S.lotes.features.length} lotes · ${num(totalPalmasCarto())} palmas`;
   else t='Palmas de Tumaco';
   $('#sub').textContent=t;
+  pintarUsuario();
+}
+/* Nombre y cargo del usuario en la parte superior (pantalla principal y jornada). */
+function pintarUsuario(){
+  const ub=$('#usuarioBar');if(!ub)return;if(!SES||PLAY.on){ub.hidden=true;return;}
+  const n=String(SES.nombre||SES.u||'');const p=n.split(/\s+/).filter(Boolean);
+  $('#ubIni').textContent=(p.length>=3?p[2][0]+p[0][0]:p.slice(0,2).map(x=>x[0]).join('')).toUpperCase()||'--';
+  $('#ubNombre').textContent=n;$('#ubCargo').textContent=SES.cargo;ub.hidden=false;
 }
 
 /* ---------- GPS ---------- */
@@ -2801,7 +2815,8 @@ async function abrirSesion(u,dkRaw,guardar){
   const dk=await crypto.subtle.importKey('raw',dkRaw,{name:'AES-GCM'},false,['decrypt']);
   const meta=JSON.parse(DEC.decode(await desObj(dk,e.meta)));
   const token=DEC.decode(await desObj(dk,ACCESO.token));
-  SES={u,nombre:meta.nombre,rol:meta.rol||'operario',dk};
+  const rolTxt={admin:'Administrador',supervisor:'Supervisor',operario:'Operario'}[meta.rol||'operario']||'Operario';
+  SES={u,nombre:meta.nombre,rol:meta.rol||'operario',cargo:meta.cargo||rolTxt,identificacion:meta.identificacion||'',dk};
   S.cfg.gh={...ACCESO.repo,token};S.cfg.evaluador=meta.nombre;
   if(guardar){const k=await llaveDispositivo();const iv=crypto.getRandomValues(new Uint8Array(12));
     const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,ENC.encode(JSON.stringify({u,dk:aB64(dkRaw),paquete:ACCESO.id})));
@@ -2842,7 +2857,7 @@ async function cerrarSesion(){
   if(S.jornada){alert('Finalice la jornada en curso antes de cerrar la sesión.');return;}
   const pend=S.registros.filter(r=>r.sync!=='sincronizado').length;
   if(!confirm(`¿Cerrar la sesión de ${SES.nombre}?`+(pend?`\n\nHay ${pend} diagnóstico(s) pendientes: se sincronizarán cuando ingrese cualquier usuario con WiFi.`:'')))return;
-  await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};estadoSync();cerrarHoja();
+  await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};estadoSync();cerrarHoja();pintarUsuario();
   await mostrarLogin();await despuesDeIngresar();
 }
 async function asegurarCartografia(){
@@ -2885,7 +2900,7 @@ async function asegurarCartografia(){
 async function despuesDeIngresar(){
   mostrarSplash();
   try{await asegurarCartografia();}catch(e){alert(e.message);}
-  dibujarLotes();
+  dibujarLotes();pintarUsuario();
   if(S.cfg.jornadaActiva){const j=await dbGet('jornadas',S.cfg.jornadaActiva);
     if(j&&j.estado==='activa'){
       if(j.usuario&&SES&&j.usuario!==SES.u){
