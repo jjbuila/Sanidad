@@ -416,6 +416,9 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
 const VERSION='__VERSION__';
+/* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
+const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+const NAT=NATIVO?(()=>{const r=n=>{try{return window.Capacitor.registerPlugin(n);}catch(e){return null;}};return {bg:r('BackgroundGeolocation'),tts:r('TextToSpeech'),ln:r('LocalNotifications')};})():null;
 /* Si un service worker antiguo entregó la app en la dirección del visor o de administración, se actualiza y se recarga una vez. */
 if(/\/(visor|admin)\.html$/.test(location.pathname)){try{if(!sessionStorage.getItem('sv_redir')){sessionStorage.setItem('sv_redir','1');
   (navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.update()))):Promise.resolve()).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),1200));}}catch(e){}}
@@ -802,15 +805,36 @@ function pintarUsuario(){
   $('#ubNombre').textContent=n;$('#ubCargo').textContent=SES.cargo;ub.hidden=false;
 }
 
-/* ---------- GPS ---------- */
-let gpsWatch=null,gpsMarca=null,gpsCirc=null;
+/* ---------- GPS ----------
+   En la APK (Capacitor), durante la jornada el GPS lo maneja un servicio nativo en primer plano con notificación
+   permanente: el recorrido sigue con la pantalla apagada o la app en segundo plano. Fuera de la jornada, y en la
+   versión web, se usa el GPS del navegador. */
+let gpsWatch=null,gpsMarca=null,gpsCirc=null,bgWatcher=null;
+function alPosicion(g){
+  S.gps=g;if(document.visibilityState==='visible'){pintarGPS();if(S.seguir&&!PLAY.on)mapa.setView([S.gps.lat,S.gps.lng],Math.max(mapa.getZoom(),18),{animate:false});}
+  registrarPunto(S.gps);guiaGPS();
+}
+async function gpsFondo(on){
+  if(!NATIVO||!NAT.bg)return false;
+  try{
+    if(on&&!bgWatcher){
+      try{if(NAT.ln){const p=await NAT.ln.checkPermissions();if(p.display!=='granted')await NAT.ln.requestPermissions();}}catch(e){}
+      if(gpsWatch!==null&&gpsWatch!=='bg'){try{navigator.geolocation.clearWatch(gpsWatch);}catch(e){}}
+      gpsWatch='bg';
+      bgWatcher=await NAT.bg.addWatcher({backgroundTitle:'Sanidad Vegetal · Jornada en curso',backgroundMessage:'Registrando el recorrido. Toque para volver a la aplicación.',requestPermissions:true,stale:false,distanceFilter:0},
+        (loc,err)=>{if(err){if(err.code==='NOT_AUTHORIZED'&&confirm('Sanidad Vegetal necesita permiso de ubicación para registrar el recorrido. ¿Abrir los ajustes?'))NAT.bg.openSettings();return;}
+          if(loc&&loc.latitude!=null)alPosicion({lat:loc.latitude,lng:loc.longitude,acc:loc.accuracy||99,t:loc.time||Date.now()});});
+      return true;}
+    if(!on&&bgWatcher){const id=bgWatcher;bgWatcher=null;gpsWatch=null;await NAT.bg.removeWatcher({id});iniciarGPS();}
+  }catch(e){gpsWatch=null;bgWatcher=null;toast('No se pudo iniciar el GPS de segundo plano: '+e.message,5000);}
+  return false;
+}
 function iniciarGPS(){
+  if(NATIVO&&S.jornada){if(!bgWatcher)gpsFondo(true);return;}
   if(!navigator.geolocation){toast('Este dispositivo no permite usar el GPS en el navegador.');return;}
   if(gpsWatch!==null)return;
   gpsWatch=navigator.geolocation.watchPosition(p=>{
-    S.gps={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,t:p.timestamp};pintarGPS();
-    if(S.seguir&&!PLAY.on)mapa.setView([S.gps.lat,S.gps.lng],Math.max(mapa.getZoom(),18),{animate:false});
-    registrarPunto(S.gps);guiaGPS();
+    alPosicion({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,t:p.timestamp});
   },e=>{$('#chGpsTxt').textContent='Sin GPS';$('#chGps').className='chip mal';if(e.code===1)toast('Debe autorizar el acceso a la ubicación.');gpsWatch=null;},
   {enableHighAccuracy:true,maximumAge:2000,timeout:60000});
 }
@@ -876,10 +900,11 @@ let OCULTA_DESDE=0;
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden'){OCULTA_DESDE=Date.now();if(S.jornada)avisoJornada(true);return;}
   if(S.jornada||VOZ.activa)pantallaEncendida(true);programarSync(1500);
-  if(S.jornada&&OCULTA_DESDE){const m=(Date.now()-OCULTA_DESDE)/60000;if(m>=1.5){const t=`Atención: la aplicación estuvo en segundo plano ${Math.round(m)} minutos y el recorrido pudo cortarse. Mantenga la aplicación abierta y la pantalla encendida.`;toast('⚠ '+t,8000);hablar(t);if(navigator.vibrate)navigator.vibrate([300,150,300]);}}
+  if(S.jornada&&OCULTA_DESDE&&!bgWatcher){const m=(Date.now()-OCULTA_DESDE)/60000;if(m>=1.5){const t=`Atención: la aplicación estuvo en segundo plano ${Math.round(m)} minutos y el recorrido pudo cortarse. Mantenga la aplicación abierta y la pantalla encendida.`;toast('⚠ '+t,8000);hablar(t);if(navigator.vibrate)navigator.vibrate([300,150,300]);}}
   OCULTA_DESDE=0;});
 /* Aviso persistente mientras hay jornada: permite volver a la app con un toque desde la barra de notificaciones. */
 async function avisoJornada(on){
+  if(NATIVO)return; // en la APK el aviso permanente lo pone el servicio de GPS
   try{if(!('serviceWorker' in navigator)||!('Notification' in window))return;const reg=await navigator.serviceWorker.ready;
     if(!on){(await reg.getNotifications({tag:'jornada'})).forEach(n=>n.close());return;}
     if(Notification.permission!=='granted')return;const j=S.jornada;if(!j)return;
@@ -1028,7 +1053,7 @@ async function finalizarJornada(){
   await dbPut('jornadas',j);
   S.jornada=null;S.cfg.jornadaActiva=null;await guardarCfg();VIS=null;
   S.palmas=null;S.hechos.clear();indexar();dibujarPalmas();capaTrack.clearLayers();TRACK.linea=null;TRACK.pts=[];PAR.lista=[];capaParadas.clearLayers();
-  if(VOZ.activa)alternarVoz();pantallaEncendida(false);actualizarJornadaUI();dibujarLotes();
+  if(VOZ.activa)alternarVoz();pantallaEncendida(false);gpsFondo(false);actualizarJornadaUI();dibujarLotes();
   hablar(MSJ_FIN,true);avisoJornada(false);
   const res=j.visita;
   abrirHoja('Jornada finalizada',`
@@ -1062,7 +1087,8 @@ function prepararTrack(latlngs){
 async function registrarPunto(g){
   if(!S.jornada||!g)return;
   const maxAcc=Number(S.cfg.precisionTrack)||30;if(g.acc>maxAcc)return;
-  const t=Date.now(),u=TRACK.ultimo;
+  const t=(g.t&&Math.abs(Date.now()-g.t)<10*60000)?g.t:Date.now(),u=TRACK.ultimo; // hora del GPS: en segundo plano Android puede entregar varios puntos juntos
+  if(u&&t<=u.t)return;
   if(u){const d=dist(u.lat,u.lng,g.lat,g.lng),dt=(t-u.t)/1000;
     if(d<3&&dt<60)return;
     if(dt>0&&d/dt>15)return; // salto del GPS (>54 km/h)
@@ -1536,7 +1562,11 @@ function elegirVoz(){if(!('speechSynthesis' in window))return;const vs=speechSyn
 if('speechSynthesis' in window){elegirVoz();speechSynthesis.onvoiceschanged=elegirVoz;}
 function paraVoz(t){return String(t??'').trim().replace(/([A-Za-zÑñ])(?=\d)/g,'$1 ').replace(/(\d)(?=[A-Za-zÑñ])/g,'$1 ').replace(/\b[A-ZÑ]{2,3}\b/g,m=>m.split('').join(' '));}
 /* prio: mensajes de inicio y fin de jornada; mientras suenan, los avisos de la guía no los interrumpen. */
-function hablar(txt,prio){if(!prio&&Date.now()<(VOZ.bloq||0))return;VOZ.ultimaFrase=txt;if(!('speechSynthesis' in window))return;
+const HAY_VOZ=()=>(NATIVO&&NAT.tts)||('speechSynthesis' in window);
+function hablar(txt,prio){if(!prio&&Date.now()<(VOZ.bloq||0))return;VOZ.ultimaFrase=txt;
+  if(NATIVO&&NAT.tts){const rate=Number(S.cfg.velocidadVoz)||1;if(prio)VOZ.bloq=Date.now()+txt.length*90/rate+2000;else VOZ.bloq=0;
+    NAT.tts.stop().catch(()=>{}).finally(()=>NAT.tts.speak({text:txt,lang:'es-US',rate,pitch:1,volume:1,category:'playback'}).then(()=>{if(prio)VOZ.bloq=0;}).catch(()=>{}));return;}
+  if(!('speechSynthesis' in window))return;
   try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);u.lang=VOZ.voz?VOZ.voz.lang:'es-CO';if(VOZ.voz)u.voice=VOZ.voz;u.rate=Number(S.cfg.velocidadVoz)||1;
     if(prio){VOZ.bloq=Date.now()+txt.length*90/(u.rate||1)+2000;u.onend=u.onerror=()=>{VOZ.bloq=0;};}else VOZ.bloq=0;
     speechSynthesis.speak(u);}catch(e){}}
@@ -1592,7 +1622,7 @@ function alternarVoz(){
     elegirVoz();iniciarGPS();pantallaEncendida(true);
     VOZ.candidata=null;VOZ.cuenta=0;VOZ.ultimaPalma=null;VOZ.ultimoLote=undefined;VOZ.avisoPrecision=0;
     S.seguir=true;$('#btUbic').classList.add('on');if(S.gps)mapa.setView([S.gps.lat,S.gps.lng],Math.max(mapa.getZoom(),19));
-    pitido();hablar('Guía por voz activada.');if(!('speechSynthesis' in window))toast('Este navegador no tiene voz: se usarán pitido y vibración.',4000);
+    pitido();hablar('Guía por voz activada.');if(!HAY_VOZ())toast('Este navegador no tiene voz: se usarán pitido y vibración.',4000);
     guiaGPS();
   }else{try{speechSynthesis.cancel();}catch(e){}if(!S.jornada)pantallaEncendida(false);pintarGuia(null);}
 }
@@ -2044,7 +2074,7 @@ async function guardarZona(){
    ===================================================================== */
 /* ---------- Instalación en el celular (PWA) ---------- */
 let eventoInstalar=null;
-const estaInstalada=()=>{try{return matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||navigator.standalone===true;}catch(e){return false;}};
+const estaInstalada=()=>{if(NATIVO)return true;try{return matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||navigator.standalone===true;}catch(e){return false;}};
 function plataforma(){const u=navigator.userAgent;
   if(/iPhone|iPad|iPod/i.test(u)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1))return 'ios';
   if(/SamsungBrowser/i.test(u))return 'samsung';if(/Android/i.test(u))return /Firefox/i.test(u)?'android-firefox':'android';return 'escritorio';}

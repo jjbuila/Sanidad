@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sanidad Vegetal</string>
+    <string name="title_activity_main">Sanidad Vegetal</string>
+    <string name="package_name">co.palmasdetumaco.sanidadvegetal</string>
+    <string name="custom_url_scheme">co.palmasdetumaco.sanidadvegetal</string>
+    <string name="capacitor_background_geolocation_notification_channel_name">Registro del recorrido</string>
+    <string name="capacitor_background_geolocation_notification_icon">drawable/ic_tracking</string>
+</resources>

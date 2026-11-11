@@ -1,0 +1,20 @@
+{
+  "appId": "co.palmasdetumaco.sanidadvegetal",
+  "appName": "Sanidad Vegetal",
+  "webDir": "www",
+  "server": {
+    "url": "https://jjbuila.github.io/Sanidad/",
+    "allowNavigation": ["jjbuila.github.io"],
+    "errorPath": "sin-conexion.html"
+  },
+  "android": {
+    "useLegacyBridge": true,
+    "backgroundColor": "#06140f",
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "LocalNotifications": {"smallIcon": "ic_tracking", "iconColor": "#22d39a"}
+  }
+}

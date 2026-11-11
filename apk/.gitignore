@@ -1,0 +1,6 @@
+node_modules/
+android/app/src/main/assets/public/
+android/app/build/
+android/build/
+android/.gradle/
+*.jks
