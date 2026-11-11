@@ -961,7 +961,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261111:0021</div>
+  <div id="splashVer">VERSIÓN 20261111:1551</div>
 </div>
 
 <div id="login" hidden>
@@ -975,7 +975,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261111:0021</div>
+  <div id="lgVer2">VERSIÓN 20261111:1551</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1084,7 +1084,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261111:0021';
+const VERSION='20261111:1551';
 /* Si un service worker antiguo entregó la app en la dirección del visor o de administración, se actualiza y se recarga una vez. */
 if(/\/(visor|admin)\.html$/.test(location.pathname)){try{if(!sessionStorage.getItem('sv_redir')){sessionStorage.setItem('sv_redir','1');
   (navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.update()))):Promise.resolve()).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),1200));}}catch(e){}}
@@ -2327,7 +2327,7 @@ function resumenLote(l){
   const ev=Array.from(S.ultimo.values()).filter(u=>u.lote===l);const c=enJornada(l)?censoLote(l):null;
   abrirHoja('Lote '+l,`
     <div class="stats"><div class="stat"><b>${m?num(m.n-(m.vacios||0)):'0'}</b><span>Palmas</span></div><div class="stat"><b>${m?num(m.vacios||0):'0'}</b><span>Sitios vacíos</span></div><div class="stat"><b>${m?`${m.linea_min??'?'}–${m.linea_max??'?'}`:'—'}</b><span>Líneas</span></div></div>
-    <div class="ficha" style="margin-top:8px">${p.Programa?`<div><b>Programa:</b> ${esc(p.Programa)}</div>`:''}${p.ZonaCosecha?`<div><b>Zona de cosecha:</b> ${esc(p.ZonaCosecha)}</div>`:''}
+    <div class="ficha" style="margin-top:8px">${p.Programa?`<div><b>Programa:</b> ${esc(p.Programa)}</div>`:''}${p.ZonaCosecha?`<div><b>Zona de cosecha:</b> ${esc(p.ZonaCosecha)}</div>`:''}${p.Area_ha!=null?`<div><b>Área:</b> ${Number(p.Area_ha).toLocaleString("es-CO",{minimumFractionDigits:2,maximumFractionDigits:2})} ha</div>`:''}
       <div><b>Palmas con diagnóstico:</b> ${num(ev.length)}</div>${c?`<div><b>Censo de esta jornada:</b> ${num(c.hec)} / ${num(c.tot)}</div>`:''}</div>
     ${!m?'<div class="aviso">Este lote no tiene palmas en la cartografía.</div>':!S.jornada?`<button class="btn nar ancho grande" id="rlPlan">${IC.play} PLANIFICAR JORNADA CON ESTE LOTE</button>`
       :!enJornada(l)?`<button class="btn prim ancho" id="rlAgr">${IC.mas} Agregar a la jornada (todas las líneas)</button>`:'<p class="tenue">Acérquese (zoom) para seleccionar palmas.</p>'}`);
