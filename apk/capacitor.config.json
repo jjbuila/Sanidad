@@ -4,7 +4,9 @@
   "webDir": "www",
   "server": {
     "url": "https://jjbuila.github.io/Sanidad/",
-    "allowNavigation": ["jjbuila.github.io"],
+    "allowNavigation": [
+      "jjbuila.github.io"
+    ],
     "errorPath": "sin-conexion.html"
   },
   "android": {
@@ -12,9 +14,13 @@
     "backgroundColor": "#06140f",
     "allowMixedContent": false,
     "captureInput": false,
-    "webContentsDebuggingEnabled": false
+    "webContentsDebuggingEnabled": false,
+    "appendUserAgent": "SanidadVegetalAPK/1"
   },
   "plugins": {
-    "LocalNotifications": {"smallIcon": "ic_tracking", "iconColor": "#22d39a"}
+    "LocalNotifications": {
+      "smallIcon": "ic_tracking",
+      "iconColor": "#22d39a"
+    }
   }
 }

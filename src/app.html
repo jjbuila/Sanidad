@@ -418,6 +418,9 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 const VERSION='__VERSION__';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+/* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
+const EN_APK=/SanidadVegetalAPK/.test(navigator.userAgent);
+if(EN_APK&&!NATIVO){try{if(navigator.onLine&&!sessionStorage.getItem('sv_puente')){sessionStorage.setItem('sv_puente','1');setTimeout(()=>location.reload(),300);}}catch(e){}}
 const NAT=NATIVO?(()=>{const r=n=>{try{return window.Capacitor.registerPlugin(n);}catch(e){return null;}};return {bg:r('BackgroundGeolocation'),tts:r('TextToSpeech'),ln:r('LocalNotifications')};})():null;
 /* Si un service worker antiguo entregó la app en la dirección del visor o de administración, se actualiza y se recarga una vez. */
 if(/\/(visor|admin)\.html$/.test(location.pathname)){try{if(!sessionStorage.getItem('sv_redir')){sessionStorage.setItem('sv_redir','1');
@@ -1565,7 +1568,10 @@ function paraVoz(t){return String(t??'').trim().replace(/([A-Za-zÑñ])(?=\d)/g,
 const HAY_VOZ=()=>(NATIVO&&NAT.tts)||('speechSynthesis' in window);
 function hablar(txt,prio){if(!prio&&Date.now()<(VOZ.bloq||0))return;VOZ.ultimaFrase=txt;
   if(NATIVO&&NAT.tts){const rate=Number(S.cfg.velocidadVoz)||1;if(prio)VOZ.bloq=Date.now()+txt.length*90/rate+2000;else VOZ.bloq=0;
-    NAT.tts.stop().catch(()=>{}).finally(()=>NAT.tts.speak({text:txt,lang:'es-US',rate,pitch:1,volume:1,category:'playback'}).then(()=>{if(prio)VOZ.bloq=0;}).catch(()=>{}));return;}
+    const dec=async()=>{for(const lang of [VOZ.langNat,'es-US','es-MX','es-ES','es'].filter(Boolean)){
+        try{await NAT.tts.speak({text:txt,lang,rate,pitch:1,volume:1,category:'playback'});VOZ.langNat=lang;return;}
+        catch(e){if(!/language|idioma|not supported/i.test(String(e&&e.message||e)))return;}}};
+    NAT.tts.stop().catch(()=>{}).finally(()=>dec().finally(()=>{if(prio)VOZ.bloq=0;}));return;}
   if(!('speechSynthesis' in window))return;
   try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);u.lang=VOZ.voz?VOZ.voz.lang:'es-CO';if(VOZ.voz)u.voice=VOZ.voz;u.rate=Number(S.cfg.velocidadVoz)||1;
     if(prio){VOZ.bloq=Date.now()+txt.length*90/(u.rate||1)+2000;u.onend=u.onerror=()=>{VOZ.bloq=0;};}else VOZ.bloq=0;
