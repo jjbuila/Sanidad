@@ -1,6 +1,6 @@
 /* Service worker de Sanidad Vegetal 2.0: permite abrir la aplicación y ver mapas sin conexión.
    Las llamadas a la API de GitHub no se guardan en caché. */
-const APP='sanidad-vegetal-20261111-2104';
+const APP='sanidad-vegetal-20261111-2126';
 const TESELAS='teselas-v1';
 const ARCHIVOS=['./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
 /* La página principal se pide como documento HTML (Accept: text/html). En la APK de Android, Capacitor intercepta esa

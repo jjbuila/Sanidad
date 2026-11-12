@@ -421,7 +421,11 @@ const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capa
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
 const EN_APK=/SanidadVegetalAPK/.test(navigator.userAgent);
 if(EN_APK&&!NATIVO){try{if(navigator.onLine&&!sessionStorage.getItem('sv_puente')){sessionStorage.setItem('sv_puente','1');setTimeout(()=>location.reload(),300);}}catch(e){}}
-const NAT=NATIVO?(()=>{const r=n=>{try{return window.Capacitor.registerPlugin(n);}catch(e){return null;}};return {bg:r('BackgroundGeolocation'),tts:r('TextToSpeech'),ln:r('LocalNotifications')};})():null;
+// El puente nativo de Capacitor (inyectado por el APK) publica los plugins en Capacitor.Plugins;
+// registerPlugin solo existe si se carga @capacitor/core, por eso se usa como alternativa.
+const NAT=NATIVO?(()=>{const C=window.Capacitor;const r=n=>{try{const p=C.Plugins&&C.Plugins[n];if(p)return p;}catch(e){}
+  try{return typeof C.registerPlugin==='function'?C.registerPlugin(n):null;}catch(e){return null;}};
+  return {get bg(){return r('BackgroundGeolocation');},get tts(){return r('TextToSpeech');},get ln(){return r('LocalNotifications');}};})():null;
 /* Si un service worker antiguo entregó la app en la dirección del visor o de administración, se actualiza y se recarga una vez. */
 if(/\/(visor|admin)\.html$/.test(location.pathname)){try{if(!sessionStorage.getItem('sv_redir')){sessionStorage.setItem('sv_redir','1');
   (navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.update()))):Promise.resolve()).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),1200));}}catch(e){}}
