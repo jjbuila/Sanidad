@@ -9,7 +9,11 @@
 <link rel="icon" type="image/svg+xml" href="icons/sv_icono.svg">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<style>/*LEAFLET_CSS*/</style>
+<style>/*LEAFLET_CSS*/.persona-ic{background:none;border:0}
+.persona{border-radius:50%;border:3px solid #fff;display:grid;place-items:center;box-shadow:0 0 0 2px rgba(0,0,0,.35),0 4px 14px rgba(0,0,0,.45)}
+.persona svg{display:block}
+.punto.est{border:0!important;border-radius:0!important;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+</style>
 <style>/*FUENTES*/</style>
 <style>
 :root{
@@ -333,6 +337,14 @@ async function enParalelo(items,n,fn){let i=0;const w=async()=>{while(i<items.le
 
 /* ---------- Mapa ---------- */
 const rend=L.canvas({padding:.5,tolerance:6});
+/* Palmas como estrellas (vector en el lienzo) y operario como figura de persona: así no se confunden. */
+L.Canvas.include({_updateEstrella(layer){if(!this._drawing||layer._empty())return;const p=layer._point,ctx=this._ctx,r=Math.max(layer._radius,1.5)*1.35;
+  ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.47:r;ctx.lineTo(p.x+rr*Math.cos(a),p.y+rr*Math.sin(a));}ctx.closePath();this._fillStroke(ctx,layer);}});
+const Estrella=L.CircleMarker.extend({_updatePath(){this._renderer._updateEstrella?this._renderer._updateEstrella(this):this._renderer._updateCircle(this);}});
+const estrella=(ll,o)=>new Estrella(ll,o);
+const SVG_PERSONA='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="13.5" cy="3.6" r="2.3" fill="#fff"/><path d="M12.6 7.2 9.4 9.3 8 13.2M12.6 7.2l-1.4 6 3.3 3.1 1.1 5.2M11.2 13.2l-2.6 3.2-3 4.6M12.6 7.2l2.3 3.3 3.2 1.1" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function iconoPersona(color,tam){tam=tam||34;return L.divIcon({className:'persona-ic',iconSize:[tam,tam],iconAnchor:[tam/2,tam/2],html:`<div class="persona" style="width:${tam}px;height:${tam}px;background:${color}">${SVG_PERSONA}</div>`});}
+
 const mapa=L.map('mapa',{preferCanvas:true,renderer:rend,zoomControl:false,maxZoom:22}).setView([1.6,-78.75],11);
 L.control.zoom({position:'bottomright'}).addTo(mapa);
 L.control.scale({imperial:false,position:'bottomright'}).addTo(mapa);
@@ -375,7 +387,7 @@ vis('#cLotes',capaLotes);vis('#cRec',capaRec);vis('#cDiag',capaDiag);vis('#cPar'
 mapa.on('zoomend moveend',()=>{mapa.getContainer().classList.toggle('sin-etq',mapa.getZoom()<14);dibujarPalmas();});
 function pintarLeyenda(){
   $('#leyenda').innerHTML='<b class="tit" style="font-size:13px">Enfermedad principal</b>'+Object.entries(COLOR_N1).map(([k,c])=>`<div><span class="punto" style="background:${c}"></span>${esc(PROBLEMAS[k]||k)}</div>`).join('')+
-  `<div><span class="punto" style="background:${COLOR_ALTA}"></span>De alta</div><div><span class="punto" style="background:#4dd0e1"></span>Palma visitada (reproducción)</div>`+
+  `<div><span class="punto" style="background:${COLOR_ALTA}"></span>De alta</div><div><span class="punto est" style="background:#ffc53d"></span>Palma (cartografía)</div><div><span class="punto est" style="background:#4dd0e1"></span>Palma visitada (reproducción)</div><div><span class="punto" style="background:#0a8fb0;border:2px solid #fff;display:inline-grid;place-items:center">${SVG_PERSONA.replace('width="20" height="20"','width="9" height="9"')}</span>Operario (reproducción)</div>`+
   '<div style="margin-top:4px"><span class="punto" style="background:#ff9f1c;border:2px solid #fff"></span>Parada</div><div class="tenue">Recorridos: un color por operario.</div>';
 }
 
@@ -415,7 +427,7 @@ function dibujarPalmas(){clearTimeout(palmasT);palmasT=setTimeout(async()=>{
   const b=mapa.getBounds();const diag=new Map();for(const d of DIAGF)diag.set(String(d.palma_id),d);
   for(const f of LOTES.features){const lb=f._b||(f._b=L.geoJSON(f).getBounds());if(!lb.intersects(b))continue;
     for(const a of await chunkLote(f.properties._lote)){if(!b.contains([a[5],a[4]]))continue;const d=diag.get(String(a[0]));
-      L.circleMarker([a[5],a[4]],{renderer:rend,radius:mapa.getZoom()>=19?6:4,weight:1,color:'#3a2a00',fillColor:d?colorD(d):(a[3]===0?'#ffffff':'#ffc53d'),fillOpacity:a[3]===0?.2:.85,interactive:false}).addTo(capaPalmas);}}
+      estrella([a[5],a[4]],{renderer:rend,radius:mapa.getZoom()>=19?6:4,weight:1,color:'#3a2a00',fillColor:d?colorD(d):(a[3]===0?'#ffffff':'#ffc53d'),fillOpacity:a[3]===0?.2:.85,interactive:false}).addTo(capaPalmas);}}
   diagAlFrente();
 },150);}
 
@@ -485,12 +497,14 @@ function normalizar(g,f,zipSha){
     inicio:h.inicio,fin:h.fin,hora_inicio:h.hora_inicio||hhmm(h.inicio),hora_fin:h.hora_fin||hhmm(h.fin),duracion_min:h.duracion_min,km:Number(h.km)||0,
     ha:Number(h.ha_recorridas)||0,palmas:Number(h.palmas_visitadas)||0,metodo:h.metodo||'buffer',comp:h.comparativo_buffer||null,
     n_paradas:Number(h.n_paradas)||paradas.length,min_paradas:Number(h.minutos_paradas)||0,min_mov:h.minutos_movimiento,por_lote:h.por_lote||[],
-    densidad:h.densidad_palmas_ha||115,app:h.app||'',sincronizado:h.sincronizado,lotes,diags,paradas,track,header:h,secuencias:h.secuencias&&h.secuencias.length?h.secuencias:null};
+    densidad:h.densidad_palmas_ha||115,app:h.app||'',sincronizado:h.sincronizado,lotes,diags,paradas,track,header:h,secuencias:h.secuencias&&h.secuencias.length?h.secuencias:null,tiempos:h.tiempos||null,
+    vel:h.velocidad_kmh!=null?Number(h.velocidad_kmh):(()=>{const m=Number(h.minutos_movimiento)||0,k=Number(h.km)||0;return m>=1&&k>0?+(k/(m/60)).toFixed(2):null;})()};
 }
 /* ---------- Secuencias por lote ----------
    La app las calcula al finalizar la jornada. Para jornadas antiguas se reconstruyen aquí con el recorrido y los polígonos
    (sin palmas visitadas por secuencia). Tiempo efectivo = total − paradas; el desplazamiento entre lotes es tiempo efectivo. */
 const minHM=m=>{if(m==null||isNaN(m))return '—';m=Math.round(Number(m));return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');};
+const ETQ_TIPO={desplazamiento_inicial:'Desplazamiento inicial',desplazamiento_final:'Desplazamiento final',desplazamiento:'Desplazamiento'};
 function secuenciasDe(j){
   if(j.secuencias)return j.secuencias;
   const tr=j.track;if(!tr||tr.t.length!==tr.c.length||tr.t.length<2||!LOTES)return [];
@@ -524,9 +538,9 @@ async function completarTiempos(j){
   h.t0_visita=new Date(t0).toISOString();j.tiemposEstimados=true;
 }
 function filasSecuencias(){const lote=$('#fLote').value;const out=[];
-  for(const j of JORF)for(const s of secuenciasDe(j)){if(lote&&s.lote!==lote&&s.tipo!=='desplazamiento')continue;if(s.tipo==='lote'&&!enProg(s.lote))continue;if(lote&&s.tipo==='desplazamiento')continue;
-    out.push({_j:j,fecha:j.fecha,evaluador:j.evaluador,usuario:j.usuario,sec:s.secuencia??0,lote:s.tipo==='desplazamiento'?'Desplazamiento':s.lote,ini:s.hora_inicio,fin:s.hora_fin,
-      tot:Number(s.min_total)||0,par:Number(s.min_paradas)||0,efe:Number(s.min_efectivo)||0,palmas:s.palmas_visitadas,ha:s.ha,diag:s.diagnosticos||0,orden:Date.parse(s.inicio)||0});}
+  for(const j of JORF)for(const s of secuenciasDe(j)){const esL=s.tipo==='lote';if(lote&&!esL)continue;if(lote&&s.lote!==lote)continue;if(esL&&!enProg(s.lote))continue;
+    out.push({_j:j,fecha:j.fecha,evaluador:j.evaluador,usuario:j.usuario,sec:s.secuencia??0,tipo:s.tipo,lote:esL?s.lote:(ETQ_TIPO[s.tipo]||'Desplazamiento'),ini:s.hora_inicio,fin:s.hora_fin,
+      tot:Number(s.min_total)||0,desp:esL?Number(s.min_desplazamiento)||0:0,par:Number(s.min_paradas)||0,efe:Number(s.min_efectivo)||0,vel:s.vel_kmh==null?null:Number(s.vel_kmh),km:Number(s.km)||0,palmas:s.palmas_visitadas,ha:s.ha,diag:s.diagnosticos||0,orden:Date.parse(s.inicio)||0});}
   return out;}
 function aplicarFiltros(ajustar){
   const op=$('#fOp').value,lote=$('#fLote').value,est=$('#fEst').value;
@@ -608,7 +622,7 @@ function abrirDetalle(j){
   if(tr&&tr.c.length){const ll=tr.c.map(c=>[c[1],c[0]]);
     L.polyline(ll,{renderer:rend,color:'#ffffff',weight:7,opacity:.35,interactive:false}).addTo(capaSel);
     PLAY.estela=L.polyline([],{renderer:rend,color:'#00e5ff',weight:4,interactive:false}).addTo(capaSel);
-    PLAY.marca=L.circleMarker(ll[0],{renderer:rend,radius:8,color:'#fff',weight:3,fillColor:'#00e5ff',fillOpacity:1,interactive:false}).addTo(capaSel);
+    PLAY.marca=L.marker(ll[0],{icon:iconoPersona('#0a8fb0',34),interactive:false,keyboard:false,zIndexOffset:1000}).addTo(capaSel);
     caja=L.latLngBounds(ll);}
   for(const d of j.diags)caja?caja.extend([d.lat,d.lng]):(caja=L.latLngBounds([[d.lat,d.lng]]));
   if(caja)mapa.fitBounds(caja,{padding:[40,40],maxZoom:19});
@@ -618,14 +632,19 @@ function abrirDetalle(j){
     <div class="tenue">${esc(j.fecha)} · ${esc(j.hora_inicio)} – ${esc(j.hora_fin)} · ${esc(minAh(j.duracion_min))}</div>
     <div class="grid2"><div><b>Km:</b> ${num(j.km,2)}</div><div><b>Ha:</b> ${num(j.ha,2)}</div><div><b>Palmas visitadas:</b> ${num(j.palmas)}</div><div><b>Diagnósticos:</b> ${num(j.diags.length)}</div>
       <div><b>Paradas:</b> ${num(j.n_paradas)} (${esc(minAh(j.min_paradas))})</div><div><b>En movimiento:</b> ${esc(minAh(j.min_mov))}</div>
+      <div><b>Vel. caminata:</b> ${j.vel==null?'—':num(j.vel,1)+' km/h'}</div>${j.tiempos?`<div><b>Labor:</b> ${esc(j.tiempos.hora_inicio_labor||'—')} – ${esc(j.tiempos.hora_fin_labor||'—')}</div>
+      <div><b>Despl. inicial:</b> ${minHM(j.tiempos.min_desplazamiento_inicial)}</div><div><b>Despl. entre lotes:</b> ${minHM(j.tiempos.min_desplazamiento_entre_lotes)}</div>
+      <div><b>Despl. final:</b> ${minHM(j.tiempos.min_desplazamiento_final)}</div><div><b>Efectivo en lotes:</b> ${minHM(j.tiempos.min_efectivo_labor)}</div>`:''}
       <div><b>Método:</b> ${j.metodo==='calle_entre_lineas'?'Por calle':'Buffer'}</div><div>${j.comp?`<b>Buffer ${esc(j.comp.buffer_m)} m:</b> ${num(j.comp.palmas_visitadas)} palmas`:''}</div></div>
     ${conT?`<div class="play"><div class="fila"><button class="btn mini prim" id="pBt">▶</button><input type="range" id="pRg" min="0" max="1000" value="0"><span class="reloj" id="pRel">${esc(hhmm(tr.t[0]))}</span></div>
       <div class="fila"><span class="tenue" style="font-size:12px">Velocidad</span><select id="pVel" style="padding:3px 6px;font-size:12.5px"><option value="30">×30</option><option value="60" selected>×60</option><option value="180">×180</option><option value="600">×600</option></select>
+      <label style="display:flex;gap:5px;align-items:center;font-size:12.5px"><input type="checkbox" id="pSeg" checked> Seguir al operario</label>
       <span class="tenue" style="font-size:12px;margin-left:auto">${num(tr.c.length)} puntos</span></div>
-      <div class="fila" style="font-size:13px"><span class="punto" style="background:#4dd0e1"></span>Palmas visitadas: <b id="pVis" style="font-family:var(--t);font-size:18px">0</b><span class="tenue" id="pVisTot" style="margin-left:4px"></span></div></div>`:'<div class="tenue" style="margin:6px 0">Recorrido sin tiempos: no se puede reproducir.</div>'}
+      <div class="fila" style="font-size:13px"><span class="punto est" style="background:#4dd0e1"></span>Palmas visitadas: <b id="pVis" style="font-family:var(--t);font-size:18px">0</b><span class="tenue" id="pVisTot" style="margin-left:4px"></span></div></div>`:'<div class="tenue" style="margin:6px 0">Recorrido sin tiempos: no se puede reproducir.</div>'}
     <h3 style="margin-top:6px">Secuencias por lote</h3>
-    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Sec.</th><th>Lote</th><th>Inicio</th><th>Fin</th><th class="n">Total</th><th class="n">Paradas</th><th class="n">Efectivo</th><th class="n">Palmas</th><th class="n">Ha</th></tr></thead><tbody>${
-      secuenciasDe(j).map(s=>`<tr${s.tipo==='desplazamiento'?' class="tenue"':''}><td><b>${s.secuencia??'—'}</b></td><td><b>${s.tipo==='desplazamiento'?'Desplazamiento':esc(s.lote)}</b></td><td>${esc(s.hora_inicio)}</td><td>${esc(s.hora_fin)}</td><td class="n">${minHM(s.min_total)}</td><td class="n">${minHM(s.min_paradas)}</td><td class="n"><b>${minHM(s.min_efectivo)}</b></td><td class="n">${s.palmas_visitadas==null?'—':num(s.palmas_visitadas)}</td><td class="n">${s.ha==null?'—':num(s.ha,2)}</td></tr>`).join('')||'<tr><td colspan="9" class="tenue">Sin recorrido con tiempos.</td></tr>'}</tbody></table></div>
+    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Sec.</th><th>Lote</th><th>Inicio</th><th>Fin</th><th class="n">Total</th><th class="n">Despl.</th><th class="n">Paradas</th><th class="n">Efectivo</th><th class="n">Vel.</th><th class="n">Palmas</th><th class="n">Ha</th></tr></thead><tbody>${
+      secuenciasDe(j).map(s=>`<tr${s.tipo!=='lote'?' class="tenue"':''}><td><b>${s.secuencia??'—'}</b></td><td><b>${s.tipo!=='lote'?ETQ_TIPO[s.tipo]||'Desplazamiento':esc(s.lote)}</b></td><td>${esc(s.hora_inicio)}</td><td>${esc(s.hora_fin)}</td><td class="n">${minHM(s.min_total)}</td><td class="n">${s.tipo==='lote'&&s.min_desplazamiento!=null?minHM(s.min_desplazamiento):'—'}</td><td class="n">${minHM(s.min_paradas)}</td><td class="n"><b>${s.min_efectivo==null?'—':minHM(s.min_efectivo)}</b></td><td class="n">${s.vel_kmh==null?'—':num(s.vel_kmh,1)}</td><td class="n">${s.palmas_visitadas==null?'—':num(s.palmas_visitadas)}</td><td class="n">${s.ha==null?'—':num(s.ha,2)}</td></tr>`).join('')||'<tr><td colspan="11" class="tenue">Sin recorrido con tiempos.</td></tr>'}</tbody></table></div>
+    <div class="tenue" style="font-size:11.5px">Despl. = desplazamiento entre lotes (se suma al lote al que llega y cuenta como efectivo). El desplazamiento inicial y el final no son tiempo efectivo de un lote. Vel. = km/h de caminata sin paradas.</div>
     ${secuenciasDe(j).some(s=>s.reconstruida)?'<div class="tenue" style="font-size:11.5px">Jornada anterior a la versión con secuencias: se reconstruyeron con el recorrido; las palmas se asignan a la secuencia en que el operario pasó junto a ellas.</div>':''}
     <h3 style="margin-top:6px">Por lote</h3>
     <table class="t"><thead><tr><th>Lote</th><th class="n">Palmas</th><th class="n">Ha</th><th class="n">Diag.</th><th class="n">Paradas</th></tr></thead><tbody>${filas||'<tr><td colspan="5" class="tenue">Sin datos por lote.</td></tr>'}</tbody></table>
@@ -649,20 +668,27 @@ async function palmasVisitadasJ(j){
     ids.forEach((id,k)=>{const c=pos.get(String(id));if(c)out.push({t:t0&&tv[k]!=null?t0+tv[k]*1000:-Infinity,ll:c,m:null});});}
   return out.sort((a,b)=>a.t-b.t);
 }
-function diagAlFrente(){capaDiag.eachLayer(l=>{if(l.bringToFront)l.bringToFront();});if(PLAY.marca&&PLAY.marca.bringToFront)PLAY.marca.bringToFront();}
+function diagAlFrente(){capaDiag.eachLayer(l=>{if(l.bringToFront)l.bringToFront();});}
 function cerrarDetalle(){pararPlay();SEL=null;capaSel.clearLayers();$('#detalle').hidden=true;marcarFila();}
 function ponerT(t){const tr=SEL&&SEL.track;if(!tr)return;PLAY.t=t;
   let i=0;while(i<tr.t.length-1&&tr.t[i+1]<=t)i++;
   const a=tr.c[i],b=tr.c[Math.min(i+1,tr.c.length-1)];const ta=tr.t[i],tb=tr.t[Math.min(i+1,tr.t.length-1)];const k=tb>ta?Math.min(1,Math.max(0,(t-ta)/(tb-ta))):0;
   const pos=[a[1]+(b[1]-a[1])*k,a[0]+(b[0]-a[0])*k];
   PLAY.marca.setLatLng(pos);PLAY.estela.setLatLngs(tr.c.slice(0,i+1).map(c=>[c[1],c[0]]).concat([pos]));
+  const sg=$('#pSeg');if(PLAY.on&&sg&&sg.checked)seguirOperario(pos);
   if(PLAY.vis&&PLAY.capaVis){let k=PLAY.visN;const rv=mapa.getZoom()>=19?6:mapa.getZoom()>=18?4.5:3;
-    while(k<PLAY.vis.length&&PLAY.vis[k].t<=t){const q=PLAY.vis[k];q.m=L.circleMarker(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
+    while(k<PLAY.vis.length&&PLAY.vis[k].t<=t){const q=PLAY.vis[k];q.m=estrella(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
     while(k>0&&PLAY.vis[k-1].t>t){k--;const q=PLAY.vis[k];if(q.m){PLAY.capaVis.removeLayer(q.m);q.m=null;}}
     if(k>PLAY.visN)diagAlFrente(); // los diagnósticos siempre por encima de las palmas visitadas
     PLAY.visN=k;const e=$('#pVis');if(e)e.textContent=num(k);}
   const r=$('#pRel');if(r)r.textContent=hhmm(t);const rg=$('#pRg');if(rg&&!PLAY.arrastre)rg.value=Math.round(1000*(t-tr.t[0])/Math.max(1,tr.t[tr.t.length-1]-tr.t[0]));
 }
+/* Seguir al operario en la reproducción: lo mantiene centrado en la parte visible del mapa (a la derecha del panel de detalle). */
+function seguirOperario(pos){if(mapa.getZoom()<18){mapa.setView(pos,18,{animate:false});}
+  const s=mapa.getSize(),mr=mapa.getContainer().getBoundingClientRect(),d=$('#detalle');let x0=0;
+  if(d&&!d.hidden){const r=d.getBoundingClientRect();if(r.right>mr.left&&r.right<mr.right-120&&r.bottom>mr.top+s.y*.6)x0=r.right-mr.left;}
+  const obj=L.point((x0+s.x)/2,s.y/2),c=mapa.latLngToContainerPoint(pos);
+  if(c.distanceTo(obj)>Math.min(s.x-x0,s.y)*.15)mapa.panBy(c.subtract(obj),{animate:true,duration:.4});}
 function iniciarPlay(){const tr=SEL&&SEL.track;if(!tr)return;if(PLAY.t>=tr.t[tr.t.length-1])PLAY.t=tr.t[0];PLAY.on=true;$('#pBt').textContent='❚❚';
   let prev=performance.now();const paso=ahora=>{if(!PLAY.on)return;const dt=ahora-prev;prev=ahora;const t=Math.min(tr.t[tr.t.length-1],PLAY.t+dt*PLAY.vel);ponerT(t);
     if(t>=tr.t[tr.t.length-1]){pararPlay();return;}PLAY.raf=requestAnimationFrame(paso);};PLAY.raf=requestAnimationFrame(paso);}
@@ -678,10 +704,11 @@ function resumenLotes(){
 }
 function resumenOperarios(){
   const m=new Map();
-  for(const j of JORF){let f=m.get(j.usuario);if(!f)m.set(j.usuario,f={usuario:j.usuario,evaluador:j.evaluador,jornadas:0,dias:new Set(),km:0,ha:0,palmas:0,diag:0,min:0,min_par:0,min_efe:0,secs:0,lotes:new Set()});
+  for(const j of JORF){let f=m.get(j.usuario);if(!f)m.set(j.usuario,f={usuario:j.usuario,evaluador:j.evaluador,jornadas:0,dias:new Set(),km:0,ha:0,palmas:0,diag:0,min:0,min_par:0,min_efe:0,d_ini:0,d_ent:0,d_fin:0,secs:0,lotes:new Set()});
     const ss=secuenciasDe(j);const tot=ss.length?ss.reduce((a,s)=>a+(Number(s.min_total)||0),0):Number(j.duracion_min)||0;const pm=ss.length?ss.reduce((a,s)=>a+(Number(s.min_paradas)||0),0):j.min_paradas;
-    f.jornadas++;f.dias.add(j.fecha);f.km+=j.km;f.ha+=j.ha;f.palmas+=j.palmas;f.diag+=j.diags.length;f.min+=tot;f.min_par+=pm;f.min_efe+=tot-pm;f.secs+=ss.filter(s=>s.tipo==='lote').length;j.lotes.forEach(l=>f.lotes.add(l));}
-  return [...m.values()].map(f=>({...f,dias:f.dias.size,lotes:f.lotes.size,km:+f.km.toFixed(2),ha:+f.ha.toFixed(2),ha_dia:f.dias.size?+(f.ha/f.dias.size).toFixed(2):0,horas:+(f.min/60).toFixed(1),min:Math.round(f.min),min_par:Math.round(f.min_par),min_efe:Math.round(f.min_efe)}));
+    f.jornadas++;f.dias.add(j.fecha);f.km+=j.km;f.ha+=j.ha;f.palmas+=j.palmas;f.diag+=j.diags.length;f.min+=tot;f.min_par+=pm;f.min_efe+=ss.length?ss.reduce((a,s)=>a+(Number(s.min_efectivo)||0),0):tot-pm;f.secs+=ss.filter(s=>s.tipo==='lote').length;
+    for(const s of ss){if(s.tipo==='desplazamiento_inicial')f.d_ini+=Number(s.min_total)||0;else if(s.tipo==='desplazamiento_final')f.d_fin+=Number(s.min_total)||0;else if(s.tipo==='lote')f.d_ent+=Number(s.min_desplazamiento)||0;}j.lotes.forEach(l=>f.lotes.add(l));}
+  return [...m.values()].map(f=>({...f,dias:f.dias.size,lotes:f.lotes.size,km:+f.km.toFixed(2),ha:+f.ha.toFixed(2),ha_dia:f.dias.size?+(f.ha/f.dias.size).toFixed(2):0,horas:+(f.min/60).toFixed(1),min:Math.round(f.min),min_par:Math.round(f.min_par),min_efe:Math.round(f.min_efe),d_ini:Math.round(f.d_ini),d_ent:Math.round(f.d_ent),d_fin:Math.round(f.d_fin),vel:f.min-f.min_par>=1&&f.km>0?+(f.km/((f.min-f.min_par)/60)).toFixed(2):null}));
 }
 
 /* ---------- Panel lateral ---------- */
@@ -726,8 +753,8 @@ function pintarPanel(){
     $('#xGeo').onclick=()=>descargar(`sanidad_${$('#fDesde').value}_${$('#fHasta').value}.geojson`,JSON.stringify(geoDeJornadas(JORF)),'application/geo+json');
     $('#xJor').onclick=()=>csvJornadas();$('#xDiag').onclick=()=>csvDiag();
   }else if(TAB==='jornadas'){
-    const filas=JORF.map(j=>({_j:j,_sel:j===SEL,fecha:j.fecha,evaluador:j.evaluador,ini:j.hora_inicio,fin:j.hora_fin,dur:Number(j.duracion_min)||0,km:j.km,ha:j.ha,palmas:j.palmas,diag:j.diags.length,par:j.n_paradas,lotes:[...j.lotes].sort(ordenNat).join(', ')}));
-    const t=tabla('tJor',[{k:'fecha',t:'Fecha',asc:false},{k:'evaluador',t:'Operario'},{k:'ini',t:'Inicio'},{k:'fin',t:'Fin'},{k:'dur',t:'Duración',n:1,f:x=>esc(minAh(x.dur))},{k:'km',t:'Km',n:1,f:x=>num(x.km,2)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'diag',t:'Diag.',n:1},{k:'par',t:'Paradas',n:1},{k:'lotes',t:'Lotes'}],filas,f=>abrirDetalle(f._j));
+    const filas=JORF.map(j=>({_j:j,_sel:j===SEL,fecha:j.fecha,evaluador:j.evaluador,ini:j.hora_inicio,fin:j.hora_fin,dur:Number(j.duracion_min)||0,km:j.km,ha:j.ha,palmas:j.palmas,diag:j.diags.length,par:j.n_paradas,vel:j.vel,lotes:[...j.lotes].sort(ordenNat).join(', ')}));
+    const t=tabla('tJor',[{k:'fecha',t:'Fecha',asc:false},{k:'evaluador',t:'Operario'},{k:'ini',t:'Inicio'},{k:'fin',t:'Fin'},{k:'dur',t:'Duración',n:1,f:x=>esc(minAh(x.dur))},{k:'km',t:'Km',n:1,f:x=>num(x.km,2)},{k:'vel',t:'Vel. km/h',n:1,f:x=>x.vel==null?'—':num(x.vel,1)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'diag',t:'Diag.',n:1},{k:'par',t:'Paradas',n:1},{k:'lotes',t:'Lotes'}],filas,f=>abrirDetalle(f._j));
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque una jornada para verla en el mapa y reproducir el recorrido.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xJor">⬇ CSV jornadas</button></div>`;$('#xJor').onclick=()=>csvJornadas();
   }else if(TAB==='lotes'){
     const t=tabla('tLot',[{k:'lote',t:'Lote'},{k:'tipo',t:'Tipo'},{k:'jornadas',t:'Jornadas',n:1},{k:'operarios',t:'Operarios',n:1},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'diag',t:'Diag.',n:1},{k:'enfermas',t:'Enfermas',n:1},{k:'min_par',t:'Min. paradas',n:1}],
@@ -736,18 +763,18 @@ function pintarPanel(){
     $('#xLot').onclick=()=>csv(`lotes_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['lote','tipo','jornadas','operarios','palmas','ha','diag','enfermas','paradas','min_par'],resumenLotes());
   }else if(TAB==='secuencias'){
     const filas=filasSecuencias();
-    const t=tabla('tSec',[{k:'orden',t:'Fecha',asc:false,f:x=>esc(x.fecha)},{k:'evaluador',t:'Operario'},{k:'sec',t:'Sec.',n:1,f:x=>x.sec||'—'},{k:'lote',t:'Lote',f:x=>x.lote==='Desplazamiento'?'<span class="tenue">Desplazamiento</span>':'<b>'+esc(x.lote)+'</b>'},{k:'ini',t:'Inicio'},{k:'fin',t:'Fin'},
-      {k:'tot',t:'T. total',n:1,f:x=>minHM(x.tot)},{k:'par',t:'Paradas',n:1,f:x=>minHM(x.par)},{k:'efe',t:'T. efectivo',n:1,f:x=>'<b>'+minHM(x.efe)+'</b>'},{k:'palmas',t:'Palmas',n:1,f:x=>x.palmas==null?'—':num(x.palmas)},{k:'ha',t:'Ha',n:1,f:x=>x.ha==null?'—':num(x.ha,2)},{k:'diag',t:'Diag.',n:1}],filas,f=>abrirDetalle(f._j));
+    const t=tabla('tSec',[{k:'orden',t:'Fecha',asc:false,f:x=>esc(x.fecha)},{k:'evaluador',t:'Operario'},{k:'sec',t:'Sec.',n:1,f:x=>x.sec||'—'},{k:'lote',t:'Lote',f:x=>x.tipo!=='lote'?'<span class="tenue">'+esc(x.lote)+'</span>':'<b>'+esc(x.lote)+'</b>'},{k:'ini',t:'Inicio'},{k:'fin',t:'Fin'},
+      {k:'tot',t:'T. total',n:1,f:x=>minHM(x.tot)},{k:'desp',t:'Despl. entre lotes',n:1,f:x=>x.tipo==='lote'?minHM(x.desp):'—'},{k:'par',t:'Paradas',n:1,f:x=>minHM(x.par)},{k:'efe',t:'T. efectivo',n:1,f:x=>x.tipo==='lote'||x.tipo==='desplazamiento'?'<b>'+minHM(x.efe)+'</b>':'—'},{k:'vel',t:'Vel. km/h',n:1,f:x=>x.vel==null?'—':num(x.vel,1)},{k:'palmas',t:'Palmas',n:1,f:x=>x.palmas==null?'—':num(x.palmas)},{k:'ha',t:'Ha',n:1,f:x=>x.ha==null?'—':num(x.ha,2)},{k:'diag',t:'Diag.',n:1}],filas,f=>abrirDetalle(f._j));
     const s=k=>filas.reduce((a,x)=>a+(Number(x[k])||0),0);
     P.innerHTML=`<div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><b>${minHM(s('tot'))}</b><span>Tiempo total</span></div><div class="kpi"><b>${minHM(s('par'))}</b><span>Paradas</span></div><div class="kpi"><b style="color:var(--acento)">${minHM(s('efe'))}</b><span>Tiempo efectivo</span></div></div>
-      <div class="tenue" style="margin-bottom:6px;font-size:12.5px">Cada entrada a un lote abre una secuencia (1 RI01, 2 RI02, 3 RI01…). T. efectivo = T. total − paradas; el desplazamiento entre lotes cuenta como efectivo. Tiempos en horas:minutos. Toque una fila para ver la jornada.</div>`+t.html+
+      <div class="tenue" style="margin-bottom:6px;font-size:12.5px">Cada bloque de trabajo en un lote abre una secuencia (1 RI01, 2 RI02, 3 RI01…). <b>Desplazamiento inicial</b>: del inicio de la jornada a la primera calle trabajada. <b>Desplazamiento entre lotes</b>: se suma a la secuencia del lote al que llega y cuenta como efectivo. <b>Desplazamiento final</b>: de la última palma al fin de la jornada. T. efectivo = T. total − paradas. Tiempos en horas:minutos. Toque una fila para ver la jornada.</div>`+t.html+
       `<div style="margin-top:10px"><button class="btn mini" id="xSec">⬇ CSV secuencias</button></div>`;
-    $('#xSec').onclick=()=>csv(`secuencias_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['fecha','usuario','evaluador','sec','lote','ini','fin','tot','par','efe','palmas','ha','diag'],filas.map(x=>({...x,sec:x.sec||''})));
+    $('#xSec').onclick=()=>csv(`secuencias_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['fecha','usuario','evaluador','sec','tipo','lote','ini','fin','tot','desp','par','efe','km','vel','palmas','ha','diag'],filas.map(x=>({...x,sec:x.sec||'',vel:x.vel==null?'':x.vel})));
   }else if(TAB==='operarios'){
-    const t=tabla('tOp',[{k:'evaluador',t:'Operario'},{k:'jornadas',t:'Jorn.',n:1},{k:'secs',t:'Sec.',n:1},{k:'min',t:'T. total',n:1,f:x=>minHM(x.min)},{k:'min_par',t:'Paradas',n:1,f:x=>minHM(x.min_par)},{k:'min_efe',t:'T. efectivo',n:1,f:x=>'<b>'+minHM(x.min_efe)+'</b>'},{k:'km',t:'Km',n:1,f:x=>num(x.km,2)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'ha_dia',t:'Ha/día',n:1,f:x=>num(x.ha_dia,2)},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'diag',t:'Diag.',n:1},{k:'lotes',t:'Lotes',n:1}],
+    const t=tabla('tOp',[{k:'evaluador',t:'Operario'},{k:'jornadas',t:'Jorn.',n:1},{k:'secs',t:'Sec.',n:1},{k:'min',t:'T. total',n:1,f:x=>minHM(x.min)},{k:'min_par',t:'Paradas',n:1,f:x=>minHM(x.min_par)},{k:'min_efe',t:'T. efectivo',n:1,f:x=>'<b>'+minHM(x.min_efe)+'</b>'},{k:'d_ini',t:'Despl. inicial',n:1,f:x=>minHM(x.d_ini)},{k:'d_ent',t:'Despl. entre lotes',n:1,f:x=>minHM(x.d_ent)},{k:'d_fin',t:'Despl. final',n:1,f:x=>minHM(x.d_fin)},{k:'km',t:'Km',n:1,f:x=>num(x.km,2)},{k:'vel',t:'Vel. km/h',n:1,f:x=>x.vel==null?'—':num(x.vel,1)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'ha_dia',t:'Ha/día',n:1,f:x=>num(x.ha_dia,2)},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'diag',t:'Diag.',n:1},{k:'lotes',t:'Lotes',n:1}],
       resumenOperarios(),f=>{$('#fOp').value=f.usuario;aplicarFiltros(true);});
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque un operario para filtrar sus recorridos.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xOp">⬇ CSV operarios</button></div>`;
-    $('#xOp').onclick=()=>csv(`operarios_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['usuario','evaluador','jornadas','dias','secs','min','min_par','min_efe','km','ha','ha_dia','palmas','diag','lotes'],resumenOperarios());
+    $('#xOp').onclick=()=>csv(`operarios_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['usuario','evaluador','jornadas','dias','secs','min','min_par','min_efe','d_ini','d_ent','d_fin','km','vel','ha','ha_dia','palmas','diag','lotes'],resumenOperarios().map(x=>({...x,vel:x.vel==null?'':x.vel})));
   }else{
     const filas=DIAGF.map(d=>({_d:d,fecha:d._j.fecha,hora:hhmm(d.creado),palma:etiquetaDiag(d),lote:d.lote,estado:(estadoDe(d.estado)||{n:d.estado_nombre||d.estado}).n,_c:colorD(d),problemas:d.nivel1?[d.n1_codigo||d.nivel1,d.nivel2,d.nivel3].filter(Boolean).join(' › '):String(d.problemas||'').split('|').filter(Boolean).join(', '),evaluador:d.evaluador,fotos:Number(d.n_fotos)||0}));
     const t=tabla('tDiag',[{k:'fecha',t:'Fecha',asc:false},{k:'hora',t:'Hora'},{k:'palma',t:'Palma'},{k:'estado',t:'Estado',f:x=>`<span class="punto" style="background:${x._c}"></span>${esc(x.estado)}`},{k:'problemas',t:'Diagnóstico'},{k:'evaluador',t:'Operario'},{k:'fotos',t:'Fotos',n:1}],
@@ -761,8 +788,8 @@ function marcarFila(){if(TAB==='jornadas')pintarPanel();}
 function descargar(nombre,contenido,tipo){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([contenido],{type:tipo}));a.download=nombre;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
 function csv(nombre,cols,filas){const q=v=>{if(v==null)return '';const s=typeof v==='number'?String(v).replace('.',','):String(v);return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
   descargar(nombre,'﻿'+cols.join(';')+'\r\n'+filas.map(f=>cols.map(c=>q(f[c])).join(';')).join('\r\n'),'text/csv;charset=utf-8');}
-function csvJornadas(){csv(`jornadas_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['id','fecha','usuario','evaluador','hora_inicio','hora_fin','duracion_min','km','ha','palmas','diagnosticos','n_paradas','min_paradas','metodo','palmas_buffer','lotes'],
-  JORF.map(j=>({id:j.id,fecha:j.fecha,usuario:j.usuario,evaluador:j.evaluador,hora_inicio:j.hora_inicio,hora_fin:j.hora_fin,duracion_min:j.duracion_min,km:j.km,ha:j.ha,palmas:j.palmas,diagnosticos:j.diags.length,n_paradas:j.n_paradas,min_paradas:j.min_paradas,metodo:j.metodo,palmas_buffer:j.comp?j.comp.palmas_visitadas:'',lotes:[...j.lotes].sort(ordenNat).join(',')})));}
+function csvJornadas(){csv(`jornadas_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['id','fecha','usuario','evaluador','hora_inicio','hora_fin','duracion_min','km','ha','palmas','diagnosticos','n_paradas','min_paradas','velocidad_kmh','inicio_labor','fin_labor','min_despl_inicial','min_despl_entre_lotes','min_despl_final','metodo','palmas_buffer','lotes'],
+  JORF.map(j=>({id:j.id,fecha:j.fecha,usuario:j.usuario,evaluador:j.evaluador,hora_inicio:j.hora_inicio,hora_fin:j.hora_fin,duracion_min:j.duracion_min,km:j.km,ha:j.ha,palmas:j.palmas,diagnosticos:j.diags.length,n_paradas:j.n_paradas,min_paradas:j.min_paradas,velocidad_kmh:j.vel==null?'':j.vel,inicio_labor:(j.tiempos||{}).hora_inicio_labor||'',fin_labor:(j.tiempos||{}).hora_fin_labor||'',min_despl_inicial:(j.tiempos||{}).min_desplazamiento_inicial??'',min_despl_entre_lotes:(j.tiempos||{}).min_desplazamiento_entre_lotes??'',min_despl_final:(j.tiempos||{}).min_desplazamiento_final??'',metodo:j.metodo,palmas_buffer:j.comp?j.comp.palmas_visitadas:'',lotes:[...j.lotes].sort(ordenNat).join(',')})));}
 function csvDiag(){const cols=['id','jornada_id','fecha','creado','evaluador','lote','linea','palma','palma_id','estado','estado_nombre','rama','n1_codigo','nivel1','nivel2','nivel3','sintomas','estado_hongo','cirugia','produccion','raices_buenas','transitabilidad','observaciones','problemas','grado_pc','severidad','accion','n_fotos','fotos','lat','lng','dist_gps_palma_m'];
   csv(`diagnosticos_${$('#fDesde').value}_${$('#fHasta').value}.csv`,cols,DIAGF.map(d=>({...d,fecha:d._j.fecha})));}
 function geoDeJornadas(js){const feats=[];

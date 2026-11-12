@@ -12,7 +12,11 @@
 <link rel="icon" type="image/svg+xml" href="icons/sv_icono.svg">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<style>/*LEAFLET_CSS*/</style>
+<style>/*LEAFLET_CSS*/.persona-ic{background:none;border:0}
+.persona{border-radius:50%;border:3px solid #fff;display:grid;place-items:center;box-shadow:0 0 0 2px rgba(0,0,0,.35),0 4px 14px rgba(0,0,0,.45)}
+.persona svg{display:block}
+.punto.est{border:0!important;border-radius:0!important;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+</style>
 <style>/*FUENTES*/</style>
 <style>
 :root{
@@ -150,6 +154,7 @@ button{cursor:pointer}
 #flot{position:fixed;right:10px;bottom:calc(var(--dock) + var(--inf) + 96px);z-index:900;display:flex;flex-direction:column;gap:10px}
 #flot button{width:50px;height:50px;border-radius:16px;display:grid;place-items:center;color:var(--texto)}
 #flot button.on{color:#06140f;background:var(--acento);box-shadow:0 0 22px rgba(34,211,154,.55);border-color:transparent}
+#btSeguir{display:flex!important;flex-direction:column;gap:1px;padding:0}#btSeguir small{font-size:9.5px;font-weight:800;letter-spacing:1px;line-height:1}
 #btLeyenda{position:fixed;left:10px;bottom:calc(var(--dock) + var(--inf) + 34px);z-index:900;border-radius:12px;padding:7px 11px;font-size:12.5px;font-family:var(--t);font-weight:700;letter-spacing:1px;color:var(--texto)}
 #leyenda{position:fixed;left:10px;bottom:calc(var(--dock) + var(--inf) + 76px);z-index:900;border-radius:14px;padding:10px 12px;font-size:13px}
 #leyenda div{display:flex;align-items:center;gap:8px;margin:3px 0}
@@ -347,7 +352,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div id="pj" class="glass" hidden>
     <div class="pj-fila"><span class="rec"></span><span id="pjTiempo">00:00:00</span><span class="sep"></span><span><small>KM</small><span id="pjKm">0.00</span></span><span class="sep"></span><span><small>CENSO</small><span id="pjCenso">0 / 0</span></span></div>
     <div class="pj-fila pj2"><span><small>INICIO</small><span id="pjIni">--:--</span></span><span class="sep"></span><span><small>VISITADAS</small><span id="pjVis">0</span></span><span class="sep"></span><span><small>HA</small><span id="pjHa">0.00</span></span><span class="sep"></span><span><small>PARADAS</small><span id="pjPar">0</span></span></div>
-    <div class="pj-fila pj2"><span><small>SECUENCIA</small><span id="pjSec">—</span></span><span class="sep"></span><span><small>LOTE</small><span id="pjSecLote">—</span></span><span class="sep"></span><span><small>T. EFECTIVO</small><span id="pjEfec">0:00</span></span></div>
+    <div class="pj-fila pj2"><span><small>SECUENCIA</small><span id="pjSec">—</span></span><span class="sep"></span><span><small>LOTE</small><span id="pjSecLote">—</span></span><span class="sep"></span><span><small>T. EFECTIVO</small><span id="pjEfec">0:00</span></span><span class="sep"></span><span><small>VEL. KM/H</small><span id="pjVel">—</span></span></div>
     <div class="barra"><i id="pjBarra"></i></div>
   </div>
   <div id="guia" class="glass" hidden><div class="txt"><div id="guiaTxt">—</div><div id="guiaSub"></div></div><button class="redondo" id="guiaRepetir" aria-label="Repetir" data-ic="repetir"></button></div>
@@ -355,6 +360,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 
 <div id="flot">
   <button id="btVoz" class="glass" aria-label="Guía por voz" data-ic="vozOff"></button>
+  <button id="btSeguir" class="glass" aria-label="Pantalla fija"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="13.5" cy="3.6" r="2.3" fill="currentColor"/><path d="M12.6 7.2 9.4 9.3 8 13.2M12.6 7.2l-1.4 6 3.3 3.1 1.1 5.2M11.2 13.2l-2.6 3.2-3 4.6M12.6 7.2l2.3 3.3 3.2 1.1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><small>FIJA</small></button>
 </div>
 <button id="btLeyenda" class="glass">LEYENDA</button>
 <div id="leyenda" class="glass" hidden></div>
@@ -600,6 +606,14 @@ function mostrarSplash(){const s=$('#splash');clearTimeout(ocultarSplash.t);s.hi
 
 /* ---------- Mapa ---------- */
 const rend=L.canvas({padding:.5,tolerance:8}); // un solo lienzo para todo el mapa: así un toque nunca queda tapado por otra capa
+/* Palmas como estrellas (vector en el lienzo) y operario como figura de persona: así no se confunden. */
+L.Canvas.include({_updateEstrella(layer){if(!this._drawing||layer._empty())return;const p=layer._point,ctx=this._ctx,r=Math.max(layer._radius,1.5)*1.35;
+  ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.47:r;ctx.lineTo(p.x+rr*Math.cos(a),p.y+rr*Math.sin(a));}ctx.closePath();this._fillStroke(ctx,layer);}});
+const Estrella=L.CircleMarker.extend({_updatePath(){this._renderer._updateEstrella?this._renderer._updateEstrella(this):this._renderer._updateCircle(this);}});
+const estrella=(ll,o)=>new Estrella(ll,o);
+const SVG_PERSONA='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="13.5" cy="3.6" r="2.3" fill="#fff"/><path d="M12.6 7.2 9.4 9.3 8 13.2M12.6 7.2l-1.4 6 3.3 3.1 1.1 5.2M11.2 13.2l-2.6 3.2-3 4.6M12.6 7.2l2.3 3.3 3.2 1.1" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function iconoPersona(color,tam){tam=tam||34;return L.divIcon({className:'persona-ic',iconSize:[tam,tam],iconAnchor:[tam/2,tam/2],html:`<div class="persona" style="width:${tam}px;height:${tam}px;background:${color}">${SVG_PERSONA}</div>`});}
+
 const mapa=L.map('mapa',{preferCanvas:true,renderer:rend,zoomControl:false,maxZoom:22,attributionControl:true}).setView([1.6,-78.75],11);
 L.control.zoom({position:'bottomright'}).addTo(mapa);
 L.control.scale({imperial:false,position:'bottomleft'}).addTo(mapa);
@@ -644,7 +658,7 @@ function ponerBase(){
 }
 function radioPalma(){const z=mapa.getZoom();return z>=20?10:z>=19?8:z>=18?6:z>=17?4.5:z>=16?3:z>=15?2:1.4;}
 mapa.on('moveend',()=>{mapa.getContainer().classList.toggle('sin-etiquetas',mapa.getZoom()<13);dibujarPalmas();if(resalte)resalte.setRadius(radioPalma()+6);});
-mapa.on('dragstart',()=>{if(S.seguir){S.seguir=false;$('#btUbic').classList.remove('on');}});
+mapa.on('dragstart',()=>{if(S.seguir)S.pausaSeguir=Date.now()+20000;});
 
 /* ---------- Lotes ---------- */
 const enJornada=l=>!!(S.jornada&&S.jornada.seleccion.some(p=>p.lote===l));
@@ -717,7 +731,7 @@ function dibujarPalmas(){
   const r=radioPalma();
   for(const arr of grupos)for(const f of arr){
     const [lng,lat]=f.geometry.coordinates;const id=f.properties._id;
-    const m=L.circleMarker([lat,lng],{renderer:rend,radius:r,...estiloPalma(f)});
+    const m=estrella([lat,lng],{renderer:rend,radius:r,...estiloPalma(f)});
     m.on('click',()=>{if(!PLAY.on)abrirPalma(id);});m.addTo(capaPalmas);S.marcadores.set(id,m);
   }
   dibujarEtiquetasPalmas(grupos);
@@ -751,13 +765,14 @@ function resaltar(lat,lng){
   resalte=L.circleMarker([lat,lng],{radius:radioPalma()+6,color:'#00e5ff',weight:3,fill:false,interactive:false}).addTo(capaGps);
 }
 function pintarLeyenda(){
-  $('#leyenda').innerHTML='<div style="font-weight:700;margin-bottom:2px">Enfermedad principal</div>'+N1S.map(x=>`<div><span class="punto" style="background:${COLOR_N1[x.c]||'#999'}"></span>${esc((probDe(x.c)||{n:x.n1}).n)}</div>`).join('')+
-  `<div><span class="punto" style="background:${COLOR_ALTA}"></span>De alta</div>`+
-  `<div><span class="punto" style="background:${SIN_EVALUAR}"></span>Pendiente por censar</div>
-   <div><span class="punto" style="background:#4dd0e1"></span>Visitada por el recorrido (sin diagnóstico)</div>
+  $('#leyenda').innerHTML='<div style="font-weight:700;margin-bottom:2px">Enfermedad principal</div>'+N1S.map(x=>`<div><span class="punto est" style="background:${COLOR_N1[x.c]||'#999'}"></span>${esc((probDe(x.c)||{n:x.n1}).n)}</div>`).join('')+
+  `<div><span class="punto est" style="background:${COLOR_ALTA}"></span>De alta</div>`+
+  `<div><span class="punto est" style="background:${SIN_EVALUAR}"></span>Pendiente por censar</div>
+   <div><span class="punto est" style="background:#4dd0e1"></span>Visitada por el recorrido (sin diagnóstico)</div>
+   <div><span class="punto" style="background:#2f93d5;border:2px solid #fff;display:inline-grid;place-items:center">${SVG_PERSONA.replace('width="20" height="20"','width="9" height="9"')}</span>Operario (su ubicación)</div>
    <div><span class="punto" style="background:#ff9f1c;border:2px solid #fff"></span>Parada sin actividad</div>
    <div><span class="punto" style="background:#2f93d5;border:2px solid #fff"></span>Parada con diagnóstico</div>
-   <div><span class="punto" style="background:transparent;border-color:#b0bec5"></span>Sitio sin palma (cartografía)</div>
+   <div><span class="punto est" style="background:#b0bec5;opacity:.5"></span>Sitio sin palma (existencia 0)</div>
    <div><span class="punto" style="border-radius:3px;background:transparent;border:2px solid #22d39a"></span>Lote de la jornada</div>
    <div><span class="punto" style="border-radius:3px;background:transparent;border:2px solid #90cdf1"></span>Otros lotes</div>
    <div><span class="punto" style="border-radius:2px;height:4px;background:#22d39a;border:0"></span>Recorrido</div>`;
@@ -825,7 +840,7 @@ function pintarUsuario(){
    versión web, se usa el GPS del navegador. */
 let gpsWatch=null,gpsMarca=null,gpsCirc=null,bgWatcher=null;
 function alPosicion(g){
-  S.gps=g;if(document.visibilityState==='visible'){pintarGPS();if(S.seguir&&!PLAY.on)mapa.setView([S.gps.lat,S.gps.lng],Math.max(mapa.getZoom(),18),{animate:false});}
+  S.gps=g;if(document.visibilityState==='visible'){pintarGPS();if(S.seguir)centrarOperario();}
   registrarPunto(S.gps);guiaGPS();
 }
 async function gpsFondo(on){
@@ -856,17 +871,27 @@ function pintarGPS(){
   const ll=[S.gps.lat,S.gps.lng];
   if(!gpsMarca){
     gpsCirc=L.circle(ll,{radius:S.gps.acc,color:'#2f93d5',weight:1,fillOpacity:.12,interactive:false}).addTo(capaGps);
-    gpsMarca=L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#2f93d5',fillOpacity:1,interactive:false}).addTo(capaGps);
+    gpsMarca=L.marker(ll,{icon:iconoPersona('#2f93d5',34),interactive:false,keyboard:false,zIndexOffset:1000}).addTo(capaGps);
   }else{gpsMarca.setLatLng(ll);gpsCirc.setLatLng(ll).setRadius(S.gps.acc);}
   if(mapa.getZoom()>=20&&S.jornada&&Date.now()-(pintarGPS.ue||0)>4000){pintarGPS.ue=Date.now();dibujarPalmas();}
   const a=Math.round(S.gps.acc);$('#chGpsTxt').textContent='±'+a+' m';$('#chGps').className='chip '+(a<=6?'ok':a<=15?'med':'mal');
 }
 $('#chGps').onclick=()=>$('#btUbic').click();
+/* Pantalla en movimiento (el mapa sigue y centra al operario) o pantalla fija. Si se mueve el mapa con el dedo, el seguimiento
+   se pausa 20 s y luego vuelve solo a centrar al operario. La preferencia se guarda en el celular. */
+function pintarSeguir(){const b=$('#btSeguir');if(b){b.classList.toggle('on',!!S.seguir);b.querySelector('small').textContent=S.seguir?'SIGUE':'FIJA';
+  b.setAttribute('aria-label',S.seguir?'Pantalla en movimiento: el mapa sigue al operario. Toque para fijarla.':'Pantalla fija. Toque para que el mapa siga al operario.');}
+  $('#btUbic').classList.toggle('on',!!S.seguir);}
+function modoSeguir(on,silencio){S.seguir=!!on;S.cfg.seguir=!!on;S.pausaSeguir=0;guardarCfg();pintarSeguir();if(on)centrarOperario(true);
+  if(!silencio)toast(on?'Pantalla en movimiento: el mapa sigue al operario.':'Pantalla fija: el mapa ya no se mueve solo.');}
+function centrarOperario(forzar){if(!S.gps||PLAY.on)return;if(!forzar&&Date.now()<(S.pausaSeguir||0))return;const ll=L.latLng(S.gps.lat,S.gps.lng);
+  if(mapa.getZoom()<17){mapa.setView(ll,18,{animate:false});return;}
+  const c=mapa.latLngToContainerPoint(ll),t=mapa.getSize(),d=Math.hypot(c.x-t.x/2,c.y-t.y/2);
+  if(forzar||d>Math.min(t.x,t.y)*.12)mapa.panTo(ll,{animate:true,duration:.5});}
 $('#btUbic').onclick=()=>{
   iniciarGPS();
-  if(!S.gps){toast('Buscando señal GPS… manténgase a cielo abierto.');S.seguir=true;$('#btUbic').classList.add('on');return;}
-  S.seguir=!S.seguir;$('#btUbic').classList.toggle('on',S.seguir);
-  if(S.seguir){mapa.setView([S.gps.lat,S.gps.lng],Math.max(mapa.getZoom(),18));toast('El mapa sigue su posición.');}
+  if(!S.gps){toast('Buscando señal GPS… manténgase a cielo abierto.');if(!S.seguir)modoSeguir(true,true);return;}
+  if(!S.seguir)modoSeguir(true);else{S.pausaSeguir=0;centrarOperario(true);}
 };
 const capaRadio=L.layerGroup().addTo(mapa);
 function palmasEnRadio(R){const out=[];if(!S.gps||!S.palmas)return out;
@@ -883,7 +908,7 @@ $('#btCercana').onclick=()=>{
   const R=Number(S.cfg.radioSel)||50;const lista=palmasEnRadio(R);
   capaRadio.clearLayers();
   const circ=L.circle([S.gps.lat,S.gps.lng],{radius:R,color:'#ee7633',weight:2,dashArray:'6 6',fillColor:'#ee7633',fillOpacity:.06,interactive:false}).addTo(capaRadio);
-  S.seguir=false;$('#btUbic').classList.remove('on');mapa.fitBounds(circ.getBounds(),{padding:[10,10]});
+  S.pausaSeguir=Date.now()+30000;mapa.fitBounds(circ.getBounds(),{padding:[10,10]});
   if(!lista.length){
     let mejor=null,dm=Infinity;for(const f of S.palmas.features){const [x,y]=f.geometry.coordinates;const d=dist(S.gps.lat,S.gps.lng,y,x);if(d<dm){dm=d;mejor=f;}}
     abrirHoja('Palmas cercanas',`<div class="aviso">No hay palmas de la jornada a ${R} m o menos de su posición. La más cercana es <b>${esc(etiquetaPalma(mejor.properties))}</b>, a ${Math.round(dm)} m.</div>
@@ -999,6 +1024,7 @@ async function iniciarJornada(sel,evaluador){
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=evaluador;await guardarCfg();
   TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita);PAR.lista=[];capaParadas.clearLayers();
   await cargarPalmasJornada();iniciarGPS();pantallaEncendida(true);actualizarJornadaUI();dibujarLotes();encuadrar(sel.map(s=>s.lote));
+  if(S.cfg.seguir!==false){S.seguir=true;pintarSeguir();S.pausaSeguir=Date.now()+12000;} // primero muestra los lotes; luego centra al operario
   toast(`▶ Jornada iniciada: ${sel.length} lote(s). Se está guardando el recorrido.`,4000);
   hablar(MSJ_INICIO,true);
   setTimeout(()=>ortoLotes(sel.map(s=>s.lote),true),3000); // detalle de la ortofoto de los lotes elegidos, en segundo plano
@@ -1059,10 +1085,11 @@ async function finalizarJornada(){
   if(!confirm(`¿Finalizar la jornada?\n\nCensadas: ${c.hec} de ${c.tot} palmas.\nSe detendrá el registro del recorrido.`))return;
   j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
-  const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true);const par=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);
+  const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion);const par=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);
   j.paradas=par;j.resumen_paradas=resumenParadas(par,j);j.visita=paradasEnLotes(resumenVisita(E,regs,true),par);
-  j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin),paradas:par,regs,densidad:j.densidad});
-  if(E.metodo==='calle'){const Eb=await calcularVisita(pts,j.densidad,j.buffer,'buffer');const rb=resumenVisita(Eb,regs);
+  j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin),paradas:par,regs,densidad:j.densidad,visitas:E.conf});
+  j.tiempos=tiemposJornada(j.secuencias,j);
+  if(E.metodo==='calle'){const Eb=await calcularVisita(pts,j.densidad,j.buffer,'buffer',false,true,j.seleccion);const rb=resumenVisita(Eb,regs);
     j.visita.comparativo_buffer={buffer_m:Eb.buffer,palmas_visitadas:rb.palmas_visitadas,ha_recorridas:rb.ha_recorridas,por_lote:rb.por_lote.map(x=>({lote:x.lote,palmas_visitadas:x.palmas_visitadas,ha:x.ha}))};}
   await dbPut('jornadas',j);
   S.jornada=null;S.cfg.jornadaActiva=null;await guardarCfg();VIS=null;
@@ -1078,6 +1105,9 @@ async function finalizarJornada(){
       <div class="stat"><b>${(j.km||0).toFixed(2)}</b><span>Km</span></div>
       <div class="stat"><b>${res.ha_recorridas.toFixed(2)}</b><span>Ha recorridas</span></div>
       <div class="stat"><b>${num(regs.length)}</b><span>Diagnósticos</span></div>
+      <div class="stat"><b>${j.tiempos.hora_inicio_labor||'—'}</b><span>Inicio de labor</span></div>
+      <div class="stat"><b>${j.tiempos.hora_fin_labor||'—'}</b><span>Fin de labor</span></div>
+      <div class="stat"><b>${j.tiempos.velocidad_kmh==null?'—':j.tiempos.velocidad_kmh.toFixed(1)}</b><span>Vel. caminata km/h</span></div>
     </div>
     <h3>Secuencias por lote</h3>${tablaSecuencias(j.secuencias)}
     <h3>Recorrido por lote</h3>${tablaLotes(res,j)}
@@ -1110,7 +1140,7 @@ async function registrarPunto(g){
   const p={j:S.jornada.id,t,lat:+g.lat.toFixed(7),lng:+g.lng.toFixed(7),acc:Math.round(g.acc*10)/10,s:0};
   TRACK.ultimo=p;TRACK.n++;(TRACK.pts||(TRACK.pts=[])).push(p);
   if(TRACK.linea){TRACK.linea.addLatLng([p.lat,p.lng]);TRACK.brillo.addLatLng([p.lat,p.lng]);}
-  if(VIS){try{const nv=await visitarTramo(VIS,p);p._nv=nv.length;if(nv.length){nv.forEach(repintarPalma);actualizarVisitaUI();}}catch(e){}}
+  if(VIS){try{const nv=await visitarTramo(VIS,p);if(nv.length){nv.forEach(repintarPalma);actualizarVisitaUI();}}catch(e){}}
   try{actualizarParadas();}catch(e){}
   try{actualizarSecUI();}catch(e){}
   try{await dbPut('track',p);if(TRACK.n%10===0)await dbPut('jornadas',S.jornada);}catch(e){}
@@ -1141,10 +1171,43 @@ async function indiceVisita(l){
   let lin=0,ter=0;
   for(const q of todas){const r=q.ln==null||q.ln===0?null:dens.get(q.ln);if(!r||(r.n>=20&&r.c/r.n>2.6)){q.ln=null;ter++;}else lin++;}
   grid.tipo=ter===0?'lineal':lin===0?'terraza':'mixto';grid.palmasTerraza=ter;
+  const lineas=new Map();for(const q of todas){const k=q.ln==null?'T':q.ln;let r=lineas.get(k);if(!r)lineas.set(k,r={n:0,ex:0,cero:[]});r.n++;if(q.e)r.ex++;else r.cero.push(q);}grid.lineas=lineas;
   if(IDXV.size>60)IDXV.clear();IDXV.set(l,grid);return grid;
 }
 /* metodo: 'calle' (identifica la calle entre dos líneas y cuenta sus dos líneas a la altura del operario) o 'buffer' (distancia al recorrido). */
-function nuevoEstadoVisita(densidad,buffer,metodo){return {set:new Set(),lotes:new Map(),densidad:Number(densidad)||115,buffer:Number(buffer)||5,metodo:metodo||'calle',maxLat:6,ult:null};}
+/* Desplazamientos: una palma solo cuenta como visitada cuando el operario TRABAJA una calle (o terraza) dentro del polígono del lote:
+   la calle se confirma con RUN_MIN palmas seguidas de esa misma calle. Lo que toma al pasar por senderos, al cruzar cabeceras de
+   líneas o al desplazarse hacia/entre lotes queda provisional y se descarta (no cuenta como visitado).
+   Regla 90 %: si visita el 90 % o más de las palmas existentes (vivas) de una línea, los sitios de existencia 0 de esa línea
+   (vacíos / palmas muertas) también cuentan como visitados: la labor no exige llegar a ellos, pero suman a la hectárea. */
+const RUN_MIN=6,RUN_LARGO=22,RUN_VIVA=90000,RUN_ABIERTA=600000,REGLA_EX=0.9; // RUN_LARGO: metros que el operario avanza A LO LARGO de la calle
+function nuevoEstadoVisita(densidad,buffer,metodo){return {set:new Set(),lotes:new Map(),densidad:Number(densidad)||115,buffer:Number(buffer)||5,metodo:metodo||'calle',maxLat:6,ult:null,
+  runs:new Map(),prov:new Set(),abiertas:new Map(),conf:[],linEx:new Map(),regla:new Set(),grids:new Map()};}
+const LFEAT=new Map(),LMET=new Map();
+function featLote(l){if(!LFEAT.size&&S.lotes)for(const f of S.lotes.features)LFEAT.set(String(f.properties._lote),f);return LFEAT.get(String(l));}
+/* ¿El punto (en metros) está dentro del polígono del lote? Tolerancia de 2 m al borde por el error del GPS. */
+function dentroLote(l,sx,sy){const f=featLote(l);if(!f)return true;const lng=sx/KX,lat=sy/KY,k=f._caja,tol=2/KY;
+  if(k&&(lng<k[0]-tol||lng>k[2]+tol||lat<k[1]-tol||lat>k[3]+tol))return false;
+  const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+  for(const p of polys)if(enPoligono(lng,lat,p))return true;
+  let m=LMET.get(l);if(!m){m=[];for(const p of polys)for(const r of p)m.push(r.map(c=>[c[0]*KX,c[1]*KY]));LMET.set(l,m);}
+  for(const r of m)for(let i=1;i<r.length;i++)if(dSeg(sx,sy,r[i-1][0],r[i-1][1],r[i][0],r[i][1])<=2)return true;
+  return false;}
+function proponer(E,cands,t,nuevos){
+  for(const [k,r] of E.runs)if(t-r.ult>RUN_VIVA){for(const [q] of r.qs)E.prov.delete(q.id);E.runs.delete(k);} // calle sin confirmar = desplazamiento: se descarta
+  for(const c of cands){const q=c.q;if(E.set.has(q.id))continue;
+    const ab=E.abiertas.get(c.key);if(ab!=null&&t-ab<=RUN_ABIERTA){E.abiertas.set(c.key,t);marcarVisita(E,c.l,q,nuevos,t);continue;}
+    if(E.prov.has(q.id))continue;
+    let r=E.runs.get(c.key);if(!r)E.runs.set(c.key,r={l:c.l,qs:[],ult:t,tot:c.tot,a0:Infinity,a1:-Infinity,x0:c.sx,y0:c.sy,dmax:0});
+    r.qs.push([q,t]);r.ult=t;E.prov.add(q.id);
+    // avance del operario: a lo largo de la calle (proyección sobre la dirección de las líneas) o, en terrazas, distancia recorrida
+    if(c.ux!=null){const a=c.sx*c.ux+c.sy*c.uy;if(a<r.a0)r.a0=a;if(a>r.a1)r.a1=a;}else r.dmax=Math.max(r.dmax,Math.hypot(c.sx-r.x0,c.sy-r.y0));
+    const avance=c.ux!=null?r.a1-r.a0:r.dmax;
+    if((r.qs.length>=3&&avance>=RUN_LARGO&&(c.ux!=null||r.qs.length>=RUN_MIN))||(r.tot<=RUN_MIN+1&&r.qs.length>=Math.max(2,Math.ceil(r.tot*.8)))){ // calle confirmada: el operario está trabajando
+      E.abiertas.set(c.key,t);E.runs.delete(c.key);for(const [qq,tt] of r.qs){E.prov.delete(qq.id);marcarVisita(E,r.l,qq,nuevos,tt);}}
+  }
+}
+function cerrarVisita(E){for(const r of E.runs.values())for(const [q] of r.qs)E.prov.delete(q.id);E.runs.clear();} // fin de jornada: lo pendiente es desplazamiento final
 function lotesCercanos(ax,ay,bx,by,B){
   const out=[];if(!S.lotes)return out;const mx=B/KX,my=B/KY;
   const w=Math.min(ax,bx)/KX-mx,e=Math.max(ax,bx)/KX+mx,s=Math.min(ay,by)/KY-my,n=Math.max(ay,by)/KY+my;
@@ -1152,9 +1215,13 @@ function lotesCercanos(ax,ay,bx,by,B){
   return out;
 }
 function dSeg(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy;let t=L?((px-ax)*dx+(py-ay)*dy)/L:0;t=t<0?0:t>1?1:t;const qx=ax+t*dx-px,qy=ay+t*dy-py;return Math.sqrt(qx*qx+qy*qy);}
-function marcarVisita(E,l,q,nuevos){if(E.set.has(q.id))return;E.set.add(q.id);let r=E.lotes.get(l);if(!r)E.lotes.set(l,r={v:0,vac:0,ids:[]});r.v++;if(!q.e)r.vac++;r.ids.push(Number(q.id)||q.id);nuevos.push(q.id);}
+function marcarVisita(E,l,q,nuevos,t,porRegla){if(E.set.has(q.id))return;E.set.add(q.id);let r=E.lotes.get(l);if(!r)E.lotes.set(l,r={v:0,vac:0,regla:0,ids:[]});r.v++;if(!q.e)r.vac++;if(porRegla)r.regla++;r.ids.push(Number(q.id)||q.id);nuevos.push(q.id);
+  if(t!=null)E.conf.push({id:q.id,l,t});
+  if(!q.e)return;const lk=q.ln==null?'T':q.ln,key=l+'|'+lk;const c=(E.linEx.get(key)||0)+1;E.linEx.set(key,c);
+  const g=E.grids.get(l),ln=g&&g.lineas&&g.lineas.get(lk);
+  if(ln&&ln.cero.length&&!E.regla.has(key)&&c>=Math.ceil(REGLA_EX*ln.ex)){E.regla.add(key);for(const z of ln.cero)marcarVisita(E,l,z,nuevos,t,true);}}
 /* Método por calle, evaluado en un punto (sx,sy) en metros. */
-function marcarCalle(E,grids,sx,sy,nuevos){
+function marcarCalle(E,grids,sx,sy,cands){
   const R=14,R2=R*R;const porLinea=new Map();const sinLinea=[];
   for(const [l,grid] of grids){
     const i0=Math.floor((sx-R)/CV),i1=Math.floor((sx+R)/CV),j0=Math.floor((sy-R)/CV),j1=Math.floor((sy+R)/CV);
@@ -1163,7 +1230,8 @@ function marcarCalle(E,grids,sx,sy,nuevos){
         if(q.ln==null){sinLinea.push([l,q,d2]);continue;}
         const k=l+'|'+q.ln;let arr=porLinea.get(k);if(!arr)porLinea.set(k,arr=[]);arr.push({q,d2});}}
   }
-  for(const [l,q,d2] of sinLinea)if(d2<=E.buffer*E.buffer)marcarVisita(E,l,q,nuevos); // terrazas / sin línea: buffer
+  const B2=E.buffer*E.buffer,dl=new Map(),dentro=l=>{if(!dl.has(l))dl.set(l,dentroLote(l,sx,sy));return dl.get(l);};
+  for(const [l,q,d2] of sinLinea)if(d2<=B2&&dentro(l))cands.push({key:l+'|T',l,q,tot:1e9,sx,sy,ux:null,uy:null}); // terrazas / sin línea: buffer
   if(!porLinea.size)return;
   const lineas=[];
   for(const [k,arr] of porLinea){
@@ -1174,6 +1242,7 @@ function marcarCalle(E,grids,sx,sy,nuevos){
   }
   lineas.sort((u,v)=>u.lat-v.lat);
   const L1=lineas[0];if(L1.lat>E.maxLat)return; // fuera de las calles del cultivo
+  if(!dentro(L1.lote))return; // sendero o borde fuera del polígono del lote: desplazamiento
   let L2=null;const vec=lineas.filter(x=>x.lote===L1.lote&&Math.abs(x.ln-L1.ln)===1);
   const prev=E.calle;let otra=null;
   if(prev&&prev.lote===L1.lote&&L1.lat<1.5&&(prev.a===L1.ln||prev.b===L1.ln))otra=vec.find(x=>x.ln===(prev.a===L1.ln?prev.b:prev.a))||null;
@@ -1187,40 +1256,50 @@ function marcarCalle(E,grids,sx,sy,nuevos){
     }else L2=vec.sort((u,v)=>u.lat-v.lat)[0];
     if(L2&&L2.lat>12)L2=null;
   }
+  const g1=E.grids.get(L1.lote),nl=ln=>{const r=g1&&g1.lineas&&g1.lineas.get(ln);return r?r.n:0;};
+  const key=L2?`${L1.lote}|${Math.min(L1.ln,L2.ln)}|${Math.max(L1.ln,L2.ln)}`:`${L1.lote}|${L1.ln}|`,tot=nl(L1.ln)+(L2?nl(L2.ln):0);
+  let dx=L1.ux!=null?L1.ux:L2&&L2.ux!=null?L2.ux:null,dy=L1.ux!=null?L1.uy:L2&&L2.ux!=null?L2.uy:null;
+  if(dx!=null&&(dx<0||(dx===0&&dy<0))){dx=-dx;dy=-dy;} // sentido único de la dirección de la línea
   const marcar=lin=>{const ux=lin.ux!=null?lin.ux:L1.ux,uy=lin.ux!=null?lin.uy:L1.uy;const medio=Math.min(6,Math.max(3,(lin.paso||9)/2));
-    for(const {q} of lin.arr){const along=ux!=null?Math.abs((q.x-sx)*ux+(q.y-sy)*uy):Math.hypot(q.x-sx,q.y-sy);if(along<=medio&&Math.hypot(q.x-sx,q.y-sy)<=11)marcarVisita(E,lin.lote,q,nuevos);}};
+    for(const {q} of lin.arr){const along=ux!=null?Math.abs((q.x-sx)*ux+(q.y-sy)*uy):Math.hypot(q.x-sx,q.y-sy);if(along<=medio&&Math.hypot(q.x-sx,q.y-sy)<=11)cands.push({key,l:lin.lote,q,tot,sx,sy,ux:dx,uy:dy});}};
   marcar(L1);if(L2)marcar(L2);E.calle=L2?{lote:L1.lote,a:L1.ln,b:L2.ln}:null;
 }
+/* Solo cuentan las palmas de los lotes programados en la jornada (selección + lotes agregados). */
+function enProgramacion(E,l){const s=E.sel||(E===VIS&&S.jornada?S.jornada.seleccion:null);return !s||!s.length||s.some(x=>String(x.lote)===String(l));}
 async function visitarTramo(E,p){
   prepK();
   const a=E.ult&&dist(E.ult.lat,E.ult.lng,p.lat,p.lng)<=SALTO_MAX?E.ult:p;E.ult=p; // tramos con saltos grandes no barren área
   const ax=a.lng*KX,ay=a.lat*KY,bx=p.lng*KX,by=p.lat*KY,nuevos=[];
   if(E.metodo==='calle'){
-    const grids=[];for(const l of lotesCercanos(ax,ay,bx,by,14))if(CARTO.lotes[l]){const g=await indiceVisita(l);grids.push([l,g]);(E.tipos||(E.tipos=new Map())).set(l,g.tipo);}
-    if(!grids.length)return nuevos;
-    const n=Math.max(1,Math.ceil(Math.hypot(bx-ax,by-ay)/2));
-    for(let k=(a===p?n:0);k<=n;k++){const t=k/n;marcarCalle(E,grids,ax+(bx-ax)*t,ay+(by-ay)*t,nuevos);}
+    const grids=[];for(const l of lotesCercanos(ax,ay,bx,by,14))if(CARTO.lotes[l]&&enProgramacion(E,l)){const g=await indiceVisita(l);grids.push([l,g]);E.grids.set(l,g);(E.tipos||(E.tipos=new Map())).set(l,g.tipo);}
+    if(!grids.length){proponer(E,[],p.t,nuevos);return nuevos;}
+    const n=Math.max(1,Math.ceil(Math.hypot(bx-ax,by-ay)/2));const cands=[];
+    for(let k=(a===p?n:0);k<=n;k++){const t=k/n;marcarCalle(E,grids,ax+(bx-ax)*t,ay+(by-ay)*t,cands);}
+    proponer(E,cands,p.t,nuevos);
     return nuevos;
   }
   const B=E.buffer;
   for(const l of lotesCercanos(ax,ay,bx,by,B)){
-    if(!CARTO.lotes[l])continue;const grid=await indiceVisita(l);(E.tipos||(E.tipos=new Map())).set(l,grid.tipo);
+    if(!CARTO.lotes[l]||!enProgramacion(E,l))continue;const grid=await indiceVisita(l);E.grids.set(l,grid);(E.tipos||(E.tipos=new Map())).set(l,grid.tipo);
     const i0=Math.floor((Math.min(ax,bx)-B)/CV),i1=Math.floor((Math.max(ax,bx)+B)/CV),j0=Math.floor((Math.min(ay,by)-B)/CV),j1=Math.floor((Math.max(ay,by)+B)/CV);
     for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const g=grid.get(i+','+j);if(!g)continue;
-      for(const q of g)if(!E.set.has(q.id)&&dSeg(q.x,q.y,ax,ay,bx,by)<=B)marcarVisita(E,l,q,nuevos);}
+      for(const q of g)if(!E.set.has(q.id)&&dSeg(q.x,q.y,ax,ay,bx,by)<=B)marcarVisita(E,l,q,nuevos,p.t);}
   }
   return nuevos;
 }
-/* conT: guarda en cada punto cuántas palmas nuevas visitó (_nv) y el segundo de la primera visita de cada palma (para secuencias y reproducción). */
-async function calcularVisita(pts,densidad,buffer,metodo,conT){const E=nuevoEstadoVisita(densidad,buffer,metodo);const t0=pts.length?pts[0].t:0;if(conT){E.tv=new Map();E.t0=t0;}
-  for(const p of pts){const nv=await visitarTramo(E,p);if(conT){p._nv=nv.length;for(const id of nv)E.tv.set(String(id),Math.round((p.t-t0)/1000));}}return E;}
+/* conT: guarda el segundo de la primera visita confirmada de cada palma (secuencias y reproducción). final: descarta las calles sin confirmar (desplazamiento final). */
+async function calcularVisita(pts,densidad,buffer,metodo,conT,final,sel){const E=nuevoEstadoVisita(densidad,buffer,metodo);E.sel=sel||null;const t0=pts.length?pts[0].t:0;
+  for(const p of pts)await visitarTramo(E,p);
+  if(final)cerrarVisita(E);
+  if(conT){E.t0=t0;E.tv=new Map(E.conf.map(v=>[String(v.id),Math.round((v.t-t0)/1000)]));}
+  return E;}
 function resumenVisita(E,regs,conIds){
   const filas=new Map();const fila=l=>{if(!filas.has(l))filas.set(l,{lote:l,palmas_visitadas:0,palmas_existentes:0,sitios_vacios:0,ha:0,diagnosticos:0});return filas.get(l);};
-  for(const [l,r] of E.lotes){const x=fila(l);x.palmas_visitadas=r.v;x.palmas_existentes=r.v-r.vac;x.sitios_vacios=r.vac;x.ha=+(r.v/E.densidad).toFixed(2);if(E.tipos&&E.tipos.has(l))x.tipo_lote=E.tipos.get(l);if(conIds){x.ids_palmas_visitadas=r.ids;if(E.tv)x.t_visita=r.ids.map(id=>E.tv.has(String(id))?E.tv.get(String(id)):null);}}
+  for(const [l,r] of E.lotes){const x=fila(l);x.palmas_visitadas=r.v;x.palmas_existentes=r.v-r.vac;x.sitios_vacios=r.vac;x.sitios_vacios_regla90=r.regla||0;x.ha=+(r.v/E.densidad).toFixed(2);if(E.tipos&&E.tipos.has(l))x.tipo_lote=E.tipos.get(l);if(conIds){x.ids_palmas_visitadas=r.ids;if(E.tv)x.t_visita=r.ids.map(id=>E.tv.has(String(id))?E.tv.get(String(id)):null);}}
   for(const r of regs||[])fila(r.lote||'—').diagnosticos++;
   const por_lote=[...filas.values()].sort((a,b)=>ordenNat(a.lote,b.lote));
   const tv=por_lote.reduce((a,x)=>a+x.palmas_visitadas,0);
-  return {metodo:E.metodo==='calle'?'calle_entre_lineas':'buffer',densidad_palmas_ha:E.densidad,buffer_m:E.metodo==='calle'?null:E.buffer,buffer_terraza_m:E.metodo==='calle'?E.buffer:undefined,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),
+  return {metodo:E.metodo==='calle'?'calle_entre_lineas':'buffer',densidad_palmas_ha:E.densidad,buffer_m:E.metodo==='calle'?null:E.buffer,buffer_terraza_m:E.metodo==='calle'?E.buffer:undefined,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),sitios_vacios_regla90:por_lote.reduce((a,x)=>a+(x.sitios_vacios_regla90||0),0),regla_existencia0:'≥90 % de palmas existentes de la línea',
     ha_recorridas:+(tv/E.densidad).toFixed(2),...(E.tv&&conIds?{t0_visita:E.t0?new Date(E.t0).toISOString():null}:{}),por_lote};
 }
 let VIS=null;
@@ -1265,46 +1344,69 @@ function resumenParadas(lista,j){
   return {parada_radio_m:Number(j&&j.paradaRadio)||20,parada_minimo_min:Number(j&&j.paradaMin)||5,n_paradas:lista.length,
     minutos_paradas:min,minutos_movimiento:Math.max(0,dur-min)};
 }
-/* ---------- Secuencias por lote ----------
-   Cada entrada a un lote abre una secuencia (1 RI01, 2 RI02, 3 RI01…). Lo que ocurre fuera de los lotes es «Desplazamiento»
-   y cuenta como tiempo efectivo (no es improductivo). Tiempo efectivo = tiempo total − paradas de esa secuencia.
-   Los cambios de lote de menos de 60 s se ignoran (ruido del GPS en los bordes). Los tiempos son continuos: suman la jornada. */
+/* ---------- Secuencias por lote y desplazamientos ----------
+   La labor empieza con la primera palma confirmada (calle trabajada) o el primer diagnóstico, y termina con la última.
+   · Desplazamiento inicial: del inicio de la jornada al inicio de la labor (no es tiempo efectivo de un lote).
+   · Desplazamiento entre lotes: de la última palma del lote anterior a la primera del lote siguiente; se suma a la secuencia
+     del lote al que llega (su hora de inicio es la del final del lote anterior) y cuenta como tiempo efectivo.
+   · Desplazamiento final: de la última palma al fin de la jornada (no es tiempo efectivo de un lote).
+   Cada bloque de trabajo en un lote abre una secuencia (1 RI01, 2 RI02, 3 RI01…). T. efectivo = T. total − paradas. */
 const SEQ_MIN=60000;
 function lotePunto(p){if(p._l===undefined)p._l=loteDe(p.lat,p.lng)||'';return p._l;}
+const ETQ_TIPO={desplazamiento_inicial:'Desplazamiento inicial',desplazamiento_final:'Desplazamiento final',desplazamiento:'Desplazamiento'};
 function secuenciasDe(pts,o){
-  if(!pts||!pts.length)return [];
-  let runs=[];for(let i=0;i<pts.length;i++){const l=lotePunto(pts[i]);const r=runs[runs.length-1];if(r&&r.l===l)r.i1=i;else runs.push({l,i0:i,i1:i});}
-  const ini=k=>k===0?Math.min(o.inicio||pts[0].t,pts[0].t):pts[runs[k].i0].t;
-  const fin=k=>k===runs.length-1?Math.max(o.fin||pts[pts.length-1].t,pts[pts.length-1].t):pts[runs[k+1].i0].t;
-  let cambio=true;
-  while(cambio&&runs.length>1){cambio=false;
-    for(let k=0;k<runs.length;k++){if(fin(k)-ini(k)>=SEQ_MIN)continue;
-      if(k>0)runs[k-1].i1=runs[k].i1;else runs[1].i0=runs[0].i0;runs.splice(k,1);cambio=true;break;}
-    const m=[];for(const r of runs){const u=m[m.length-1];if(u&&u.l===r.l)u.i1=r.i1;else m.push(r);}runs=m;}
-  let n=0;const dens=Number(o.densidad)||115;
-  return runs.map((r,k)=>{const a=ini(k),b=fin(k);let par=0,np=0;
-    for(const p of o.paradas||[]){const s=Math.max(a,p.inicio),e=Math.min(b,p.fin);if(e>s){par+=e-s;np++;}}
-    let pv=0,km=0;for(let i=r.i0;i<=r.i1;i++){pv+=pts[i]._nv||0;if(i>r.i0){const d=dist(pts[i-1].lat,pts[i-1].lng,pts[i].lat,pts[i].lng);if(d<500)km+=d/1000;}}
-    if(k>0){const d=dist(pts[r.i0-1].lat,pts[r.i0-1].lng,pts[r.i0].lat,pts[r.i0].lng);if(d<500)km+=d/1000;}
-    const ult=k===runs.length-1;const dg=(o.regs||[]).filter(x=>{const t=Date.parse(x.creado);return t>=a&&(t<b||(ult&&t<=b+60000));}).length;
-    return {secuencia:r.l?++n:null,tipo:r.l?'lote':'desplazamiento',lote:r.l||'',inicio:new Date(a).toISOString(),fin:new Date(b).toISOString(),hora_inicio:hhmm(a),hora_fin:hhmm(b),
-      min_total:+((b-a)/60000).toFixed(1),min_paradas:+(par/60000).toFixed(1),min_efectivo:+((b-a-par)/60000).toFixed(1),paradas:np,
-      palmas_visitadas:pv,ha:+(pv/dens).toFixed(2),diagnosticos:dg,km:+km.toFixed(3)};});
+  pts=pts||[];const ini0=Math.min(o.inicio||Infinity,pts.length?pts[0].t:Infinity),fin0=Math.max(o.fin||0,pts.length?pts[pts.length-1].t:0);
+  if(!isFinite(ini0)||!fin0)return [];
+  const dens=Number(o.densidad)||115,par=o.paradas||[],regs=o.regs||[];
+  const marcas=(o.visitas||[]).map(v=>({t:v.t,l:String(v.l),v:1}));
+  for(const r of regs){const t=Date.parse(r.creado);if(t&&r.lote)marcas.push({t,l:String(r.lote),v:0});}
+  marcas.sort((a,b)=>a.t-b.t);
+  let bl=[];for(const m of marcas){const u=bl[bl.length-1];if(u&&u.l===m.l){u.t1=m.t;u.n++;u.pv+=m.v;}else bl.push({l:m.l,t0:m.t,t1:m.t,n:1,pv:m.v});}
+  let cambio=true;while(cambio&&bl.length>1){cambio=false; // bloques mínimos (un diagnóstico suelto en otro lote): se funden con el vecino
+    for(let k=0;k<bl.length;k++){const b=bl[k];if(b.n>=3||b.t1-b.t0>=SEQ_MIN)continue;const d=bl[k>0?k-1:1];
+      d.t0=Math.min(d.t0,b.t0);d.t1=Math.max(d.t1,b.t1);d.n+=b.n;d.pv+=b.pv;bl.splice(k,1);cambio=true;break;}
+    const m=[];for(const b of bl){const u=m[m.length-1];if(u&&u.l===b.l){u.t1=b.t1;u.n+=b.n;u.pv+=b.pv;}else m.push(b);}bl=m;}
+  const out=[];
+  const fila=(tipo,lote,a,b,extra)=>{let pm=0,np=0;for(const p of par){const s=Math.max(a,p.inicio),e=Math.min(b,p.fin);if(e>s){pm+=e-s;np++;}}
+    let km=0,prev=null;for(const p of pts){if(p.t<=a){prev=p;continue;}if(p.t>b)break;if(prev){const d=dist(prev.lat,prev.lng,p.lat,p.lng);if(d<500)km+=d/1000;}prev=p;}
+    const dg=regs.filter(x=>{const t=Date.parse(x.creado);return (out.length?t>a:t>=a)&&t<=b;}).length;const mov=(b-a-pm)/3600000;
+    out.push({secuencia:null,tipo,lote,inicio:new Date(a).toISOString(),fin:new Date(b).toISOString(),hora_inicio:hhmm(a),hora_fin:hhmm(b),
+      min_total:+((b-a)/60000).toFixed(1),min_desplazamiento:0,min_paradas:+(pm/60000).toFixed(1),min_efectivo:tipo==='lote'?+((b-a-pm)/60000).toFixed(1):null,paradas:np,
+      palmas_visitadas:0,ha:0,diagnosticos:dg,km:+km.toFixed(3),vel_kmh:mov>=1/60&&km>0?+(km/mov).toFixed(2):null,...extra});};
+  if(!bl.length){fila('desplazamiento_inicial','',ini0,fin0);return out;}
+  if(bl[0].t0>ini0)fila('desplazamiento_inicial','',ini0,bl[0].t0);
+  let n=0;bl.forEach((b,k)=>{const a=k?bl[k-1].t1:b.t0,fin=k===bl.length-1&&o.enCurso?Math.max(b.t1,fin0):b.t1;
+    fila('lote',b.l,a,fin,{secuencia:++n,palmas_visitadas:b.pv,ha:+(b.pv/dens).toFixed(2),min_desplazamiento:k?+((b.t0-a)/60000).toFixed(1):0});});
+  const u=bl[bl.length-1];if(!o.enCurso&&fin0>u.t1)fila('desplazamiento_final','',u.t1,fin0);
+  return out;
 }
+/* Resumen de tiempos de la jornada (labor, desplazamientos y velocidad de caminata). */
+function tiemposJornada(ls,j){
+  const s=(f,k)=>ls.filter(f).reduce((a,x)=>a+(Number(x[k])||0),0);const L=ls.filter(x=>x.tipo==='lote');
+  const km=s(()=>true,'km'),mov=s(()=>true,'min_total')-s(()=>true,'min_paradas');
+  return {inicio_labor:L.length?L[0].inicio:null,fin_labor:L.length?L[L.length-1].fin:null,hora_inicio_labor:L.length?L[0].hora_inicio:null,hora_fin_labor:L.length?L[L.length-1].hora_fin:null,
+    min_desplazamiento_inicial:+s(x=>x.tipo==='desplazamiento_inicial','min_total').toFixed(1),min_desplazamiento_entre_lotes:+s(x=>x.tipo==='lote','min_desplazamiento').toFixed(1),
+    min_desplazamiento_final:+s(x=>x.tipo==='desplazamiento_final','min_total').toFixed(1),min_efectivo_labor:+s(x=>x.tipo==='lote','min_efectivo').toFixed(1),
+    velocidad_kmh:velocidadCaminata(km||(j&&j.km),mov)};
+}
+/* Velocidad de caminata = km recorridos ÷ horas en movimiento (sin paradas). */
+function velocidadCaminata(km,minMov){km=Number(km)||0;minMov=Number(minMov)||0;return minMov>=1&&km>0?+(km/(minMov/60)).toFixed(2):null;}
 const minHM=m=>{m=Math.round(Number(m)||0);return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');};
 function tablaSecuencias(ls){
   if(!ls||!ls.length)return '<p class="tenue">Aún sin recorrido.</p>';
-  const tot=k=>ls.reduce((a,x)=>a+(Number(x[k])||0),0);
-  const filas=ls.map(x=>`<tr${x.tipo==='desplazamiento'?' class="tenue"':''}><td><b>${x.secuencia??'—'}</b></td><td><b>${x.tipo==='desplazamiento'?'Desplazamiento':esc(x.lote)}</b></td><td>${esc(x.hora_inicio)}</td><td>${esc(x.hora_fin)}</td><td>${minHM(x.min_total)}</td><td>${minHM(x.min_paradas)}</td><td><b>${minHM(x.min_efectivo)}</b></td><td>${num(x.palmas_visitadas)}</td><td>${Number(x.ha).toFixed(2)}</td><td>${num(x.diagnosticos)}</td></tr>`).join('');
-  return `<div style="overflow-x:auto"><table class="res"><thead><tr><th>Sec.</th><th>Lote</th><th>Inicio</th><th>Fin</th><th>T. total</th><th>Paradas</th><th>T. efectivo</th><th>Palmas</th><th>Ha</th><th>Diag.</th></tr></thead><tbody>${filas}
-    <tr><td></td><td><b>TOTAL</b></td><td>${esc(ls[0].hora_inicio)}</td><td>${esc(ls[ls.length-1].hora_fin)}</td><td><b>${minHM(tot('min_total'))}</b></td><td><b>${minHM(tot('min_paradas'))}</b></td><td><b>${minHM(tot('min_efectivo'))}</b></td><td><b>${num(tot('palmas_visitadas'))}</b></td><td><b>${tot('ha').toFixed(2)}</b></td><td><b>${num(tot('diagnosticos'))}</b></td></tr></tbody></table></div>
-    <p class="tenue">Tiempos en horas:minutos. Cada entrada a un lote abre una secuencia. T. efectivo = T. total − paradas; el desplazamiento entre lotes cuenta como tiempo efectivo. Palmas = palmas visitadas por primera vez en esa secuencia.</p>`;
+  const tot=k=>ls.reduce((a,x)=>a+(Number(x[k])||0),0),totL=k=>ls.filter(x=>x.tipo==='lote').reduce((a,x)=>a+(Number(x[k])||0),0);
+  const km=tot('km'),movT=(tot('min_total')-tot('min_paradas'))/60;
+  const filas=ls.map(x=>`<tr${x.tipo!=='lote'?' class="tenue"':''}><td><b>${x.secuencia??'—'}</b></td><td><b>${x.tipo!=='lote'?ETQ_TIPO[x.tipo]||'Desplazamiento':esc(x.lote)}</b></td><td>${esc(x.hora_inicio)}</td><td>${esc(x.hora_fin)}</td><td>${minHM(x.min_total)}</td><td>${x.tipo==='lote'?minHM(x.min_desplazamiento):'—'}</td><td>${minHM(x.min_paradas)}</td><td><b>${x.min_efectivo==null?'—':minHM(x.min_efectivo)}</b></td><td>${x.vel_kmh==null?'—':Number(x.vel_kmh).toFixed(1)}</td><td>${num(x.palmas_visitadas)}</td><td>${Number(x.ha).toFixed(2)}</td><td>${num(x.diagnosticos)}</td></tr>`).join('');
+  return `<div style="overflow-x:auto"><table class="res"><thead><tr><th>Sec.</th><th>Lote</th><th>Inicio</th><th>Fin</th><th>T. total</th><th>Despl. entre lotes</th><th>Paradas</th><th>T. efectivo</th><th>Vel. km/h</th><th>Palmas</th><th>Ha</th><th>Diag.</th></tr></thead><tbody>${filas}
+    <tr><td></td><td><b>TOTAL</b></td><td>${esc(ls[0].hora_inicio)}</td><td>${esc(ls[ls.length-1].hora_fin)}</td><td><b>${minHM(tot('min_total'))}</b></td><td><b>${minHM(totL('min_desplazamiento'))}</b></td><td><b>${minHM(tot('min_paradas'))}</b></td><td><b>${minHM(totL('min_efectivo'))}</b></td><td><b>${movT>0.01&&km>0?(km/movT).toFixed(1):'—'}</b></td><td><b>${num(tot('palmas_visitadas'))}</b></td><td><b>${tot('ha').toFixed(2)}</b></td><td><b>${num(tot('diagnosticos'))}</b></td></tr></tbody></table></div>
+    <p class="tenue">Tiempos en horas:minutos. <b>Desplazamiento inicial</b>: del inicio de la jornada a la primera calle trabajada. <b>Desplazamiento entre lotes</b>: se suma a la secuencia del lote al que llega y cuenta como tiempo efectivo. <b>Desplazamiento final</b>: de la última palma al fin de la jornada. T. efectivo = T. total − paradas. Vel. = velocidad de caminata (km ÷ horas sin paradas). Las palmas por donde solo pasó (senderos, cabeceras) no cuentan como visitadas.</p>`;
 }
-function secuenciasEnCurso(){const j=S.jornada;if(!j||!TRACK.pts)return [];return secuenciasDe(TRACK.pts,{inicio:Date.parse(j.inicio),fin:Date.now(),paradas:PAR.lista,regs:S.registros.filter(r=>r.jornada_id===j.id),densidad:j.densidad});}
+function secuenciasEnCurso(){const j=S.jornada;if(!j||!TRACK.pts)return [];return secuenciasDe(TRACK.pts,{inicio:Date.parse(j.inicio),fin:Date.now(),paradas:PAR.lista,regs:S.registros.filter(r=>r.jornada_id===j.id),densidad:j.densidad,visitas:VIS?VIS.conf:[],enCurso:true});}
 function actualizarSecUI(){const e=$('#pjSec');if(!e||!S.jornada)return;const ls=secuenciasEnCurso();const u=ls[ls.length-1];
+  const v=velocidadCaminata(S.jornada.km,resumenParadas(PAR.lista||[],S.jornada).minutos_movimiento);const ev=$('#pjVel');if(ev)ev.textContent=v==null?'—':v.toFixed(1);
   if(!u){e.textContent='—';$('#pjSecLote').textContent='—';$('#pjEfec').textContent='0:00';return;}
-  const sec=[...ls].reverse().find(x=>x.secuencia);e.textContent=sec?sec.secuencia:'—';$('#pjSecLote').textContent=u.tipo==='desplazamiento'?'En tránsito':u.lote;
-  $('#pjEfec').textContent=minHM(ls.reduce((a,x)=>a+x.min_efectivo,0));}
+  const sec=[...ls].reverse().find(x=>x.secuencia);e.textContent=sec?sec.secuencia:'—';$('#pjSecLote').textContent=u.tipo==='lote'?u.lote:'Despl. inicial';
+  $('#pjEfec').textContent=minHM(ls.reduce((a,x)=>a+(Number(x.min_efectivo)||0),0));}
 setInterval(()=>{try{actualizarSecUI();}catch(e){}},15000);
 function paradasEnLotes(res,lista){
   if(!res)return res;
@@ -1638,12 +1740,13 @@ function alternarVoz(){
     try{if(!VOZ.ctx)VOZ.ctx=new (window.AudioContext||window.webkitAudioContext)();else VOZ.ctx.resume();}catch(e){}
     elegirVoz();iniciarGPS();pantallaEncendida(true);
     VOZ.candidata=null;VOZ.cuenta=0;VOZ.ultimaPalma=null;VOZ.ultimoLote=undefined;VOZ.avisoPrecision=0;
-    S.seguir=true;$('#btUbic').classList.add('on');if(S.gps)mapa.setView([S.gps.lat,S.gps.lng],Math.max(mapa.getZoom(),19));
+    if(!S.seguir)modoSeguir(true,true);if(S.gps)mapa.setView([S.gps.lat,S.gps.lng],Math.max(mapa.getZoom(),19));
     pitido();hablar('Guía por voz activada.');if(!HAY_VOZ())toast('Este navegador no tiene voz: se usarán pitido y vibración.',4000);
     guiaGPS();
   }else{try{speechSynthesis.cancel();}catch(e){}if(!S.jornada)pantallaEncendida(false);pintarGuia(null);}
 }
 $('#btVoz').onclick=alternarVoz;
+$('#btSeguir').onclick=()=>modoSeguir(!S.seguir);
 $('#guia').onclick=e=>{
   if(e.target.closest('#guiaRepetir')){e.stopPropagation();const id=$('#guia').dataset.id;const f=id&&S.idx.get(id);hablar(f?frasePalma(f):(VOZ.ultimaFrase||'Sin palma cercana.'));return;}
   const id=$('#guia').dataset.id;if(id)abrirPalma(id);
@@ -1778,11 +1881,11 @@ async function abrirPlay(jid){
   PLAY.paradas=(j.paradas||detectarParadas(pts,j.paradaRadio,j.paradaMin,S.registros.filter(r=>r.jornada_id===jid))).map(p=>({t:p.inicio,p,m:null}));
   PLAY.capaVis=L.layerGroup().addTo(PLAY.capa);PLAY.vis=[];PLAY.visN=0;
   try{PLAY.vis=await palmasVisitadasPlay(j,pts);}catch(e){PLAY.vis=[];}
-  PLAY.marca=L.circleMarker([pts[0].lat,pts[0].lng],{radius:9,color:'#fff',weight:3,fillColor:'#ee7633',fillOpacity:1,interactive:false}).addTo(PLAY.capa);
+  PLAY.marca=L.marker([pts[0].lat,pts[0].lng],{icon:iconoPersona('#ee7633',34),interactive:false,keyboard:false,zIndexOffset:1000}).addTo(PLAY.capa);
   $('#plTit').textContent='Recorrido · '+fmtFecha(j.inicio).slice(0,10);
   $('#plSub').textContent=`${j.evaluador} · ${fmtHora(PLAY.t0)} – ${fmtHora(PLAY.t1)} · ${(PLAY.acum[PLAY.acum.length-1]/1000).toFixed(2)} km · ${PLAY.regs.length} diagnósticos · ${(PLAY.paradas||[]).length} paradas`;
   $('#play').hidden=false;$('#dock').hidden=true;$('#superior').hidden=true;$('#flot').hidden=true;$('#btLeyenda').hidden=true;$('#leyenda').hidden=true;
-  abrirCapa('play');S.seguir=false;$('#btUbic').classList.remove('on');
+  abrirCapa('play');
   mapa.fitBounds(L.latLngBounds(pts.map(p=>[p.lat,p.lng])),{padding:[40,40],maxZoom:18});
   pintarPlay();$('#plBtn').innerHTML=IC.play;
 }
@@ -1790,7 +1893,7 @@ async function abrirPlay(jid){
 async function palmasVisitadasPlay(j,pts){
   let t0,porLote=null;
   if(j.visita&&j.visita.t0_visita&&j.visita.por_lote.some(x=>x.t_visita)){t0=Date.parse(j.visita.t0_visita);porLote=j.visita.por_lote.map(x=>({lote:x.lote,ids:x.ids_palmas_visitadas||[],t:x.t_visita||[]}));}
-  else{const E=await calcularVisita(pts.map(p=>({...p})),j.densidad,j.buffer,j.metodoVisita||'buffer',true);t0=E.t0;porLote=[...E.lotes].map(([l,r])=>({lote:l,ids:r.ids,t:r.ids.map(id=>E.tv.get(String(id)))}));}
+  else{const E=await calcularVisita(pts.map(p=>({...p})),j.densidad,j.buffer,j.metodoVisita||'buffer',true,j.estado!=='activa',j.seleccion);t0=E.t0;porLote=[...E.lotes].map(([l,r])=>({lote:l,ids:r.ids,t:r.ids.map(id=>E.tv.get(String(id)))}));}
   const out=[];
   for(const x of porLote){if(!x.ids.length)continue;let pos=new Map();
     try{for(const a of await leerChunk(x.lote))pos.set(String(a[0]),[a[5],a[4]]);}catch(e){}
@@ -1806,9 +1909,9 @@ function pintarPlay(){
   PLAY.estela.setLatLngs(ll);PLAY.brillo.setLatLngs(ll);PLAY.marca.setLatLng([lat,lng]);
   for(const q of PLAY.paradas||[]){const v=q.t<=PLAY.t;if(v&&!q.m)q.m=marcadorParada(q.p,PLAY.capa);else if(!v&&q.m){PLAY.capa.removeLayer(q.m);q.m=null;}}
   if(PLAY.vis){let k=PLAY.visN;const rv=Math.max(2.5,radioPalma()-1);
-    while(k<PLAY.vis.length&&PLAY.vis[k].t<=PLAY.t){const q=PLAY.vis[k];q.m=L.circleMarker(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
+    while(k<PLAY.vis.length&&PLAY.vis[k].t<=PLAY.t){const q=PLAY.vis[k];q.m=estrella(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
     while(k>0&&PLAY.vis[k-1].t>PLAY.t){k--;const q=PLAY.vis[k];if(q.m){PLAY.capaVis.removeLayer(q.m);q.m=null;}}
-    if(k>PLAY.visN){for(const r of PLAY.regs)if(r.on)r.m.bringToFront();PLAY.marca.bringToFront();} // diagnósticos por encima de las palmas visitadas
+    if(k>PLAY.visN){for(const r of PLAY.regs)if(r.on)r.m.bringToFront();} // diagnósticos por encima de las palmas visitadas
     PLAY.visN=k;$('#plVis').textContent=num(k);}
   let n=0;for(const r of PLAY.regs){const v=r.t<=PLAY.t;if(v)n++;if(v&&!r.on){r.m.addTo(PLAY.capa);r.on=true;}else if(!v&&r.on){PLAY.capa.removeLayer(r.m);r.on=false;}}
   const dkm=(PLAY.acum[i]+(i+1<P.length?dist(a.lat,a.lng,lat,lng):0))/1000;
@@ -1911,7 +2014,7 @@ function geoJornada(j,regs,pts,ahora,archivoFotos){
   return {type:'FeatureCollection',name:'jornada_'+j.id,
     jornada:{id:j.id,evaluador:j.evaluador,usuario:j.usuario||'',dispositivo:j.dispositivo||S.cfg.dispositivo,fecha:fechaLocal(j.inicio),
       hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),duracion_min:j.fin?Math.round((Date.parse(j.fin)-Date.parse(j.inicio))/60000):null,inicio:j.inicio,fin:j.fin,
-      km:+(j.km||0).toFixed(3),...(j.visita||{}),...(j.resumen_paradas||{}),secuencias:j.secuencias||[],lotes_seleccionados:j.seleccion,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
+      km:+(j.km||0).toFixed(3),...(j.visita||{}),...(j.resumen_paradas||{}),secuencias:j.secuencias||[],tiempos:j.tiempos||null,velocidad_kmh:j.tiempos?j.tiempos.velocidad_kmh:null,lotes_seleccionados:j.seleccion,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
       archivo_fotos:archivoFotos||null,cartografia:j.carto_version||'',app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
     features:feats};
 }
@@ -1933,8 +2036,8 @@ async function sincronizar(manual){
     for(const j of lista){
       const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
       if(!j.paradas){j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);}
-      if(!j.visita||!j.secuencias){const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true);if(!j.visita)j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);
-        j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin||new Date().toISOString()),paradas:j.paradas||[],regs,densidad:j.densidad});}
+      if(!j.visita||!j.secuencias||!j.tiempos){const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion);if(!j.visita||!j.tiempos)j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);
+        j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin||new Date().toISOString()),paradas:j.paradas||[],regs,densidad:j.densidad,visitas:E.conf});j.tiempos=tiemposJornada(j.secuencias,j);}
       const ahora=new Date().toISOString();const base=`jornadas/${fechaLocal(j.inicio)}/${j.id}`;
       const archivos=[];let nombreZip=null;
       const ids=regs.flatMap(r=>r.fotos||[]);
@@ -2366,10 +2469,11 @@ async function despuesDeIngresar(){
           j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';await dbPut('jornadas',j);S.cfg.jornadaActiva=null;await guardarCfg();}
         else{ocultarSplash();await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};await mostrarLogin('Ingrese con el usuario '+j.usuario+' para continuar su jornada.');return despuesDeIngresar();}
       }else{S.jornada=j;const pts=await puntosTrack(j.id);TRACK.ultimo=pts[pts.length-1]||null;TRACK.n=pts.length;prepararTrack(pts.map(p=>[p.lat,p.lng]));
-        VIS=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true);TRACK.pts=pts;
+        VIS=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,false,j.seleccion);VIS.sel=null;TRACK.pts=pts;
         await cargarPalmasJornada();pantallaEncendida(true);toast('Jornada en curso recuperada. El recorrido continúa.',4000);}}
     else{S.cfg.jornadaActiva=null;await guardarCfg();}}
   actualizarJornadaUI();estadoSync();dibujarLotes();
+  S.seguir=S.jornada?S.cfg.seguir!==false:!!S.cfg.seguir;pintarSeguir();if(S.seguir)S.pausaSeguir=Date.now()+8000;
   if(S.jornada)encuadrar(S.jornada.seleccion.map(s=>s.lote));else encuadrar();
   iniciarGPS();ocultarSplash();
   if(SES)toast(`Bienvenido, ${SES.nombre}.`);
