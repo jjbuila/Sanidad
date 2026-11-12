@@ -40,6 +40,7 @@ for k, v in reemplazos.items():
     assert k in html, k
     html = html.replace(k, v, 1)
 html = html.replace('__LOGO__', 'data:image/png;base64,' + b64(os.path.join(MARCA, 'logo_900.png')))
+html = html.replace('__APPLOGO__', 'data:image/svg+xml;base64,' + b64(os.path.join(MARCA, 'sv_icono.svg')))
 html = html.replace('__ISO__', 'data:image/png;base64,' + b64(os.path.join(MARCA, 'isotipo_256.png')))
 with open(os.path.join(RAIZ, 'index.html'), 'w', encoding='utf-8') as f:
     f.write(html)
@@ -49,6 +50,7 @@ for k, v in reemplazos.items():
     assert k in vis, k
     vis = vis.replace(k, v, 1)
 vis = vis.replace('__LOGO__', 'data:image/png;base64,' + b64(os.path.join(MARCA, 'logo_900.png')))
+vis = vis.replace('__APPLOGO__', 'data:image/svg+xml;base64,' + b64(os.path.join(MARCA, 'sv_icono.svg')))
 vis = vis.replace('__ISO__', 'data:image/png;base64,' + b64(os.path.join(MARCA, 'isotipo_256.png')))
 with open(os.path.join(RAIZ, 'visor.html'), 'w', encoding='utf-8') as f:
     f.write(vis)
@@ -60,8 +62,8 @@ with open(os.path.join(RAIZ, 'admin.html'), 'w', encoding='utf-8') as f:
     f.write(adm)
 
 os.makedirs(os.path.join(RAIZ, 'icons'), exist_ok=True)
-for n in (192, 512):
-    shutil.copy(os.path.join(MARCA, f'icon-{n}.png'), os.path.join(RAIZ, 'icons', f'icon-{n}.png'))
+for f in ('icon-192.png', 'icon-512.png', 'icon-maskable-192.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'sv_icono.svg'):
+    shutil.copy(os.path.join(MARCA, f), os.path.join(RAIZ, 'icons', f))
 sw_ruta = os.path.join(RAIZ, 'sw.js')
 sw = leer(sw_ruta)
 sw = re.sub(r"const APP='[^']*';", "const APP='sanidad-vegetal-" + VERSION.replace(':', '-') + "';", sw, count=1)
