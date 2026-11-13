@@ -994,7 +994,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261113:0527</div>
+  <div id="splashVer">VERSIÓN 20261113:1243</div>
 </div>
 
 <div id="login" hidden>
@@ -1009,7 +1009,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261113:0527</div>
+  <div id="lgVer2">VERSIÓN 20261113:1243</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1122,7 +1122,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261113:0527';
+const VERSION='20261113:1243';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -2023,12 +2023,13 @@ async function indiceVisita(l){
   if(IDXV.size>60)IDXV.clear();IDXV.set(l,grid);return grid;
 }
 /* metodo: 'calle' (identifica la calle entre dos líneas y cuenta sus dos líneas a la altura del operario) o 'buffer' (distancia al recorrido). */
-/* Desplazamientos: una palma solo cuenta como visitada cuando el operario TRABAJA una calle (o terraza) dentro del polígono del lote:
+/* Desplazamientos: en las CALLES de líneas lineales una palma solo cuenta cuando el operario TRABAJA la calle dentro del polígono del lote:
    la calle se confirma con RUN_MIN palmas seguidas de esa misma calle. Lo que toma al pasar por senderos, al cruzar cabeceras de
    líneas o al desplazarse hacia/entre lotes queda provisional y se descarta (no cuenta como visitado).
    Regla 90 %: en cada línea se toma el tramo entre la primera y la última palma viva visitada; si en ese tramo visitó el 90 % o más
    de las palmas vivas, los sitios de existencia 0 del tramo (vacíos / palmas muertas) también cuentan como visitados: la labor no
-   exige llegar a ellos, pero suman a la hectárea. */
+   exige llegar a ellos, pero suman a la hectárea.
+   Terrazas (lotes terraza y sectores terraza de lotes mixtos): sin confirmación; cuenta toda palma a <= buffer del recorrido dentro del polígono. */
 const RUN_MIN=6,RUN_LARGO=22,RUN_VIVA=90000,RUN_ABIERTA=600000,REGLA_EX=0.9; // RUN_LARGO: metros que el operario avanza A LO LARGO de la calle
 function nuevoEstadoVisita(densidad,buffer,metodo){return {set:new Set(),lotes:new Map(),densidad:Number(densidad)||115,buffer:Number(buffer)||5,metodo:metodo||'calle',maxLat:6,ult:null,
   runs:new Map(),prov:new Set(),abiertas:new Map(),conf:[],linEx:new Map(),regla:new Set(),grids:new Map()};}
@@ -2045,6 +2046,8 @@ function dentroLote(l,sx,sy){const f=featLote(l);if(!f)return true;const lng=sx/
 function proponer(E,cands,t,nuevos){
   for(const [k,r] of E.runs)if(t-r.ult>RUN_VIVA){for(const [q] of r.qs)E.prov.delete(q.id);E.runs.delete(k);} // calle sin confirmar = desplazamiento: se descarta
   for(const c of cands){const q=c.q;if(E.set.has(q.id))continue;
+    // Terrazas (lotes terraza y sectores terraza de lotes mixtos): sin confirmación de recorrido; cuenta toda palma dentro del buffer y del polígono.
+    if(c.key.endsWith('|T')){E.prov.delete(q.id);marcarVisita(E,c.l,q,nuevos,t);continue;}
     const ab=E.abiertas.get(c.key);if(ab!=null&&t-ab<=RUN_ABIERTA){E.abiertas.set(c.key,t);marcarVisita(E,c.l,q,nuevos,t);continue;}
     if(E.prov.has(q.id))continue;
     let r=E.runs.get(c.key);if(!r)E.runs.set(c.key,r={l:c.l,qs:[],ult:t,tot:c.tot,a0:Infinity,a1:-Infinity,x0:c.sx,y0:c.sy,dmax:0});
