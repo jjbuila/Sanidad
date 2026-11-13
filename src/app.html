@@ -1212,7 +1212,7 @@ async function registrarPunto(g){
   const p={j:S.jornada.id,t,lat:+g.lat.toFixed(7),lng:+g.lng.toFixed(7),acc:Math.round(g.acc*10)/10,s:0};
   TRACK.ultimo=p;TRACK.n++;(TRACK.pts||(TRACK.pts=[])).push(p);
   if(TRACK.linea){TRACK.linea.addLatLng([p.lat,p.lng]);TRACK.brillo.addLatLng([p.lat,p.lng]);}
-  if(VIS){try{const nv=await visitarTramo(VIS,p);if(nv.length){nv.forEach(repintarPalma);actualizarVisitaUI();}}catch(e){}}
+  if(VIS){try{const nv=await visitarTramo(VIS,p);if(nv.length){nv.forEach(repintarPalma);actualizarVisitaUI();try{avisarSaltadas(palmasSaltadas(VIS,nv));}catch(e){}}}catch(e){}}
   try{actualizarParadas();}catch(e){}
   try{actualizarSecUI();}catch(e){}
   try{await dbPut('track',p);if(TRACK.n%10===0)await dbPut('jornadas',S.jornada);}catch(e){}
@@ -1243,7 +1243,7 @@ async function indiceVisita(l){
   let lin=0,ter=0;
   for(const q of todas){const r=q.ln==null||q.ln===0?null:dens.get(q.ln);if(!r||(r.n>=20&&r.c/r.n>2.6)){q.ln=null;ter++;}else lin++;}
   grid.tipo=ter===0?'lineal':lin===0?'terraza':'mixto';grid.palmasTerraza=ter;
-  const lineas=new Map();for(const q of todas){const k=q.ln==null?'T':q.ln;let r=lineas.get(k);if(!r)lineas.set(k,r={n:0,ex:0,cero:[],pal:[],pMin:Infinity,pMax:-Infinity});r.n++;if(q.e){r.ex++;if(q.p!=null){r.pMin=Math.min(r.pMin,q.p);r.pMax=Math.max(r.pMax,q.p);}}else r.cero.push(q);if(q.p!=null)r.pal.push(q);}grid.lineas=lineas;
+  const lineas=new Map();for(const q of todas){const k=q.ln==null?'T':q.ln;let r=lineas.get(k);if(!r)lineas.set(k,r={n:0,ex:0,cero:[],pal:[],porP:new Map(),pMin:Infinity,pMax:-Infinity});r.n++;if(q.e){r.ex++;if(q.p!=null){r.pMin=Math.min(r.pMin,q.p);r.pMax=Math.max(r.pMax,q.p);}}else r.cero.push(q);if(q.p!=null){r.pal.push(q);r.porP.set(q.p,q);}}grid.lineas=lineas;
   if(IDXV.size>60)IDXV.clear();IDXV.set(l,grid);return grid;
 }
 /* metodo: 'calle' (identifica la calle entre dos líneas y cuenta sus dos líneas a la altura del operario) o 'buffer' (distancia al recorrido). */
@@ -1289,7 +1289,7 @@ function lotesCercanos(ax,ay,bx,by,B){
 }
 function dSeg(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy;let t=L?((px-ax)*dx+(py-ay)*dy)/L:0;t=t<0?0:t>1?1:t;const qx=ax+t*dx-px,qy=ay+t*dy-py;return Math.sqrt(qx*qx+qy*qy);}
 function marcarVisita(E,l,q,nuevos,t,porRegla){if(E.set.has(q.id))return;E.set.add(q.id);let r=E.lotes.get(l);if(!r)E.lotes.set(l,r={v:0,vac:0,regla:0,ids:[]});r.v++;if(!q.e)r.vac++;if(porRegla)r.regla++;r.ids.push(Number(q.id)||q.id);nuevos.push(q.id);
-  if(t!=null)E.conf.push({id:q.id,l,t});
+  if(t!=null)E.conf.push({id:q.id,l,t});(E.qv||(E.qv=new Map())).set(q.id,[q,l]);
   if(!q.e)return;const lk=q.ln==null?'T':q.ln,key=l+'|'+lk;const c=(E.linEx.get(key)||0)+1;E.linEx.set(key,c);
   const g=E.grids.get(l),ln=g&&g.lineas&&g.lineas.get(lk);if(!ln||!ln.cero.length)return;
   if(lk==='T'||q.p==null){ // terrazas: 90 % de las palmas vivas del grupo
@@ -1346,6 +1346,30 @@ function marcarCalle(E,grids,sx,sy,cands){
   const marcar=lin=>{const ux=lin.ux!=null?lin.ux:L1.ux,uy=lin.ux!=null?lin.uy:L1.uy;const medio=Math.min(6,Math.max(3,(lin.paso||9)/2));
     for(const {q} of lin.arr){const along=ux!=null?Math.abs((q.x-sx)*ux+(q.y-sy)*uy):Math.hypot(q.x-sx,q.y-sy);if(along<=medio&&Math.hypot(q.x-sx,q.y-sy)<=11)cands.push({key,l:lin.lote,q,tot,sx,sy,ux:dx,uy:dy});}};
   marcar(L1);if(L2)marcar(L2);E.calle=L2?{lote:L1.lote,a:L1.ln,b:L2.ln}:null;
+}
+/* Palma saltada: en una misma línea, una palma viva quedó sin visita y las dos siguientes (en el sentido de la marcha) sí se
+   visitaron, con la palma anterior también visitada (o siendo la primera/última palma viva de la línea). Se avisa una sola vez. */
+function palmasSaltadas(E,nuevos){
+  const out=[];if(!nuevos.length)return out;const av=E.avisadas||(E.avisadas=new Set());
+  for(const id of nuevos){const e=E.qv&&E.qv.get(id);if(!e)continue;const [q,l]=e;if(!q.e||q.p==null||q.ln==null)continue;
+    const g=E.grids.get(l),lk=q.ln,ln=g&&g.lineas&&g.lineas.get(lk);if(!ln||!ln.porP)continue;
+    {
+      for(const d of [1,-1]){const a=ln.porP.get(q.p-d),z=ln.porP.get(q.p-2*d),b=ln.porP.get(q.p-3*d);
+        if(!a||!z||!a.e||!z.e||!E.set.has(a.id)||E.set.has(z.id)||E.prov.has(z.id)||av.has(z.id))continue;
+        const extremo=z.p===ln.pMin||z.p===ln.pMax;
+        if(!(b&&E.set.has(b.id))&&!(b&&!b.e)&&!extremo)continue;
+        av.add(z.id);out.push({l,ln:lk,p:z.p,id:z.id,lat:z.y/KY,lng:z.x/KX});}
+    }}
+  return out;
+}
+function avisarSaltadas(lista){
+  if(!lista.length)return;
+  const porLinea=new Map();for(const z of lista){const k=z.l+'|'+z.ln;if(!porLinea.has(k))porLinea.set(k,[]);porLinea.get(k).push(z);}
+  const partes=[...porLinea.values()].map(zs=>`línea ${paraVoz(zs[0].ln)}, palma${zs.length>1?'s':''} ${zs.map(z=>paraVoz(z.p)).join(' y ')}`);
+  const txt=`Atención: ${lista.length>1?'palmas pendientes':'palma pendiente'} por visitar. Lote ${paraVoz(lista[0].l)}, ${partes.join('; ')}. No se registró la visita, regrese a ${lista.length>1?'ellas':'ella'}.`;
+  toast('⚠ '+txt,9000);pitido(440,220);setTimeout(()=>pitido(440,220),280);hablar(txt);
+  try{navigator.vibrate&&navigator.vibrate([250,120,250]);}catch(e){}
+  try{resaltar(lista[0].lat,lista[0].lng);}catch(e){}
 }
 /* Solo cuentan las palmas de los lotes programados en la jornada (selección + lotes agregados). */
 function enProgramacion(E,l){const s=E.sel||(E===VIS&&S.jornada?S.jornada.seleccion:null);return !s||!s.length||s.some(x=>String(x.lote)===String(l));}
