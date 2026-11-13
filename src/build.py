@@ -31,6 +31,7 @@ for peso in (500, 600, 700):
 VERSION = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=5)).strftime('%Y%m%d:%H%M')
 html = leer(os.path.join(RAIZ, 'src', 'app.html')).replace('__VERSION__', VERSION)
 reemplazos = {
+    '/*VIAS_JS*/': leer(os.path.join(RAIZ, 'src', 'vias.js')),
     '/*LEAFLET_CSS*/': leer(f'{NM}/leaflet/dist/leaflet.css'),
     '/*FUENTES*/': fuentes,
     '/*LIB_LEAFLET*/': seguro(leer(f'{NM}/leaflet/dist/leaflet.js')),

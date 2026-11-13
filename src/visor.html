@@ -33,6 +33,8 @@
 #msPop input[type=checkbox]{accent-color:var(--acento);width:16px;height:16px;flex:none}
 #msPop .solo{background:none;border:0;color:var(--acento);font-size:11.5px;cursor:pointer;white-space:nowrap;padding:2px 4px}
 #msPop .vacio{font-size:12.5px;color:var(--tenue);padding:6px 4px}
+.ic-oficina{background:none;border:0}
+.ic-oficina svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
 </style>
 <style>/*FUENTES*/</style>
 <style>
@@ -232,6 +234,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="mapa"></div>
       <div class="capas glass">
         <label><input type="checkbox" id="cLotes" checked> Lotes</label>
+        <label><input type="checkbox" id="cVias" checked> Vías y senderos</label>
         <label><input type="checkbox" id="cRec" checked> Recorridos</label>
         <label><input type="checkbox" id="cDiag" checked> Diagnósticos</label>
         <label><input type="checkbox" id="cPar" checked> Paradas</label>
@@ -435,11 +438,13 @@ $('#cBase').onchange=ponerBase;
 const capaLotes=L.layerGroup().addTo(mapa),capaRec=L.layerGroup().addTo(mapa),capaDiag=L.layerGroup().addTo(mapa),capaPar=L.layerGroup().addTo(mapa),capaPalmas=L.layerGroup(),capaSel=L.layerGroup().addTo(mapa);
 const vis=(id,capa)=>{$(id).onchange=()=>{$(id).checked?capa.addTo(mapa):mapa.removeLayer(capa);if(id==='#cPalmas')dibujarPalmas();};};
 vis('#cLotes',capaLotes);vis('#cRec',capaRec);vis('#cDiag',capaDiag);vis('#cPar',capaPar);vis('#cPalmas',capaPalmas);
+/*VIAS_JS*/
+$('#cVias').onchange=()=>mostrarVias($('#cVias').checked);
 mapa.on('zoomend moveend',()=>{mapa.getContainer().classList.toggle('sin-etq',mapa.getZoom()<14);dibujarPalmas();});
 function pintarLeyenda(){
   $('#leyenda').innerHTML='<b class="tit" style="font-size:13px">Enfermedad principal</b>'+Object.entries(COLOR_N1).map(([k,c])=>`<div><span class="punto" style="background:${c}"></span>${esc(PROBLEMAS[k]||k)}</div>`).join('')+
   `<div><span class="punto" style="background:${COLOR_ALTA}"></span>De alta</div><div><span class="punto" style="background:#4dd0e1"></span>Palma visitada (reproducción)</div><div><span style="display:inline-block;vertical-align:-5px;margin-right:4px">${SVG_FLECHA('#2f93d5',22)}</span>Operario y rumbo (reproducción)</div>`+
-  '<div style="margin-top:4px">'+pillParada('#ff9f1c','min')+'Parada sin actividad</div><div>'+pillParada('#2f93d5','min')+'Parada con diagnóstico</div><div class="tenue">Recorridos: un color por operario.</div>';
+  '<div style="margin-top:4px">'+pillParada('#ff9f1c','min')+'Parada sin actividad</div><div>'+pillParada('#2f93d5','min')+'Parada con diagnóstico</div><div class="tenue">Recorridos: un color por operario.</div>'+leyendaVias();
 }
 
 /* ---------- Cartografía (cifrada) ---------- */
@@ -923,6 +928,7 @@ async function entrar(){
   $('#login').hidden=true;$('#app').hidden=false;mapa.invalidateSize();
   $('#hdrUsuario').textContent=`${SES.nombre} · ${SES.rol==='admin'?'Administrador':'Supervisor'}`;
   try{await cargarCartografia();}catch(e){toast('No se pudo cargar la cartografía: '+e.message,6000);}
+  try{await cargarVias();}catch(e){}
   ponerRango(6);await cargar();
 }
 (async()=>{

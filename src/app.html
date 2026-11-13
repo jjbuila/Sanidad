@@ -21,6 +21,8 @@
 .flecha-ic{background:none;border:0;pointer-events:none}
 .flecha-op{width:90px;height:90px;transform-origin:50% 50%;transition:transform .35s ease-out;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
 .ico-palma{display:inline-block;vertical-align:-3px;margin-right:6px}
+.ic-oficina{background:none;border:0}
+.ic-oficina svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
 </style>
 <style>/*FUENTES*/</style>
 <style>
@@ -711,7 +713,9 @@ function dibujarLotes(){
       if(!S.jornada||!enJornada(lote)||mapa.getZoom()<16)resumenLote(lote);
     });
   }}).addTo(capaLotes);
+  if(typeof viasAlFondo==='function')viasAlFondo();
 }
+/*VIAS_JS*/
 function enAnillo(x,y,a){let d=false;for(let i=0,j=a.length-1;i<a.length;j=i++){const xi=a[i][0],yi=a[i][1],xj=a[j][0],yj=a[j][1];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))d=!d;}return d;}
 function enPoligono(x,y,c){if(!enAnillo(x,y,c[0]))return false;for(let k=1;k<c.length;k++)if(enAnillo(x,y,c[k]))return false;return true;}
 function cajasLotes(){
@@ -806,7 +810,7 @@ function pintarLeyenda(){
    <div><span class="punto" style="background:transparent;border-color:#b0bec5"></span>Sitio sin palma (existencia 0)</div>
    <div><span class="punto" style="border-radius:3px;background:transparent;border:2px solid #22d39a"></span>Lote de la jornada</div>
    <div><span class="punto" style="border-radius:3px;background:transparent;border:2px solid #90cdf1"></span>Otros lotes</div>
-   <div><span class="punto" style="border-radius:2px;height:4px;background:#22d39a;border:0"></span>Recorrido</div>`;
+   <div><span class="punto" style="border-radius:2px;height:4px;background:#22d39a;border:0"></span>Recorrido</div>`+leyendaVias();
 }
 $('#btLeyenda').onclick=()=>{$('#leyenda').hidden=!$('#leyenda').hidden;};
 
@@ -2476,6 +2480,7 @@ async function abrirConfig(){
     ${adm?`<button class="btn ancho" id="cCartoArch">Cargar cartografía desde archivos (administrador)</button>`:''}
     <h3>Mapa base</h3>
     <div class="ficha">Ortofoto del dron de Palmas de Tumaco (único mapa base). Para usarla sin internet: Menú → Mapa sin conexión.</div>
+    <label class="campo" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="cVias" ${S.cfg.vias!==false?'checked':''}> Mostrar vías, senderos y oficina central</label>
     <h3>Guía por voz y recorrido</h3>
     <div class="fila"><div><label class="campo">Anunciar a menos de (m)</label><input type="number" id="cUmbral" min="1" max="15" step="0.5" value="${esc(S.cfg.umbralVoz)}"></div>
       <div><label class="campo">Precisión mínima voz (m)</label><input type="number" id="cPrec" min="3" max="50" value="${esc(S.cfg.precisionVoz)}"></div></div>
@@ -2491,7 +2496,7 @@ async function abrirConfig(){
   on('#cSalir',cerrarSesion);
   $('#cOk').onclick=async()=>{
     if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||5;S.cfg.metodoVisita=$('#cMet').value;S.cfg.radioSel=Number($('#cRad').value)||50;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
-    S.cfg.base='dron';
+    S.cfg.base='dron';S.cfg.vias=$('#cVias').checked;mostrarVias(S.cfg.vias);
     S.cfg.umbralVoz=Number($('#cUmbral').value)||2;S.cfg.precisionVoz=Number($('#cPrec').value)||15;S.cfg.velocidadVoz=Number($('#cVel').value)||1;S.cfg.precisionTrack=Number($('#cPTrack').value)||30;
     await guardarCfg();ponerBase();estadoSync();cerrarHoja();toast('Configuración guardada.');programarSync(1500);};
   on('#cCartoArch',cartoDesdeArchivos);
@@ -2625,6 +2630,8 @@ async function despuesDeIngresar(){
   mostrarSplash();
   try{await asegurarCartografia();}catch(e){alert(e.message);}
   dibujarLotes();pintarUsuario();
+  VIAS.visible=S.cfg.vias!==false;
+  try{await cargarVias(v=>dbPut('config',{clave:'vias',v}),async()=>{const r=await dbGet('config','vias');return r&&r.v;});}catch(e){}
   if(S.cfg.jornadaActiva){const j=await dbGet('jornadas',S.cfg.jornadaActiva);
     if(j&&j.estado==='activa'){
       if(j.usuario&&SES&&j.usuario!==SES.u){

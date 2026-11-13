@@ -1,6 +1,6 @@
 /* Service worker de Sanidad Vegetal 2.0: permite abrir la aplicación y ver mapas sin conexión.
    Las llamadas a la API de GitHub no se guardan en caché. */
-const APP='sanidad-vegetal-20261113-0018';
+const APP='sanidad-vegetal-20261113-0027';
 const TESELAS='teselas-v1';
 const ARCHIVOS=['./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-192.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./icons/sv_icono.svg'];
 /* La página principal se pide como documento HTML (Accept: text/html). En la APK de Android, Capacitor intercepta esa
@@ -8,7 +8,7 @@ const ARCHIVOS=['./manifest.webmanifest','./icons/icon-192.png','./icons/icon-51
 const HTML={headers:{Accept:'text/html,application/xhtml+xml'}};
 async function guardarPagina(c,r){await c.put('./',r.clone());await c.put('./index.html',r);}
 
-const OPCIONALES=['./datos/acceso.json','./datos/carto.enc'];
+const OPCIONALES=['./datos/acceso.json','./datos/carto.enc','./datos/vias.enc'];
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(APP).then(async c=>{
     await c.addAll(ARCHIVOS);
