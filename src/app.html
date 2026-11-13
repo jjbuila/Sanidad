@@ -183,6 +183,11 @@ button{cursor:pointer}
 .asa{width:44px;height:5px;border-radius:3px;background:rgba(255,255,255,.22);margin:8px auto 0;flex:none}
 .hoja-cab{display:flex;align-items:center;gap:8px;padding:8px 10px 8px 18px;border-bottom:1px solid var(--borde2)}
 .hoja-cab h2{flex:1;margin:0;font-size:21px;letter-spacing:1px;font-weight:700}
+.banda-form{display:flex;align-items:center;gap:10px;margin:18px -16px 6px;padding:8px 16px;background:var(--bf)}
+.banda-form:first-of-type{margin-top:10px}
+.banda-form span{width:22px;height:22px;border-radius:50%;background:#e8f1ec;color:#0b1a14;font-weight:800;font-size:12.5px;display:grid;place-items:center;flex:none}
+.banda-form b{font-size:13px;letter-spacing:1.5px;color:#fff}
+.banda-form:has(+ #secSint:empty),.banda-form:has(+ #secCampos:empty){display:none}
 #hojaCuerpo{overflow:auto;padding:12px 16px calc(22px + var(--inf));-webkit-overflow-scrolling:touch}
 .icono{background:transparent;border:0;color:var(--texto);width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px}
 .icono:active{background:rgba(255,255,255,.1)}
@@ -1197,7 +1202,7 @@ async function indiceVisita(l){
   const d=await leerChunk(l);const grid=new Map();const todas=[];
   for(const a of d){const x=a[4]*KX,y=a[5]*KY;const k=Math.floor(x/CV)+','+Math.floor(y/CV);let g=grid.get(k);if(!g)grid.set(k,g=[]);
     const n=typeof a[1]==='number'?a[1]:(a[1]!=null&&a[1]!==''&&!isNaN(a[1])?Number(a[1]):null);
-    const q={id:String(a[0]),x,y,e:a[3]!==0,ln:n};g.push(q);todas.push(q);}
+    const q={id:String(a[0]),x,y,e:a[3]!==0,ln:n,p:a[2]==null||a[2]===''||isNaN(a[2])?null:Number(a[2])};g.push(q);todas.push(q);}
   const dens=new Map();
   for(const q of todas){if(q.ln==null||q.ln===0)continue;let c=0;const i0=Math.floor(q.x/CV),j0=Math.floor(q.y/CV);
     for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++){const g=grid.get(i+','+j);if(!g)continue;
@@ -1206,15 +1211,16 @@ async function indiceVisita(l){
   let lin=0,ter=0;
   for(const q of todas){const r=q.ln==null||q.ln===0?null:dens.get(q.ln);if(!r||(r.n>=20&&r.c/r.n>2.6)){q.ln=null;ter++;}else lin++;}
   grid.tipo=ter===0?'lineal':lin===0?'terraza':'mixto';grid.palmasTerraza=ter;
-  const lineas=new Map();for(const q of todas){const k=q.ln==null?'T':q.ln;let r=lineas.get(k);if(!r)lineas.set(k,r={n:0,ex:0,cero:[]});r.n++;if(q.e)r.ex++;else r.cero.push(q);}grid.lineas=lineas;
+  const lineas=new Map();for(const q of todas){const k=q.ln==null?'T':q.ln;let r=lineas.get(k);if(!r)lineas.set(k,r={n:0,ex:0,cero:[],pal:[],pMin:Infinity,pMax:-Infinity});r.n++;if(q.e){r.ex++;if(q.p!=null){r.pMin=Math.min(r.pMin,q.p);r.pMax=Math.max(r.pMax,q.p);}}else r.cero.push(q);if(q.p!=null)r.pal.push(q);}grid.lineas=lineas;
   if(IDXV.size>60)IDXV.clear();IDXV.set(l,grid);return grid;
 }
 /* metodo: 'calle' (identifica la calle entre dos líneas y cuenta sus dos líneas a la altura del operario) o 'buffer' (distancia al recorrido). */
 /* Desplazamientos: una palma solo cuenta como visitada cuando el operario TRABAJA una calle (o terraza) dentro del polígono del lote:
    la calle se confirma con RUN_MIN palmas seguidas de esa misma calle. Lo que toma al pasar por senderos, al cruzar cabeceras de
    líneas o al desplazarse hacia/entre lotes queda provisional y se descarta (no cuenta como visitado).
-   Regla 90 %: si visita el 90 % o más de las palmas existentes (vivas) de una línea, los sitios de existencia 0 de esa línea
-   (vacíos / palmas muertas) también cuentan como visitados: la labor no exige llegar a ellos, pero suman a la hectárea. */
+   Regla 90 %: en cada línea se toma el tramo entre la primera y la última palma viva visitada; si en ese tramo visitó el 90 % o más
+   de las palmas vivas, los sitios de existencia 0 del tramo (vacíos / palmas muertas) también cuentan como visitados: la labor no
+   exige llegar a ellos, pero suman a la hectárea. */
 const RUN_MIN=6,RUN_LARGO=22,RUN_VIVA=90000,RUN_ABIERTA=600000,REGLA_EX=0.9; // RUN_LARGO: metros que el operario avanza A LO LARGO de la calle
 function nuevoEstadoVisita(densidad,buffer,metodo){return {set:new Set(),lotes:new Map(),densidad:Number(densidad)||115,buffer:Number(buffer)||5,metodo:metodo||'calle',maxLat:6,ult:null,
   runs:new Map(),prov:new Set(),abiertas:new Map(),conf:[],linEx:new Map(),regla:new Set(),grids:new Map()};}
@@ -1253,8 +1259,18 @@ function dSeg(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy;let t=L?(
 function marcarVisita(E,l,q,nuevos,t,porRegla){if(E.set.has(q.id))return;E.set.add(q.id);let r=E.lotes.get(l);if(!r)E.lotes.set(l,r={v:0,vac:0,regla:0,ids:[]});r.v++;if(!q.e)r.vac++;if(porRegla)r.regla++;r.ids.push(Number(q.id)||q.id);nuevos.push(q.id);
   if(t!=null)E.conf.push({id:q.id,l,t});
   if(!q.e)return;const lk=q.ln==null?'T':q.ln,key=l+'|'+lk;const c=(E.linEx.get(key)||0)+1;E.linEx.set(key,c);
-  const g=E.grids.get(l),ln=g&&g.lineas&&g.lineas.get(lk);
-  if(ln&&ln.cero.length&&!E.regla.has(key)&&c>=Math.ceil(REGLA_EX*ln.ex)){E.regla.add(key);for(const z of ln.cero)marcarVisita(E,l,z,nuevos,t,true);}}
+  const g=E.grids.get(l),ln=g&&g.lineas&&g.lineas.get(lk);if(!ln||!ln.cero.length)return;
+  if(lk==='T'||q.p==null){ // terrazas: 90 % de las palmas vivas del grupo
+    if(!E.regla.has(key)&&c>=Math.ceil(REGLA_EX*ln.ex)){E.regla.add(key);for(const z of ln.cero)marcarVisita(E,l,z,nuevos,t,true);}return;}
+  /* Líneas: tramo entre la primera y la última palma viva visitada. Si en ese tramo se visitó el 90 % o más de las palmas vivas,
+     los vacíos (existencia 0) del tramo se completan. Si el tramo llega a la primera o última palma viva de la línea, incluye los
+     vacíos de la punta de la línea. */
+  let st=(E.linRango||(E.linRango=new Map())).get(key);if(!st)E.linRango.set(key,st={a:Infinity,b:-Infinity});
+  st.a=Math.min(st.a,q.p);st.b=Math.max(st.b,q.p);
+  let viv=0,vis=0;for(const z of ln.pal)if(z.e&&z.p>=st.a&&z.p<=st.b){viv++;if(E.set.has(z.id))vis++;}
+  if(viv<2||vis<Math.ceil(REGLA_EX*viv))return;
+  const lo=st.a<=ln.pMin?-Infinity:st.a,hi=st.b>=ln.pMax?Infinity:st.b;
+  for(const z of ln.cero)if(z.p!=null&&z.p>=lo&&z.p<=hi&&!E.set.has(z.id))marcarVisita(E,l,z,nuevos,t,true);}
 /* Método por calle, evaluado en un punto (sx,sy) en metros. */
 function marcarCalle(E,grids,sx,sy,cands){
   const R=14,R2=R*R;const porLinea=new Map();const sinLinea=[];
@@ -1567,12 +1583,16 @@ async function abrirFormulario(base){
       ${!bloq&&S.gps&&dGps>(Number(S.cfg.radioSel)||50)?`<div class="aviso">⚠️ Usted está a más de ${Number(S.cfg.radioSel)||50} m de esta palma. Verifique que sea la palma correcta.</div>`:''}
       <fieldset ${bloq?'disabled':''}>
       ${!r.n1&&(r.problemas||[]).length?`<div class="aviso">Diagnóstico registrado con el formulario anterior: ${esc(textoDiag(r))}${r.grado_pc?' · Grado PC '+esc(r.grado_pc):''}. Al guardar se reemplaza por el formulario actual.</div>`:''}
+      <div class="banda-form" style="--bf:#1b6e52"><span>1</span><b>DIAGNÓSTICO</b></div>
       <label class="campo">Nivel 1 · Enfermedad principal <i>*</i></label>
       <div class="chips">${N1S.map(x=>chip('radio','n1',x.c,x.n1,(r.n1_codigo||(!r.n1&&r.estado==='sana'?'SN':''))===x.c)).join('')}</div>
       <div id="secN2"></div>
       <div id="secN3"></div>
+      <div class="banda-form" style="--bf:#7a5a12"><span>2</span><b>SÍNTOMAS</b></div>
       <div id="secSint"></div>
+      <div class="banda-form" style="--bf:#1e5a86"><span>3</span><b>CONDICIONES DE LA PALMA</b></div>
       <div id="secCampos"></div>
+      <div class="banda-form" style="--bf:#4e3a78"><span>4</span><b>OBSERVACIÓN Y FOTOS</b></div>
       <label class="campo">Observación</label>
       <textarea name="observaciones" placeholder="Detalle de la evaluación">${esc(r.observaciones)}</textarea>
       <div id="secFuente" class="tenue" style="font-size:12px;margin-top:6px"></div>
