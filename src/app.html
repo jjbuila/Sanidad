@@ -1257,11 +1257,11 @@ async function indiceVisita(l){
 /* Desplazamientos: en las CALLES de líneas lineales una palma solo cuenta cuando el operario TRABAJA la calle dentro del polígono del lote:
    la calle se confirma con RUN_MIN palmas seguidas de esa misma calle. Lo que toma al pasar por senderos, al cruzar cabeceras de
    líneas o al desplazarse hacia/entre lotes queda provisional y se descarta (no cuenta como visitado).
-   Regla 90 %: en cada línea se toma el tramo entre la primera y la última palma viva visitada; si en ese tramo visitó el 90 % o más
+   Regla 80 %: en cada línea se toma el tramo entre la primera y la última palma viva visitada; si en ese tramo visitó el 80 % o más
    de las palmas vivas, los sitios de existencia 0 del tramo (vacíos / palmas muertas) también cuentan como visitados: la labor no
    exige llegar a ellos, pero suman a la hectárea.
    Terrazas (lotes terraza y sectores terraza de lotes mixtos): sin confirmación; cuenta toda palma a <= buffer del recorrido dentro del polígono. */
-const RUN_MIN=6,RUN_LARGO=22,RUN_VIVA=90000,RUN_ABIERTA=600000,REGLA_EX=0.9; // RUN_LARGO: metros que el operario avanza A LO LARGO de la calle
+const RUN_MIN=6,RUN_LARGO=22,RUN_VIVA=90000,RUN_ABIERTA=600000,REGLA_EX=0.8; // RUN_LARGO: metros que el operario avanza A LO LARGO de la calle
 function nuevoEstadoVisita(densidad,buffer,metodo){return {set:new Set(),lotes:new Map(),densidad:Number(densidad)||115,buffer:Number(buffer)||5,metodo:metodo||'calle',maxLat:6,ult:null,
   runs:new Map(),prov:new Set(),abiertas:new Map(),conf:[],linEx:new Map(),regla:new Set(),grids:new Map()};}
 const LFEAT=new Map(),LMET=new Map();
@@ -1302,9 +1302,9 @@ function marcarVisita(E,l,q,nuevos,t,porRegla){if(E.set.has(q.id))return;E.set.a
   if(t!=null)E.conf.push({id:q.id,l,t});(E.qv||(E.qv=new Map())).set(q.id,[q,l]);
   if(!q.e)return;const lk=q.ln==null?'T':q.ln,key=l+'|'+lk;const c=(E.linEx.get(key)||0)+1;E.linEx.set(key,c);
   const g=E.grids.get(l),ln=g&&g.lineas&&g.lineas.get(lk);if(!ln||!ln.cero.length)return;
-  if(lk==='T'||q.p==null){ // terrazas: 90 % de las palmas vivas del grupo
+  if(lk==='T'||q.p==null){ // terrazas: 80 % de las palmas vivas del grupo
     if(!E.regla.has(key)&&c>=Math.ceil(REGLA_EX*ln.ex)){E.regla.add(key);for(const z of ln.cero)marcarVisita(E,l,z,nuevos,t,true);}return;}
-  /* Líneas: tramo entre la primera y la última palma viva visitada. Si en ese tramo se visitó el 90 % o más de las palmas vivas,
+  /* Líneas: tramo entre la primera y la última palma viva visitada. Si en ese tramo se visitó el 80 % o más de las palmas vivas,
      los vacíos (existencia 0) del tramo se completan. Si el tramo llega a la primera o última palma viva de la línea, incluye los
      vacíos de la punta de la línea. */
   let st=(E.linRango||(E.linRango=new Map())).get(key);if(!st)E.linRango.set(key,st={a:Infinity,b:-Infinity});
@@ -1417,7 +1417,7 @@ function resumenVisita(E,regs,conIds){
   for(const r of regs||[])fila(r.lote||'—').diagnosticos++;
   const por_lote=[...filas.values()].sort((a,b)=>ordenNat(a.lote,b.lote));
   const tv=por_lote.reduce((a,x)=>a+x.palmas_visitadas,0);
-  return {metodo:E.metodo==='calle'?'calle_entre_lineas':'buffer',densidad_palmas_ha:E.densidad,buffer_m:E.metodo==='calle'?null:E.buffer,buffer_terraza_m:E.metodo==='calle'?E.buffer:undefined,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),sitios_vacios_regla90:por_lote.reduce((a,x)=>a+(x.sitios_vacios_regla90||0),0),regla_existencia0:'≥90 % de palmas existentes de la línea',
+  return {metodo:E.metodo==='calle'?'calle_entre_lineas':'buffer',densidad_palmas_ha:E.densidad,buffer_m:E.metodo==='calle'?null:E.buffer,buffer_terraza_m:E.metodo==='calle'?E.buffer:undefined,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),sitios_vacios_regla90:por_lote.reduce((a,x)=>a+(x.sitios_vacios_regla90||0),0),regla_existencia0:'≥80 % de palmas existentes de la línea',
     ha_recorridas:+(tv/E.densidad).toFixed(2),...(E.tv&&conIds?{t0_visita:E.t0?new Date(E.t0).toISOString():null}:{}),por_lote};
 }
 let VIS=null;
