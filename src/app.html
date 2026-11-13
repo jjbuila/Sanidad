@@ -423,10 +423,9 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 <div id="toast"></div>
 <div id="visor"><img alt=""></div>
 <input type="file" id="inFoto" accept="image/*" capture="environment" multiple hidden>
-<input type="file" id="inGaleria" accept="image/*" multiple hidden>
 <div id="camara" hidden><video id="camVid" playsinline autoplay muted></video><div id="camFlash"></div>
   <div class="cam-sup"><span id="camN">0 fotos</span><button type="button" class="icono" id="camX" aria-label="Cerrar">✕</button></div>
-  <div class="cam-inf"><button type="button" class="cam-lat" id="camGal" aria-label="Galería">🖼</button><button type="button" id="camDisparo" aria-label="Tomar foto"></button><button type="button" class="cam-lat" id="camOk">LISTO</button></div></div>
+  <div class="cam-inf"><span class="cam-lat" aria-hidden="true" style="visibility:hidden"></span><button type="button" id="camDisparo" aria-label="Tomar foto"></button><button type="button" class="cam-lat" id="camOk">LISTO</button></div></div>
 <input type="file" id="inCarto" accept=".geojson,.json,.zip" multiple hidden>
 
 <script>/*LIB_LEAFLET*/</script>
@@ -1707,7 +1706,7 @@ async function abrirCamara(){
 }
 function cerrarCamara(){try{CAM.stream&&CAM.stream.getTracks().forEach(t=>t.stop());}catch(e){}CAM.stream=null;$('#camVid').srcObject=null;$('#camara').hidden=true;}
 $('#camX').onclick=cerrarCamara;$('#camOk').onclick=cerrarCamara;
-$('#camGal').onclick=()=>{cerrarCamara();const i=$('#inGaleria');i.value='';i.click();};
+/* Solo cámara: no se permiten fotos desde la galería. */
 $('#camDisparo').onclick=async()=>{
   const v=$('#camVid');if(!v.videoWidth||!F)return;const M=1280;const k=Math.min(1,M/Math.max(v.videoWidth,v.videoHeight));
   const c=document.createElement('canvas');c.width=Math.round(v.videoWidth*k);c.height=Math.round(v.videoHeight*k);c.getContext('2d').drawImage(v,0,0,c.width,c.height);
@@ -1716,7 +1715,6 @@ $('#camDisparo').onclick=async()=>{
   const id=uid();const buf=await blob.arrayBuffer();F.fotosNuevas.push({id,buf,type:'image/jpeg'});agregarMiniatura(id,blob,true,false);
   CAM.n++;$('#camN').textContent=CAM.n+(CAM.n===1?' foto':' fotos');
 };
-$('#inGaleria').onchange=()=>procesarArchivosFoto($('#inGaleria'));
 async function procesarArchivosFoto(inp){
   const files=Array.from(inp.files||[]);if(!F)return;
   for(const file of files){try{const c=await comprimir(file);const id=uid();F.fotosNuevas.push({id,...c});agregarMiniatura(id,new Blob([c.buf],{type:c.type}),true,false);}
