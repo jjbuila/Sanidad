@@ -181,6 +181,66 @@
     "iv": "qR7Ju+Tv/XCImnT0",
     "ct": "4e1yKyLtzZ0FuiyZYhjBiiPdS66Xo5O3JxoxWbhPjpzBQWY7CKmSRNxiuTHd3Pe6PEc6H7DS2aNcJUTBrd10hSfYlkH/9/u4f1PYgsVRAuYbA6wWnd/3kgVAKXVcMNUyI4WANBn3qx5X8o2Fg9caBoNik10nU+MkjYlOijMQ/uhMLNLdTyY6IVmLQCSgRVC/AiaLGph73S7rRj011cY="
    }
+  },
+  {
+   "u": "jevanegas",
+   "salt": "rGp2qIAJIsYDOOFNMQpjyw==",
+   "iv": "SkPYqNxt//r4ad9m",
+   "ct": "QeG6qpyD+feG3DO5GQmS2pLNg1osQga2iYYNJexCUdUvlXor4/V834mj9rA/RPOl",
+   "meta": {
+    "iv": "zsFJg4PmG0csBrs5",
+    "ct": "ykt/yN1z5lx08BVrIt8AJKcbNzX+LWgDb7d35M649iy9afquceN3E9FRYi5hvJ+pvPN/b3vNmNIwtBrpR1rmNexSQiZQZoBnmqLCb+/lUUb/toPJkHThyPigBbnRdXt9mNR+SlpeTXTTTsM="
+   }
+  },
+  {
+   "u": "jnazareno",
+   "salt": "onsugCrYGKDtpGxdaCcSEA==",
+   "iv": "znF9AgArY4o48Kzd",
+   "ct": "pQWAUoVUz30bnkUAb7cEBjV67Q4j3jewiSGrgmDIx1j7cYPOs4QgA7MWyLh4wsGn",
+   "meta": {
+    "iv": "UHjXO+icZnd2ua70",
+    "ct": "YTExy+hTbr/RyqCmKJx5na+I3FxqU8p6//7kMSi9vV2NScPDpd+O0sXcdPu4dJaQF5lg1lcC5Q7ZiRjG6Ak9XHXca8FdXXCZx58BQuW2Fb9yQJO0VHKYyIQilzxOlpZiNkFV0+fU8uUPdFU="
+   }
+  },
+  {
+   "u": "hangulo",
+   "salt": "KiYOsHaYI+qKFXAOAArmRg==",
+   "iv": "eoPdbt1QCJiEFyTT",
+   "ct": "mBojbbc+O1Xdl/cASyOPHzBV392Y/gdgsUugzGNcg+FVDsBgkkTgsqHttPpJ1quv",
+   "meta": {
+    "iv": "Q0LVx/BV/vTpgc+6",
+    "ct": "OGES3UZ83X8BQeFHt4FLpjfy19aIxC7+tXLTIY9LFAINgkePQtZAtqD95MqlYTKCh+ZDJ811b6mctG6Y57i1LkY8SFu839GfTBu6z3ugd+xrSN0v3yuRy/uIAW+yrZJzH7asAa+PL8X/LwY="
+   }
+  },
+  {
+   "u": "hvergara",
+   "salt": "cJ5EzuSsgOQOQ5EzL2y7Gg==",
+   "iv": "tOAkEwZ/qmvVCABf",
+   "ct": "da685WI628N4vY0JnG2eIJKKKNwlBTK7dfs3Ez6XI4+yVHLpEOZJM7vqGEMiju0O",
+   "meta": {
+    "iv": "WuxuYCZMsnSV0kKS",
+    "ct": "LkaQjhZH4Qm9p/rgGvVcst/4gx2wSOWHj0rdla9M30GtS36xWYSeY3kQvjVZ3r1mChUFPZkCGMCh88SJaMW4B4vD2MwtptX66frELbiOr0E1KuRBGvbk7dEslxD5"
+   }
+  },
+  {
+   "u": "jobando",
+   "salt": "LmLwc+/BYEVK9kDq2fPg3g==",
+   "iv": "ANYwGYYkGdiFChtV",
+   "ct": "cCxxo6wCoagsezSp4kK8inc8l3JzcRhrjSfCc+qTe06uGAVAbWPzSOyPezu2P00d",
+   "meta": {
+    "iv": "F0evhCw0IXDCvWHA",
+    "ct": "AwjFZBLQU2erc0hVeJGhSLp7EgzVgWXedZsXepK6SSqkKUgX51Fhm8DCz6vvYNj6oS27sFO/5Ebv7jtyjDkDkfJQdwhcbdjwtFep8o5wiZaW/Ib95rrowNZUkmNBLLLwvKTK0qjimuSroKIT3w=="
+   }
+  },
+  {
+   "u": "jmrodriguez",
+   "salt": "61UGt17EjnlSNPimsyObVA==",
+   "iv": "nHgL4s/9uzc2/H3N",
+   "ct": "KCWic6GgAdLI2IOK/gVQNKkt04+yeIdNQnUA6SVLA5fcCDJyxbwhiNss70ku7fZu",
+   "meta": {
+    "iv": "U02hdp6pgYLG5fAp",
+    "ct": "LgaDh7UkYoHmXA9oBOiraN7R8W+7727dKwcRmtkiEvyGopm9L3u8fEb4/zXgFZjomHbHJTHpk5lo8xNV6K5j+gFx3o6h6C1+yheZ3Lu0Sp/BonCKV1wClzgDuP5qlaTJz5sAJoLDBg=="
+   }
   }
  ],
  "modificado": "2026-11-11T20:50:29.954659+00:00"

@@ -8,7 +8,7 @@
 <link rel="icon" href="icons/sv_icono.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap">
 <style>
 /* Pista de maratón: fondo verde noche del cultivo, carriles por pareja, palmas como mojones del recorrido. */
 :root{
@@ -91,7 +91,7 @@ body.tablero{padding:0;overflow-x:hidden}
 .carril .nom{display:flex;flex-direction:column;min-width:0;padding-right:10px}
 .carril .nom b{font-family:var(--t);font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .carril .nom span{font-size:12.5px;color:var(--tenue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.via{position:relative;height:44px;background:repeating-linear-gradient(90deg,transparent 0 calc(100%/15 - 1px),#24453A80 calc(100%/15 - 1px) calc(100%/15))}
+.via{position:relative;height:44px;background:repeating-linear-gradient(90deg,transparent 0 calc(100%/var(--n,25) - 1px),#24453A80 calc(100%/var(--n,25) - 1px) calc(100%/var(--n,25)))}
 .via::after{content:"";position:absolute;right:0;top:4px;bottom:4px;width:6px;background:repeating-linear-gradient(0deg,var(--texto) 0 6px,var(--noche) 6px 12px);border-radius:2px}
 .corredor{position:absolute;top:50%;transform:translate(-50%,-50%);font-size:34px;transition:left 1.2s cubic-bezier(.3,.7,.2,1);filter:drop-shadow(0 2px 4px #0008)}
 .corredor.lider::before{content:"";position:absolute;inset:-6px;border-radius:50%;box-shadow:0 0 0 3px var(--ambar);animation:latido 1.6s infinite}
@@ -124,6 +124,26 @@ body.tablero{padding:0;overflow-x:hidden}
 .ganador h2{font-size:56px}
 .ganador p{font-size:24px;margin:0;color:#D8E8E0}
 #confeti{position:fixed;inset:0;pointer-events:none;z-index:60}
+/* Meme de respuesta: tarjeta tipo imagen con texto superior e inferior */
+.meme{position:relative;border-radius:16px;overflow:hidden;min-height:210px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:38px 10px 12px;text-align:center;animation:pop .45s cubic-bezier(.2,1.4,.4,1)}
+.meme.bien{background:radial-gradient(circle at 50% 55%,#2C8F5E 0,#0F3D2B 70%)}
+.meme.mal{background:radial-gradient(circle at 50% 55%,#8E3B2C 0,#3A1715 70%)}
+.meme .tx{font-family:Anton,Impact,'Arial Black',sans-serif;font-size:27px;line-height:1.05;color:#fff;text-transform:uppercase;letter-spacing:.5px;
+  text-shadow:2px 2px 0 #000,-2px 2px 0 #000,2px -2px 0 #000,-2px -2px 0 #000,0 3px 0 #000,3px 0 0 #000,0 -3px 0 #000,-3px 0 0 #000;text-wrap:balance}
+.meme .em{font-size:86px;line-height:1;margin:6px 0;animation:baile 1.2s ease-in-out infinite}
+.meme.mal .em{animation:tiembla .5s ease-in-out 3}
+.meme .sello{position:absolute;right:10px;top:10px;font-family:var(--t);font-size:13px;font-weight:700;border-radius:20px;padding:3px 9px;background:#000a}
+@keyframes pop{from{transform:scale(.6);opacity:0}}
+@keyframes baile{50%{transform:rotate(-8deg) scale(1.08)}}
+@keyframes tiembla{25%{transform:translateX(-8px) rotate(-6deg)}75%{transform:translateX(8px) rotate(6deg)}}
+.tema{display:inline-block;font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;font-weight:700;border-radius:20px;padding:3px 9px;background:#123528;color:var(--acento)}
+.tema.diag{background:#3A2A0E;color:var(--ambar)}
+.audio{display:flex;gap:8px;flex-wrap:wrap}
+.audio button{background:var(--panel2);border:1px solid var(--linea);color:var(--texto);border-radius:20px;padding:6px 12px;font-size:13px;cursor:pointer}
+.audio button[aria-pressed=false]{opacity:.55}
+select{background:var(--noche);border:1.5px solid var(--linea);color:var(--texto);border-radius:12px;padding:12px 14px;font-size:16px;width:100%}
+.conteo{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:#06140FD9;font-family:var(--t);font-size:220px;color:var(--acento);pointer-events:none}
+.conteo span{animation:pop .5s}
 @media (max-width:900px){.tab{grid-template-columns:minmax(0,1fr);padding:16px}.mojones,.carril{grid-template-columns:120px minmax(0,1fr) 64px}.inscripcion{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -133,6 +153,7 @@ body.tablero{padding:0;overflow-x:hidden}
 <!-- ===================== VISTA DEL EQUIPO (celular) ===================== -->
 <main id="vEquipo" class="envase">
   <div class="marca"><img src="__APPLOGO__" alt=""><div><b>Maratón Sanidad Vegetal</b><span>Prueba final de la inducción · por parejas</span></div></div>
+  <div class="audio"><button id="aSonido" aria-pressed="true">🔔 Sonidos</button><button id="aVoz" aria-pressed="true">🗣 Leer preguntas</button></div>
 
   <section id="pIngreso" class="tarjeta" hidden>
     <p class="ceja">Paso 1 · Ingreso</p>
@@ -150,8 +171,9 @@ body.tablero{padding:0;overflow-x:hidden}
     <p class="ceja">Paso 2 · Inscripción de la pareja</p>
     <h2>¿Quiénes compiten?</h2>
     <form id="fRegistro" style="display:flex;flex-direction:column;gap:12px">
-      <label for="iNom1">Nombre completo · integrante 1<input id="iNom1" type="text" required maxlength="60"></label>
-      <label for="iNom2">Nombre completo · integrante 2<input id="iNom2" type="text" required maxlength="60"></label>
+      <label for="iNom1">Integrante 1<select id="iNom1" required></select></label>
+      <label for="iNom2">Integrante 2<select id="iNom2" required></select></label>
+      <p class="tenue" style="margin:0;font-size:12.5px">La lista trae los usuarios creados en la App. Los que ya están en otra pareja no aparecen.</p>
       <p class="ceja" style="margin-top:6px">Elijan el animal que los representa</p>
       <div id="gAnimales" class="animales" role="group" aria-label="Animales disponibles"></div>
       <p class="tenue" style="margin:0;font-size:12.5px">Los animales apagados ya los tomó otra pareja.</p>
@@ -174,8 +196,10 @@ body.tablero{padding:0;overflow-x:hidden}
     <div class="barra" aria-hidden="true"><i id="cAvance" style="width:0"></i></div>
     <div class="cab"><span id="cNumero"></span><span id="cSeg"></span></div>
     <div class="reloj" aria-hidden="true"><i id="cReloj" style="width:100%"></i></div>
+    <span id="cTema" class="tema">App</span>
     <p id="cPregunta" class="pregunta"></p>
     <div id="cOpciones" class="opciones"></div>
+    <div id="cMeme" class="meme" hidden></div>
     <div id="cVeredicto" class="veredicto" hidden></div>
     <button id="bSiguiente" class="btn" hidden>Siguiente pregunta</button>
     <p class="tenue" style="margin:0;font-size:12.5px;display:flex;justify-content:space-between;gap:8px"><span id="cGuardado" class="chip">Guardado</span><span id="cTotal"></span></p>
@@ -195,7 +219,7 @@ body.tablero{padding:0;overflow-x:hidden}
   </section>
 
   <div class="premio"><span style="font-size:30px">🏆</span><div><b>$50.000</b><br><span>Bonificación para la pareja con más puntos</span></div></div>
-  <p class="tenue" style="font-size:12.5px;margin:0;line-height:1.5">Cada pregunta vale 100 puntos y hasta 50 más por rapidez. Tienen 30 segundos por pregunta. En empate gana la pareja que terminó en menos tiempo.</p>
+  <p class="tenue" style="font-size:12.5px;margin:0;line-height:1.5">Son 25 preguntas: 15 de la App y 10 de diagnóstico. Cada una vale 100 puntos y hasta 50 más por rapidez; tienen 30 segundos por pregunta. En empate gana la pareja que terminó en menos tiempo.</p>
 </main>
 
 <!-- ===================== MARCADOR (proyector) ===================== -->
@@ -203,7 +227,7 @@ body.tablero{padding:0;overflow-x:hidden}
   <div class="tab">
     <header>
       <div class="marca"><img src="__APPLOGO__" alt=""><div><b>Maratón Sanidad Vegetal</b><span id="tSub">Prueba final de la inducción</span></div></div>
-      <div class="estado"><span id="tEstado" class="chip">Sin prueba</span><span id="tCuenta" class="cuenta">15:00</span></div>
+      <div class="estado"><div class="audio"><button id="tMusica" aria-pressed="false">🎵 Música</button><button id="tVoz" aria-pressed="true">🗣 Narrador</button></div><span id="tEstado" class="chip">Sin prueba</span><span id="tCuenta" class="cuenta">20:00</span></div>
     </header>
 
     <section class="pista" aria-label="Pista de la maratón">
@@ -212,7 +236,7 @@ body.tablero{padding:0;overflow-x:hidden}
         <div>
           <p class="ceja">Inscripción abierta</p>
           <h2>Escaneen el QR y elijan su animal</h2>
-          <p>1. Ingresen con el usuario de la App.<br>2. Escriban los nombres reales de la pareja.<br>3. Elijan un animal: cada pareja tiene uno diferente.<br>4. Esperen la salida: 15 preguntas, 30 s cada una.</p>
+          <p>1. Ingresen con el usuario de la App.<br>2. Elijan a los dos integrantes de la lista de usuarios.<br>3. Elijan un animal: cada pareja tiene uno diferente.<br>4. Esperen la salida: 25 preguntas, 30 s cada una.</p>
           <p class="tenue" style="font-size:15px">jjbuila.github.io/Sanidad/prueba.html</p>
         </div>
       </div>
@@ -246,6 +270,7 @@ body.tablero{padding:0;overflow-x:hidden}
     <button id="bCerrarGanador" class="btn sec">Volver al marcador</button>
   </div>
   <canvas id="confeti"></canvas>
+  <div id="tConteo" class="conteo" hidden></div>
 </div>
 
 <!-- Ingreso del facilitador al marcador -->
@@ -268,7 +293,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const esperar=ms=>new Promise(r=>setTimeout(r,ms));
 
 /* ---------- Preguntas ---------- */
-const SEG_PREGUNTA=30, DURACION_MIN=15;
+const SEG_PREGUNTA=30, DURACION_MIN=20;
 const PREGUNTAS=[
  {q:'¿Qué debe hacer cada mañana antes de salir al campo?',o:['Tocar «Actualizar versión»','Borrar y volver a instalar la App','Cerrar la sesión','Apagar la ubicación'],c:0,e:'Así trabaja siempre con la última versión de la App.'},
  {q:'¿De qué color queda una palma visitada por el recorrido, sin diagnóstico?',o:['Amarilla','Cian','Roja','Gris'],c:1,e:'Cian = visitada. Amarilla = pendiente por censar.'},
@@ -284,7 +309,17 @@ const PREGUNTAS=[
  {q:'¿Cuál es la banda 1 del formulario de diagnóstico?',o:['Observación y fotos','Síntomas observados','Diagnóstico: enfermedad principal, opción y tipo de seguimiento','Condiciones de la palma'],c:2,e:'Bandas: 1 Diagnóstico · 2 Síntomas · 3 Condiciones de la palma · 4 Observación y fotos.'},
  {q:'Aparece el chip «Pendiente». ¿Qué hace?',o:['Nada, se borra solo','Se conecta a WiFi o datos y toca Sincronizar','Desinstala la App','Repite la jornada'],c:1,e:'«Pendiente» = hay datos sin enviar. Con conexión, sincronice.'},
  {q:'¿Qué significa el chip «Al día»?',o:['Que debe actualizar la App','Que la batería está llena','Que todo quedó sincronizado','Que terminó la jornada'],c:2,e:'«Al día» = todo se envió. Revíselo antes de entregar el celular.'},
- {q:'¿Dónde descarga sus recorridos registrados?',o:['Exportar › Mis recorridos','Ajustes del celular','En el visor solamente','No se pueden descargar'],c:0,e:'Exportar › Mis recorridos: GeoJSON, KML o CSV.'}
+ {q:'¿Dónde descarga sus recorridos registrados?',o:['Exportar › Mis recorridos','Ajustes del celular','En el visor solamente','No se pueden descargar'],c:0,e:'Exportar › Mis recorridos: GeoJSON, KML o CSV.'},
+ {t:'Diagnóstico',q:'Manchas necróticas de color café en la flecha más joven y folíolos con mordisco en forma de V. ¿Qué opción marca?',o:['PC avanzada','PC inicial','Anillo rojo','Cercospora'],c:1,e:'Son los síntomas de PC inicial (Pudrición de cogollo, caso nuevo).'},
+ {t:'Diagnóstico',q:'La flecha colapsó y las lesiones cubren la mayor parte de su área. ¿Qué opción de PC es?',o:['PC inicial','PC de alta','PC avanzada','PC en recuperación'],c:2,e:'Colapso de la flecha y lesiones extensas = PC avanzada.'},
+ {t:'Diagnóstico',q:'La palma dejó de emitir flechas y no tiene tejidos jóvenes. ¿Qué opción es?',o:['Cráter','Hoja pequeña','PC inicial','Palma amarilla'],c:0,e:'Emisión de flechas interrumpida y sin tejidos jóvenes = Cráter.'},
+ {t:'Diagnóstico',q:'Si la palma ya tenía registros de PC, ¿qué tipo de seguimiento asigna la App?',o:['PC caso nuevo','Seguimiento PC','Erradicada','Ninguno'],c:1,e:'La App revisa el historial: con registros previos asigna «Seguimiento PC»; sin ellos, «PC caso nuevo».'},
+ {t:'Diagnóstico',q:'¿En qué enfermedad principal se pregunta el estado del hongo (fase sexual o asexual)?',o:['Anillo rojo','Marchitez letal','Pudrición de estípite (PE)','Pudrición de cogollo (PC)'],c:2,e:'El estado del hongo aplica a la Pudrición de estípite (PE).'},
+ {t:'Diagnóstico',q:'Cogollo cerrado, hojas jóvenes cortas y cloróticas, y puntos anaranjados en peciolo y raquis. ¿Qué es?',o:['Anillo rojo (AR)','Deficiencias','Pestalotia','Rayo'],c:0,e:'Son los síntomas del Anillo rojo (AR).'},
+ {t:'Diagnóstico',q:'Folíolos que se secan de la punta a la base con franja amarilla, empezando por el tercio inferior. ¿Qué es?',o:['Marchitez sorpresiva','Marchitez letal (ML)','Hoja pequeña','Cercospora'],c:1,e:'Es el patrón típico de la Marchitez letal (ML).'},
+ {t:'Diagnóstico',q:'Bandas amarillas en los folíolos de las hojas bajeras indican deficiencia de…',o:['Nitrógeno (N)','Potasio (K)','Magnesio (Mg)','Boro (B)'],c:2,e:'Magnesio (Mg). N = amarillamiento general; K = manchas anaranjadas; B = hojas arrugadas o en gancho.'},
+ {t:'Diagnóstico',q:'La base del estípite se degradó y la palma se volcó, sin síntomas en el follaje. ¿Qué opción es?',o:['PE inicial','PE partida','DBP','Rayo'],c:1,e:'Pérdida de anclaje y volcamiento = PE partida (Pudrición de estípite).'},
+ {t:'Diagnóstico',q:'Para la incidencia de PC del lote, ¿qué casos NO se cuentan?',o:['PC inicial y avanzada','Cráter','PC en recuperación y PC de alta','PC reincidente'],c:2,e:'La incidencia excluye PC en recuperación y PC de alta: solo cuenta casos activos.'}
 ];
 const ANIMALES=[['jaguar','🐆','Jaguar'],['mono','🐒','Mono'],['tortuga','🐢','Tortuga'],['ballena','🐋','Ballena'],['delfin','🐬','Delfín'],['perezoso','🦥','Perezoso'],['rana','🐸','Rana'],['cangrejo','🦀','Cangrejo'],
  ['aguila','🦅','Águila'],['iguana','🦎','Iguana'],['tiburon','🦈','Tiburón'],['pulpo','🐙','Pulpo'],['abeja','🐝','Abeja'],['mariposa','🦋','Mariposa'],['buho','🦉','Búho'],['loro','🦜','Loro']];
@@ -295,7 +330,8 @@ const puntosDe=ms=>100+Math.max(0,Math.round(50*(1-ms/(SEG_PREGUNTA*1000))));
 const ENC=new TextEncoder(),DEC=new TextDecoder();
 const deB64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const aB64=u=>{let s='';u.forEach(b=>s+=String.fromCharCode(b));return btoa(s);};
-let ACCESO=null,GH=null,YO=null;
+let ACCESO=null,GH=null,YO=null,USUARIOS=[];
+const bonito=n=>String(n||'').toLowerCase().replace(/(^|[\s-])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase());
 async function cargarAcceso(){if(ACCESO)return ACCESO;const r=await fetch('datos/acceso.json',{cache:'no-store'});if(!r.ok)throw new Error('No se pudo leer el paquete de acceso. Revise la conexión.');ACCESO=await r.json();return ACCESO;}
 async function aesDes(llave,iv,ct){return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv},llave,ct));}
 async function abrir(u,dkRaw){
@@ -304,6 +340,8 @@ async function abrir(u,dkRaw){
   const meta=JSON.parse(DEC.decode(await aesDes(dk,deB64(e.meta.iv),deB64(e.meta.ct))));
   const token=DEC.decode(await aesDes(dk,deB64(ACCESO.token.iv),deB64(ACCESO.token.ct)));
   GH={...ACCESO.repo,token};YO={u,nombre:meta.nombre||u,rol:meta.rol||'operario'};
+  USUARIOS=[];for(const x of ACCESO.usuarios){try{const m=JSON.parse(DEC.decode(await aesDes(dk,deB64(x.meta.iv),deB64(x.meta.ct))));USUARIOS.push({u:x.u,nombre:bonito(m.nombre||x.u),cargo:m.cargo||''});}catch(_){}}
+  USUARIOS.sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
   try{sessionStorage.setItem('mar_ses',JSON.stringify({u,dk:aB64(dkRaw),p:ACCESO.id}));}catch(_){}
 }
 async function ingresar(usuario,clave){
@@ -350,6 +388,94 @@ async function blob(sha){const j=await gh(`/git/blobs/${sha}`);return JSON.parse
 const DIR='prueba';
 const dirJuego=j=>`${DIR}/${j}`;
 
+
+/* =====================================================================
+   SONIDO, VOZ Y MEMES
+   ===================================================================== */
+const pref=(k,d)=>{try{const v=localStorage.getItem('mar_'+k);return v==null?d:v==='1';}catch(_){return d;}};
+const guardaPref=(k,v)=>{try{localStorage.setItem('mar_'+k,v?'1':'0');}catch(_){}};
+const AU={ctx:null,sonido:pref('sonido',true),voz:pref('voz',true),musica:false,narrador:pref('narrador',true)};
+function ctx(){
+  if(!AU.ctx){try{AU.ctx=new (window.AudioContext||window.webkitAudioContext)();AU.maestro=AU.ctx.createGain();AU.maestro.gain.value=1;AU.maestro.connect(AU.ctx.destination);}catch(_){return null;}}
+  if(AU.ctx.state==='suspended')AU.ctx.resume().catch(()=>{});
+  return AU.ctx;
+}
+function desbloquearAudio(){const c=ctx();if(c){const o=c.createOscillator(),g=c.createGain();g.gain.value=0.0001;o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+.05);}
+  try{if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}}catch(_){}}
+function tono(f,t0,dur,{tipo='sine',vol=.2,f2=null,destino=null}={}){
+  const c=ctx();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.type=tipo;o.frequency.setValueAtTime(f,t0);
+  if(f2)o.frequency.exponentialRampToValueAtTime(f2,t0+dur);
+  g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(vol,t0+0.015);g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g).connect(destino||AU.maestro);o.start(t0);o.stop(t0+dur+.05);
+}
+let RUIDO=null;
+function ruido(t0,dur,{vol=.2,filtro=6000,tipo='highpass',destino=null}={}){
+  const c=ctx();if(!c)return;
+  if(!RUIDO){RUIDO=c.createBuffer(1,c.sampleRate*.5,c.sampleRate);const d=RUIDO.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;}
+  const s=c.createBufferSource();s.buffer=RUIDO;const f=c.createBiquadFilter();f.type=tipo;f.frequency.value=filtro;const g=c.createGain();
+  g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);s.connect(f).connect(g).connect(destino||AU.maestro);s.start(t0);s.stop(t0+dur+.02);
+}
+const SON={
+  acierto(){const c=AU.sonido&&ctx();if(!c)return;const t=c.currentTime+.02;[523.3,659.3,784,1046.5].forEach((f,i)=>tono(f,t+i*.075,.28,{tipo:'triangle',vol:.28}));
+    tono(1568,t+.32,.5,{vol:.14});tono(2093,t+.4,.45,{vol:.1});ruido(t+.3,.25,{vol:.06,filtro:9000});},
+  error(){const c=AU.sonido&&ctx();if(!c)return;const t=c.currentTime+.02;
+    tono(392,t,.3,{tipo:'sawtooth',vol:.11,f2:370});tono(370,t+.32,.3,{tipo:'sawtooth',vol:.11,f2:349});tono(349,t+.64,.8,{tipo:'sawtooth',vol:.12,f2:262});},
+  tic(){const c=AU.sonido&&ctx();if(!c)return;tono(1300,c.currentTime,.06,{tipo:'square',vol:.05});},
+  beep(f=660,d=.25){const c=ctx();if(!c)return;tono(f,c.currentTime,d,{tipo:'square',vol:.12});},
+  salida(){const c=AU.sonido&&ctx();if(!c)return;const t=c.currentTime+.02;[0,.5,1].forEach(x=>tono(660,t+x,.22,{tipo:'square',vol:.12}));tono(1320,t+1.5,.7,{tipo:'square',vol:.14});},
+  meta(){const c=AU.sonido&&ctx();if(!c)return;const t=c.currentTime+.02;[[523.3,0],[659.3,.15],[784,.3],[1046.5,.45],[784,.75],[1046.5,.9]].forEach(([f,x],i)=>tono(f,t+x,i>3?.6:.18,{tipo:'triangle',vol:.25}));ruido(t+.9,.6,{vol:.07,filtro:8000});}
+};
+let VOCES=[];function cargarVoces(){try{VOCES=speechSynthesis.getVoices();}catch(_){}}
+if('speechSynthesis' in window){cargarVoces();speechSynthesis.onvoiceschanged=cargarVoces;}
+function vozEs(){const es=VOCES.filter(v=>/^es/i.test(v.lang));for(const l of ['es-CO','es-US','es-MX','es-419','es-ES']){const v=es.find(x=>x.lang.replace('_','-')===l);if(v)return v;}return es[0]||null;}
+function decir(texto,{activo=AU.voz,cortar=true,alInicio,alFin}={}){
+  if(!activo||!('speechSynthesis' in window))return;
+  try{if(cortar)speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(texto);u.lang='es-CO';const v=vozEs();if(v)u.voice=v;u.rate=1.03;
+    if(alInicio)u.onstart=alInicio;if(alFin){u.onend=alFin;u.onerror=alFin;}speechSynthesis.speak(u);}catch(_){}
+}
+function callar(){try{speechSynthesis.cancel();}catch(_){}}
+function toggle(btn,clave,cb){const b=$(btn);if(!b)return;b.setAttribute('aria-pressed',AU[clave]);b.onclick=()=>{AU[clave]=!AU[clave];b.setAttribute('aria-pressed',AU[clave]);guardaPref(clave,AU[clave]);desbloquearAudio();if(cb)cb(AU[clave]);};}
+toggle('#aSonido','sonido');toggle('#aVoz','voz',on=>{if(!on)callar();});
+
+/* Memes propios: emoji + texto superior e inferior al estilo meme. */
+const MEMES_BIEN=[
+ ['😎🌴','Cuando camina la calle completa','y todas las palmas se ponen cian'],
+ ['🧠🌴','Nivel de conocimiento:','agrónomo con doctorado'],
+ ['🔥','Está que arde','como rayo en la palma'],
+ ['💪','Esa respuesta','quedó de alta'],
+ ['🎯','A menos de 50 metros','y le atinó'],
+ ['🏃💨','Más rápido que','el GPS con pantalla bloqueada configurada'],
+ ['🤓☝️','Dato mata','relato'],
+ ['👑🌴','Señoras y señores:','el rey del censo'],
+ ['🚀','Así se sincroniza:','al día y sin pendientes'],
+ ['🐆⚡','Ni el jaguar','corre tan rápido'],
+ ['🥇','Esa palma','ya puede descansar tranquila'],
+ ['🙌','Cenipalma','estaría orgulloso']
+];
+const MEMES_MAL=[
+ ['😵‍💫','Cuando bloquea el celular','y el recorrido sale en línea recta'],
+ ['🙈','Esa respuesta','tiene PC avanzada'],
+ ['🤦','No era por ahí','compañero'],
+ ['🐢','Calma','que todavía quedan palmas'],
+ ['😬','Uy','se fue para el yarumo'],
+ ['🫠','Me derretí','como flecha en cráter'],
+ ['📵','Esa respuesta','quedó sin señal'],
+ ['🥲','La intención','era buena'],
+ ['🧐','Revise bien','que eso no es lo que dice la guía'],
+ ['🌧️','Le cayó','el aguacero'],
+ ['🦥','Pensando','como perezoso en domingo'],
+ ['🔄','Respire hondo','y siga a la siguiente']
+];
+const MEMES_TIEMPO=[['⏰','Se le fue el tiempo','como el bus de las cinco'],['🐌','Iba tan despacio','que el caracol lo pasó']];
+const ultMeme={};
+function memeDe(lista,k){let i;do{i=Math.floor(Math.random()*lista.length);}while(lista.length>1&&i===ultMeme[k]);ultMeme[k]=i;return lista[i];}
+function pintarMeme(ok,tiempo,pts){
+  const [em,a,b]=memeDe(ok?MEMES_BIEN:tiempo?MEMES_TIEMPO:MEMES_MAL,ok?'b':tiempo?'t':'m');
+  const m=$('#cMeme');m.hidden=false;m.className='meme '+(ok?'bien':'mal');
+  setTimeout(()=>{try{m.scrollIntoView({behavior:'smooth',block:'start'});}catch(_){}} ,60);
+  m.innerHTML=`<span class="sello">${ok?'+'+pts+' pts':'0 pts'}</span><div class="tx">${esc(a)}</div><div class="em" aria-hidden="true">${em}</div><div class="tx">${esc(b)}</div>`;
+}
+
 /* =====================================================================
    VISTA DEL EQUIPO
    ===================================================================== */
@@ -368,7 +494,7 @@ async function iniciarEquipo(){
   await tras_ingreso();
 }
 $('#fIngreso').onsubmit=async ev=>{
-  ev.preventDefault();const b=$('#bIngresar'),m=$('#mIngreso');b.disabled=true;b.textContent='Verificando…';m.textContent='';
+  ev.preventDefault();desbloquearAudio();const b=$('#bIngresar'),m=$('#mIngreso');b.disabled=true;b.textContent='Verificando…';m.textContent='';
   try{await ingresar($('#iUsuario').value,$('#iClave').value);$('#iClave').value='';await tras_ingreso();}
   catch(e){m.textContent=e.message;}
   finally{b.disabled=false;b.textContent='Ingresar';}
@@ -380,29 +506,38 @@ async function tras_ingreso(){
   const loc=leerLocal();
   if(loc&&loc.juego===juego&&loc.animal){EQ=loc;return reanudar();}
   EQ={juego};
-  $('#iNom1').value=YO.nombre||'';
   await pintarAnimales();mostrar('#pRegistro');
 }
 let animalSel=null;
 async function pintarAnimales(){
-  let tomados=new Set();
-  try{(await listar(`${dirJuego(EQ.juego)}/equipos`)).forEach(f=>tomados.add(f.name.replace(/\.json$/,'')));}catch(_){}
+  let tomados=new Set(),ocupados=new Set();
+  try{(await todosEquipos(EQ.juego)).forEach(e=>{tomados.add(e.animal);(e.usuarios||[]).forEach(u=>ocupados.add(u));});}catch(_){}
+  const libres=USUARIOS.filter(x=>!ocupados.has(x.u));
+  const opciones=sel=>'<option value="">Seleccione…</option>'+libres.map(x=>`<option value="${esc(x.u)}" ${x.u===sel?'selected':''}>${esc(x.nombre)}</option>`).join('');
+  const v1=$('#iNom1').value||(libres.some(x=>x.u===YO.u)?YO.u:''),v2=$('#iNom2').value;
+  $('#iNom1').innerHTML=opciones(v1);$('#iNom2').innerHTML=opciones(v2);
   if(tomados.has(animalSel))animalSel=null;
   $('#gAnimales').innerHTML=ANIMALES.map(([id,e,n])=>`<button type="button" class="animal" data-id="${id}" aria-pressed="${id===animalSel}" ${tomados.has(id)?'disabled':''}><i>${e}</i><span>${n}</span></button>`).join('');
   $('#gAnimales').querySelectorAll('.animal').forEach(b=>b.onclick=()=>{animalSel=b.dataset.id;$('#gAnimales').querySelectorAll('.animal').forEach(x=>x.setAttribute('aria-pressed',x===b));});
 }
 $('#fRegistro').onsubmit=async ev=>{
   ev.preventDefault();const m=$('#mRegistro'),b=$('#bInscribir');m.textContent='';
-  const n1=$('#iNom1').value.trim(),n2=$('#iNom2').value.trim();
-  if(n1.split(/\s+/).length<2||n2.split(/\s+/).length<2){m.textContent='Escriban nombre y apellido reales de los dos integrantes.';return;}
+  desbloquearAudio();
+  const u1=$('#iNom1').value,u2=$('#iNom2').value;
+  if(!u1||!u2){m.textContent='Elijan a los dos integrantes de la lista.';return;}
+  if(u1===u2){m.textContent='Los dos integrantes deben ser personas diferentes.';return;}
+  const n1=USUARIOS.find(x=>x.u===u1).nombre,n2=USUARIOS.find(x=>x.u===u2).nombre;
   if(!animalSel){m.textContent='Elijan un animal.';return;}
   b.disabled=true;b.textContent='Inscribiendo…';
-  const doc={juego:EQ.juego,animal:animalSel,integrantes:[n1,n2],usuario:YO.u,inscrito:new Date().toISOString(),inicio:null,fin:null,puntos:0,aciertos:0,ms_total:0,respuestas:[]};
+  try{const eqs=await todosEquipos(EQ.juego);const ya=eqs.find(e=>(e.usuarios||[]).some(u=>u===u1||u===u2));
+    if(ya){m.textContent=`${ya.usuarios.includes(u1)?n1:n2} ya está inscrito con el equipo ${ANI[ya.animal]?.n||ya.animal}.`;b.disabled=false;b.textContent='Inscribir pareja';await pintarAnimales();return;}}catch(_){}
+  const doc={juego:EQ.juego,animal:animalSel,integrantes:[n1,n2],usuarios:[u1,u2],usuario:YO.u,inscrito:new Date().toISOString(),inicio:null,fin:null,puntos:0,aciertos:0,ms_total:0,respuestas:[]};
   try{
     const sha=await escribir(`${dirJuego(EQ.juego)}/equipos/${animalSel}.json`,doc,null,`Maratón: inscripción ${ANI[animalSel].n}`);
     EQ={juego:EQ.juego,animal:animalSel,sha,doc,idx:0,tPregunta:null,limite:null};guardarLocal();reanudar();
   }catch(e){
     if(e.status===422||e.status===409){m.textContent=`Otra pareja acaba de tomar ${ANI[animalSel].n}. Elijan otro animal.`;await pintarAnimales();}
+    else if(e.status===0){m.textContent=e.message;}
     else m.textContent='No se pudo inscribir: '+e.message;
   }finally{b.disabled=false;b.textContent='Inscribir pareja';}
 };
@@ -444,9 +579,10 @@ function arrancar(c){
   const ahora=Date.now();
   EQ.doc.inicio=new Date(ahora).toISOString();
   EQ.limite=ahora+(c.duracion_min||DURACION_MIN)*60000;
-  EQ.idx=EQ.doc.respuestas.length;EQ.tPregunta=null;guardarLocal();programarGuardado(true);correr();
+  EQ.idx=EQ.doc.respuestas.length;EQ.tPregunta=null;guardarLocal();programarGuardado(true);
+  SON.salida();setTimeout(correr,1900);
 }
-let tic=null,respondida=false,revisorCierre=null;
+let tic=null,respondida=false,revisorCierre=null,ultimoTic=-1;
 function correr(){
   mostrar('#pCarrera');
   $('#cEquipo').textContent=ANI[EQ.animal].e+' Equipo '+ANI[EQ.animal].n;
@@ -463,6 +599,9 @@ function pintarPregunta(){
   $('#cAvance').style.width=(i/PREGUNTAS.length*100)+'%';
   $('#cNumero').textContent=`Pregunta ${i+1} de ${PREGUNTAS.length}`;
   $('#cPregunta').textContent=P.q;
+  const tema=P.t||'App';$('#cTema').textContent=tema==='App'?'Uso de la App':'Diagnóstico';$('#cTema').className='tema'+(tema==='App'?'':' diag');
+  $('#cMeme').hidden=true;ultimoTic=-1;
+  decir(`Pregunta ${i+1}. ${P.q} ${P.o.map((t,k)=>'ABCD'[k]+': '+t).join('. ')}.`);
   $('#cOpciones').innerHTML=P.o.map((t,k)=>`<button class="op" data-k="${k}"><b>${'ABCD'[k]}</b><span>${esc(t)}</span></button>`).join('');
   $('#cOpciones').querySelectorAll('.op').forEach(b=>b.onclick=()=>responder(+b.dataset.k));
   $('#cVeredicto').hidden=true;$('#bSiguiente').hidden=true;
@@ -472,6 +611,7 @@ function reloj(){
   const ms=Date.now()-EQ.tPregunta,rest=Math.max(0,SEG_PREGUNTA*1000-ms);
   $('#cReloj').style.width=(rest/(SEG_PREGUNTA*10))+'%';
   $('#cSeg').textContent=Math.ceil(rest/1000)+' s';
+  const sg=Math.ceil(rest/1000);if(!respondida&&sg<=5&&sg>0&&sg!==ultimoTic){ultimoTic=sg;SON.tic();}
   if(EQ.limite){const r=Math.max(0,EQ.limite-Date.now());$('#cTotal').textContent=`Tiempo total: ${Math.floor(r/60000)}:${String(Math.floor(r/1000)%60).padStart(2,'0')}`;if(r<=0&&!respondida){clearInterval(tic);return terminar();}}
   if(rest<=0&&!respondida)responder(-1);
 }
@@ -484,8 +624,9 @@ function responder(k){
   if(EQ.doc.respuestas.length>=PREGUNTAS.length)EQ.doc.fin=new Date().toISOString();
   guardarLocal();programarGuardado(!!EQ.doc.fin);
   $('#cOpciones').querySelectorAll('.op').forEach(b=>{b.disabled=true;const kk=+b.dataset.k;if(kk===P.c)b.classList.add('bien');else if(kk===k)b.classList.add('mal');});
+  callar();if(ok)SON.acierto();else SON.error();pintarMeme(ok,k<0,pts);
   const v=$('#cVeredicto');v.hidden=false;v.className='veredicto '+(ok?'bien':'mal');
-  v.innerHTML=`<b>${ok?`¡Correcto! +${pts} puntos`:(k<0?'Se acabó el tiempo':'No es correcto')}</b><p>${esc(P.e)}</p>`;
+  v.innerHTML=`<b>${ok?`¡Correcto! +${pts} puntos`:(k<0?'Se acabó el tiempo':'No es correcto: era la '+'ABCD'[P.c])}</b><p>${esc(P.e)}</p>`;
   $('#cPuntos').textContent=EQ.doc.puntos;$('#cAvance').style.width=((i+1)/PREGUNTAS.length*100)+'%';
   const b=$('#bSiguiente');b.hidden=false;b.textContent=EQ.doc.fin?'Ver resultado':'Siguiente pregunta';b.focus();
 }
@@ -501,6 +642,7 @@ function final(){
   const d=EQ.doc;$('#fAnimal').textContent=ANI[EQ.animal].e;$('#fNombre').textContent='Equipo '+ANI[EQ.animal].n;
   $('#fPuntos').textContent=d.puntos;$('#fAciertos').textContent=`${d.aciertos}/${PREGUNTAS.length}`;
   if(sucio||enVuelo)marcarGuardado('Guardando…','esp');else marcarGuardado('Guardado','ok');
+  if(!final.yaSono){final.yaSono=true;SON.meta();decir(`¡Llegaron a la meta! ${d.puntos} puntos y ${d.aciertos} aciertos de ${PREGUNTAS.length}.`);}
   clearInterval(sondeoFinal);
   const pos=async()=>{try{const eqs=await todosEquipos(EQ.juego);const r=ranking(eqs);const p=r.findIndex(e=>e.animal===EQ.animal);if(p>=0)$('#fPos').textContent=(p+1)+'.º';}catch(_){}};
   pos();sondeoFinal=setInterval(pos,20000);
@@ -518,13 +660,42 @@ async function todosEquipos(juego){
 }
 function ranking(eqs){return [...eqs].sort((a,b)=>(b.puntos||0)-(a.puntos||0)||(a.ms_total||0)-(b.ms_total||0)||String(a.inscrito).localeCompare(String(b.inscrito)));}
 
-let TJ=null,TC=null,TCsha=null,PREV={},tSondeo=null;
+
+/* Música de maratón generada en el navegador (sin archivos): 124 ppm, La menor. */
+const MUS={on:false,timer:null,paso:0,t:0,gan:null};
+const ACORDES=[[220,261.6,329.6],[174.6,220,261.6],[261.6,329.6,392],[196,246.9,293.7]]; // Am F C G
+function musicaPaso(paso,t){
+  const g=MUS.gan,bar=Math.floor(paso/16)%4,st=paso%16,ac=ACORDES[bar],d=60/124/4;
+  if(st%4===0){tono(120,t,.25,{vol:.55,f2:45,destino:g});}
+  if(st===4||st===12)ruido(t,.16,{vol:.28,filtro:1800,tipo:'bandpass',destino:g});
+  if(st%2===0)ruido(t,.04,{vol:st%4===2?.12:.06,filtro:8000,destino:g});
+  if(st%4===0||st===14)tono(ac[0]/2,t,d*3,{tipo:'sawtooth',vol:.11,destino:g});
+  if(st%2===0){const n=ac[(st/2)%3]*2;tono(n,t,d*1.6,{tipo:'triangle',vol:.06,destino:g});}
+  if(st===0&&bar===3)tono(ac[2]*4,t,d*6,{tipo:'sine',vol:.05,destino:g});
+}
+function musica(on){
+  const c=ctx();if(!c)return;MUS.on=on;$('#tMusica').setAttribute('aria-pressed',on);
+  if(!MUS.gan){MUS.gan=c.createGain();MUS.gan.gain.value=.55;MUS.gan.connect(AU.maestro);}
+  clearInterval(MUS.timer);if(!on)return;
+  MUS.t=c.currentTime+.1;
+  MUS.timer=setInterval(()=>{const d=60/124/4;while(MUS.t<c.currentTime+.15){musicaPaso(MUS.paso++,MUS.t);MUS.t+=d;}},30);
+}
+function bajarMusica(b){if(MUS.gan&&AU.ctx)MUS.gan.gain.setTargetAtTime(b?.15:.55,AU.ctx.currentTime,.15);}
+function narrar(t,cortar=false){decir(t,{activo:AU.narrador,cortar,alInicio:()=>bajarMusica(true),alFin:()=>bajarMusica(false)});}
+function conteo(){
+  const el=$('#tConteo');el.hidden=false;const seq=['3','2','1','¡YA!'];
+  seq.forEach((x,i)=>setTimeout(()=>{el.innerHTML=`<span>${x}</span>`;SON.beep(i<3?660:1320,i<3?.22:.7);if(i===3)setTimeout(()=>{el.hidden=true;},900);},i*900));
+}
+
+let TJ=null,TC=null,TCsha=null,PREV={},tSondeo=null,LIDER=null;
 async function iniciarTablero(){
   document.body.classList.add('tablero');
   if(!(await restaurar())){$('#vTabIngreso').hidden=false;return;}
   if(!['admin','supervisor'].includes(YO.rol)){$('#vTabIngreso').hidden=false;$('#mTab').textContent='El marcador lo abre un administrador o supervisor.';return;}
   $('#vTabIngreso').hidden=true;$('#vTablero').hidden=false;
-  pintarKm();
+  pintarKm();document.documentElement.style.setProperty('--n',PREGUNTAS.length);
+  $('#tMusica').onclick=()=>musica(!MUS.on);
+  toggle('#tVoz','narrador',on=>{if(!on)callar();});
   try{TJ=await juegoActual();if(TJ){const c=await leer(`${dirJuego(TJ)}/control.json`);if(c){TC=c.datos;TCsha=c.sha;}}}catch(e){$('#tMsg').textContent=e.message;}
   pintarEstado();ciclo();clearInterval(tSondeo);tSondeo=setInterval(ciclo,4000);setInterval(pintarCuenta,500);
 }
@@ -562,15 +733,19 @@ async function ciclo(){
   // eventos en vivo
   EQS.forEach(e=>{
     const p=PREV[e.animal];const nombre=`${ANI[e.animal]?.e||''} ${ANI[e.animal]?.n||e.animal}`;
-    if(!p){if(Object.keys(PREV).length||EQS.length)evento(`${nombre} se inscribió: ${e.integrantes.join(' y ')}`);}
+    if(!p){evento(`${nombre} se inscribió: ${e.integrantes.join(' y ')}`);if(primeraCarga===false)narrar(`Se inscribió el equipo ${ANI[e.animal]?.n||''}.`);}
     else{
       e.respuestas.slice(p.n).forEach(r=>evento(r.ok?`${nombre} acertó la pregunta ${r.n}: +${r.pts}`:`${nombre} falló la pregunta ${r.n}`));
-      if(e.fin&&!p.fin)evento(`${nombre} llegó a la meta con ${e.puntos} puntos`);
+      if(e.fin&&!p.fin){evento(`${nombre} llegó a la meta con ${e.puntos} puntos`);SON.meta();narrar(`¡El equipo ${ANI[e.animal]?.n||''} llegó a la meta con ${e.puntos} puntos!`);}
     }
     PREV[e.animal]={n:e.respuestas.length,fin:!!e.fin};
   });
   pintarPistas(EQS);
+  const r=ranking(EQS);const nl=r.length&&r[0].puntos>0?r[0].animal:null;
+  if(nl&&nl!==LIDER&&!primeraCarga&&TC&&TC.estado==='carrera'){evento(`${ANI[nl]?.e||''} ${ANI[nl]?.n||nl} toma el primer lugar`);narrar(`¡Atención! El equipo ${ANI[nl]?.n||''} toma el primer lugar.`);}
+  LIDER=nl;primeraCarga=false;
 }
+let primeraCarga=true;
 function evento(t){
   const f=$('#tFeed');const p=document.createElement('p');p.className='nuevo';p.textContent=t;f.prepend(p);
   while(f.children.length>9)f.lastChild.remove();
@@ -612,17 +787,22 @@ $('#bNueva').onclick=async()=>{
     $('#tMsg').textContent='Inscripción abierta.';ciclo();
   }catch(e){$('#tMsg').textContent='No se pudo crear: '+e.message;}
 };
-$('#bSalida').onclick=async()=>{try{await guardarControl({...TC,estado:'carrera',salida:new Date().toISOString()});evento('¡Salida! Comienza la maratón');}catch(e){$('#tMsg').textContent=e.message;}};
+$('#bSalida').onclick=async()=>{
+  desbloquearAudio();
+  try{await guardarControl({...TC,estado:'carrera',salida:new Date().toISOString()});evento('¡Salida! Comienza la maratón');
+    conteo();setTimeout(()=>{if(!MUS.on)musica(true);narrar('¡Arrancó la maratón de Sanidad Vegetal! Mucha suerte a todas las parejas.');},3000);
+  }catch(e){$('#tMsg').textContent=e.message;}};
 let confirmaCierre=0;
 $('#bCerrar').onclick=async()=>{
   if(Date.now()-confirmaCierre>5000){confirmaCierre=Date.now();$('#tMsg').textContent='Toque «Cerrar la prueba» otra vez para confirmar.';return;}
-  try{await guardarControl({...TC,estado:'cerrada',cierre:new Date().toISOString()});evento('Prueba cerrada');$('#tMsg').textContent='';}catch(e){$('#tMsg').textContent=e.message;}
+  try{await guardarControl({...TC,estado:'cerrada',cierre:new Date().toISOString()});evento('Prueba cerrada');$('#tMsg').textContent='';narrar('La prueba ha terminado. Gracias a todas las parejas.');}catch(e){$('#tMsg').textContent=e.message;}
 };
 $('#bGanador').onclick=()=>{
   const r=ranking(EQS);if(!r.length){$('#tMsg').textContent='Aún no hay parejas.';return;}
   const g=r[0];$('#gAnimal').textContent=ANI[g.animal]?.e||'';$('#gNombre').textContent='Equipo '+(ANI[g.animal]?.n||g.animal);
   $('#gIntegrantes').textContent=g.integrantes.join(' y ');$('#gPuntos').textContent=`${g.puntos} puntos · ${g.aciertos}/${PREGUNTAS.length} aciertos`;
-  $('#tGanador').hidden=false;confeti();
+  $('#tGanador').hidden=false;confeti();SON.meta();
+  setTimeout(()=>narrar(`¡La pareja ganadora es el equipo ${ANI[g.animal]?.n||''}: ${g.integrantes.join(' y ')}, con ${g.puntos} puntos! Felicitaciones, se llevan la bonificación de cincuenta mil pesos.`,true),1200);
 };
 $('#bCerrarGanador').onclick=()=>{$('#tGanador').hidden=true;};
 $('#bCsv').onclick=()=>{
