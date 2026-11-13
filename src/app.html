@@ -12,10 +12,9 @@
 <link rel="icon" type="image/svg+xml" href="icons/sv_icono.svg">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<style>/*LEAFLET_CSS*/.persona-ic{background:none;border:0}
-.persona{border-radius:50%;border:3px solid #fff;display:grid;place-items:center;box-shadow:0 0 0 2px rgba(0,0,0,.35),0 4px 14px rgba(0,0,0,.45)}
-.persona svg{display:block}
-.punto.est{border:0!important;border-radius:0!important;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+<style>/*LEAFLET_CSS*/.flecha-ic{background:none;border:0;pointer-events:none}
+.flecha-op{width:90px;height:90px;transform-origin:50% 50%;transition:transform .35s ease-out;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
+.ico-palma{display:inline-block;vertical-align:-3px;margin-right:6px}
 </style>
 <style>/*FUENTES*/</style>
 <style>
@@ -606,13 +605,30 @@ function mostrarSplash(){const s=$('#splash');clearTimeout(ocultarSplash.t);s.hi
 
 /* ---------- Mapa ---------- */
 const rend=L.canvas({padding:.5,tolerance:8}); // un solo lienzo para todo el mapa: así un toque nunca queda tapado por otra capa
-/* Palmas como estrellas (vector en el lienzo) y operario como figura de persona: así no se confunden. */
-L.Canvas.include({_updateEstrella(layer){if(!this._drawing||layer._empty())return;const p=layer._point,ctx=this._ctx,r=Math.max(layer._radius,1.5)*1.35;
-  ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.47:r;ctx.lineTo(p.x+rr*Math.cos(a),p.y+rr*Math.sin(a));}ctx.closePath();this._fillStroke(ctx,layer);}});
-const Estrella=L.CircleMarker.extend({_updatePath(){this._renderer._updateEstrella?this._renderer._updateEstrella(this):this._renderer._updateCircle(this);}});
-const estrella=(ll,o)=>new Estrella(ll,o);
-const SVG_PERSONA='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="13.5" cy="3.6" r="2.3" fill="#fff"/><path d="M12.6 7.2 9.4 9.3 8 13.2M12.6 7.2l-1.4 6 3.3 3.1 1.1 5.2M11.2 13.2l-2.6 3.2-3 4.6M12.6 7.2l2.3 3.3 3.2 1.1" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-function iconoPersona(color,tam){tam=tam||34;return L.divIcon({className:'persona-ic',iconSize:[tam,tam],iconAnchor:[tam/2,tam/2],html:`<div class="persona" style="width:${tam}px;height:${tam}px;background:${color}">${SVG_PERSONA}</div>`});}
+/* Palma «corona en remolino» (9 hojas arqueadas vistas desde arriba, dibujada en el lienzo) y operario como flecha de
+   navegación con haz de visión que gira hacia donde camina. */
+const HOJA_P=[[0,-1],[-1.6,-6],[1.4,-11],[6.2,-13],[3.6,-9],[2.6,-5],[0,-1]],PALMA_K=1.7;
+L.Canvas.include({_updatePalma(layer){if(!this._drawing||layer._empty())return;const p=layer._point,ctx=this._ctx,o=layer.options,k=Math.max(layer._radius,1.5)*PALMA_K/13;
+  ctx.beginPath();for(let i=0;i<9;i++){const a=i*Math.PI*2/9,c=Math.cos(a),s=Math.sin(a);const P=HOJA_P.map(([x,y])=>[p.x+k*(x*c-y*s),p.y+k*(x*s+y*c)]);
+    ctx.moveTo(P[0][0],P[0][1]);ctx.bezierCurveTo(P[1][0],P[1][1],P[2][0],P[2][1],P[3][0],P[3][1]);ctx.bezierCurveTo(P[4][0],P[4][1],P[5][0],P[5][1],P[6][0],P[6][1]);ctx.closePath();}
+  const fo=o.fillOpacity==null?1:o.fillOpacity,vacio=fo<.3;
+  if(o.fill!==false){ctx.globalAlpha=fo;ctx.fillStyle=o.fillColor||o.color;ctx.fill();}
+  ctx.globalAlpha=1;ctx.lineJoin='round';ctx.lineWidth=Math.max(.6,.8*k);ctx.strokeStyle=vacio?(o.color||'#b0bec5'):'#13240f';ctx.stroke();
+  if(!vacio){ctx.beginPath();ctx.arc(p.x,p.y,Math.max(1,2.4*k),0,Math.PI*2);ctx.fillStyle='#5a3d1e';ctx.fill();ctx.stroke();}}});
+const Palma=L.CircleMarker.extend({
+  _updateBounds(){const r=this._radius*PALMA_K+2+this._clickTolerance(),q=[r,r];this._pxBounds=new L.Bounds(this._point.subtract(q),this._point.add(q));},
+  _updatePath(){this._renderer._updatePalma?this._renderer._updatePalma(this):this._renderer._updateCircle(this);}});
+const palma=(ll,o)=>new Palma(ll,o);
+const D_PALMA=(()=>{let d='';for(let i=0;i<9;i++){const a=i*Math.PI*2/9,c=Math.cos(a),s=Math.sin(a),P=HOJA_P.map(([x,y])=>[(x*c-y*s).toFixed(2),(x*s+y*c).toFixed(2)]);
+  d+=`M${P[0]}C${P[1]} ${P[2]} ${P[3]}C${P[4]} ${P[5]} ${P[6]}Z`;}return d;})();
+const icoPalma=(c,vacio)=>`<svg class="ico-palma" width="16" height="16" viewBox="-14 -14 28 28" aria-hidden="true"><path d="${D_PALMA}" fill="${vacio?'none':c}" stroke="${vacio?c:'#13240f'}" stroke-width="1.1" stroke-linejoin="round"/>${vacio?'':'<circle r="2.4" fill="#5a3d1e" stroke="#13240f" stroke-width=".8"/>'}</svg>`;
+const SVG_FLECHA=(c,t)=>`<svg width="${t}" height="${t}" viewBox="-45 -45 90 90" aria-hidden="true"><path d="M0 0 L-15 -38 A41 41 0 0 1 15 -38 Z" fill="${c}" fill-opacity=".3"/><path d="M0 -15 L10.5 11 L0 5.5 L-10.5 11 Z" fill="${c}" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg>`;
+function iconoFlecha(c){return L.divIcon({className:'flecha-ic',iconSize:[90,90],iconAnchor:[45,45],html:`<div class="flecha-op">${SVG_FLECHA(c,90)}</div>`});}
+/* Rumbo (grados desde el norte, sentido horario) entre dos posiciones. */
+function rumbo(a,b){const kx=Math.cos(a.lat*Math.PI/180);return (Math.atan2((b.lng-a.lng)*kx,b.lat-a.lat)*180/Math.PI+360)%360;}
+/* Gira la flecha por el camino más corto (sin dar la vuelta completa al pasar por el norte). */
+function girarFlecha(m,g){if(g==null||!m)return;const e=m.getElement&&m.getElement(),d=e&&e.querySelector('.flecha-op');if(!d)return;
+  if(m._rot==null){m._rot=g;}else{const dl=((g-((m._rot%360)+360)%360)+540)%360-180;m._rot+=dl;}d.style.transform=`rotate(${m._rot}deg)`;}
 
 const mapa=L.map('mapa',{preferCanvas:true,renderer:rend,zoomControl:false,maxZoom:22,attributionControl:true}).setView([1.6,-78.75],11);
 L.control.zoom({position:'bottomright'}).addTo(mapa);
@@ -731,7 +747,7 @@ function dibujarPalmas(){
   const r=radioPalma();
   for(const arr of grupos)for(const f of arr){
     const [lng,lat]=f.geometry.coordinates;const id=f.properties._id;
-    const m=L.circleMarker([lat,lng],{renderer:rend,radius:r,...estiloPalma(f)});
+    const m=palma([lat,lng],{renderer:rend,radius:r,...estiloPalma(f)});
     m.on('click',()=>{if(!PLAY.on)abrirPalma(id);});m.addTo(capaPalmas);S.marcadores.set(id,m);
   }
   dibujarEtiquetasPalmas(grupos);
@@ -765,14 +781,14 @@ function resaltar(lat,lng){
   resalte=L.circleMarker([lat,lng],{radius:radioPalma()+6,color:'#00e5ff',weight:3,fill:false,interactive:false}).addTo(capaGps);
 }
 function pintarLeyenda(){
-  $('#leyenda').innerHTML='<div style="font-weight:700;margin-bottom:2px">Enfermedad principal</div>'+N1S.map(x=>`<div><span class="punto" style="background:${COLOR_N1[x.c]||'#999'}"></span>${esc((probDe(x.c)||{n:x.n1}).n)}</div>`).join('')+
-  `<div><span class="punto" style="background:${COLOR_ALTA}"></span>De alta</div>`+
-  `<div><span class="punto" style="background:${SIN_EVALUAR}"></span>Pendiente por censar</div>
-   <div><span class="punto" style="background:#4dd0e1"></span>Visitada por el recorrido (sin diagnóstico)</div>
-   <div><span class="punto" style="background:#2f93d5;border:2px solid #fff;display:inline-grid;place-items:center">${SVG_PERSONA.replace('width="20" height="20"','width="9" height="9"')}</span>Operario (su ubicación)</div>
+  $('#leyenda').innerHTML='<div style="font-weight:700;margin-bottom:2px">Enfermedad principal</div>'+N1S.map(x=>`<div>${icoPalma(COLOR_N1[x.c]||'#999')}${esc((probDe(x.c)||{n:x.n1}).n)}</div>`).join('')+
+  `<div>${icoPalma(COLOR_ALTA)}De alta</div>`+
+  `<div>${icoPalma(SIN_EVALUAR)}Pendiente por censar</div>
+   <div>${icoPalma('#4dd0e1')}Visitada por el recorrido (sin diagnóstico)</div>
+   <div><span style="display:inline-block;vertical-align:-5px;margin-right:4px">${SVG_FLECHA('#2f93d5',22)}</span>Operario (su ubicación y rumbo)</div>
    <div><span class="punto" style="background:#ff9f1c;border:2px solid #fff"></span>Parada sin actividad</div>
    <div><span class="punto" style="background:#2f93d5;border:2px solid #fff"></span>Parada con diagnóstico</div>
-   <div><span class="punto" style="background:transparent;border-color:#b0bec5"></span>Sitio sin palma (existencia 0)</div>
+   <div>${icoPalma('#b0bec5',true)}Sitio sin palma (existencia 0)</div>
    <div><span class="punto" style="border-radius:3px;background:transparent;border:2px solid #22d39a"></span>Lote de la jornada</div>
    <div><span class="punto" style="border-radius:3px;background:transparent;border:2px solid #90cdf1"></span>Otros lotes</div>
    <div><span class="punto" style="border-radius:2px;height:4px;background:#22d39a;border:0"></span>Recorrido</div>`;
@@ -871,8 +887,11 @@ function pintarGPS(){
   const ll=[S.gps.lat,S.gps.lng];
   if(!gpsMarca){
     gpsCirc=L.circle(ll,{radius:S.gps.acc,color:'#2f93d5',weight:1,fillOpacity:.12,interactive:false}).addTo(capaGps);
-    gpsMarca=L.marker(ll,{icon:iconoPersona('#2f93d5',34),interactive:false,keyboard:false,zIndexOffset:1000}).addTo(capaGps);
+    gpsMarca=L.marker(ll,{icon:iconoFlecha('#2f93d5'),interactive:false,keyboard:false,zIndexOffset:1000}).addTo(capaGps);
   }else{gpsMarca.setLatLng(ll);gpsCirc.setLatLng(ll).setRadius(S.gps.acc);}
+  // rumbo: se actualiza cuando el operario avanza 3 m o más (quieto conserva el último)
+  const rr=S._rref;if(!rr)S._rref={lat:S.gps.lat,lng:S.gps.lng};else if(dist(rr.lat,rr.lng,S.gps.lat,S.gps.lng)>=3){S.rumbo=rumbo(rr,S.gps);S._rref={lat:S.gps.lat,lng:S.gps.lng};}
+  girarFlecha(gpsMarca,S.rumbo);
   if(mapa.getZoom()>=20&&S.jornada&&Date.now()-(pintarGPS.ue||0)>4000){pintarGPS.ue=Date.now();dibujarPalmas();}
   const a=Math.round(S.gps.acc);$('#chGpsTxt').textContent='±'+a+' m';$('#chGps').className='chip '+(a<=6?'ok':a<=15?'med':'mal');
 }
@@ -1877,11 +1896,11 @@ async function abrirPlay(jid){
   L.polyline(pts.map(p=>[p.lat,p.lng]),{color:'#90cdf1',weight:3,opacity:.35,dashArray:'6 7',interactive:false}).addTo(PLAY.capa);
   PLAY.brillo=L.polyline([],{color:'#22d39a',weight:12,opacity:.2,interactive:false}).addTo(PLAY.capa);
   PLAY.estela=L.polyline([],{color:'#22d39a',weight:4.5,opacity:1,interactive:false}).addTo(PLAY.capa);
-  PLAY.regs=S.registros.filter(r=>r.jornada_id===jid&&r.lat!=null).map(r=>({t:Date.parse(r.creado),m:L.circleMarker([r.lat,r.lng],{radius:7,color:'#fff',weight:2,fillColor:colorReg(r),fillOpacity:1}).bindTooltip(`${etiquetaReg(r)} · ${esc(textoDiag(r)||(estadoDe(r.estado)||{}).n||'')} · ${fmtHora(Date.parse(r.creado))}`),on:false})).sort((a,b)=>a.t-b.t);
+  PLAY.regs=S.registros.filter(r=>r.jornada_id===jid&&r.lat!=null).map(r=>({t:Date.parse(r.creado),m:palma([r.lat,r.lng],{renderer:rend,radius:7,color:'#fff',weight:2,fillColor:colorReg(r),fillOpacity:1}).bindTooltip(`${etiquetaReg(r)} · ${esc(textoDiag(r)||(estadoDe(r.estado)||{}).n||'')} · ${fmtHora(Date.parse(r.creado))}`),on:false})).sort((a,b)=>a.t-b.t);
   PLAY.paradas=(j.paradas||detectarParadas(pts,j.paradaRadio,j.paradaMin,S.registros.filter(r=>r.jornada_id===jid))).map(p=>({t:p.inicio,p,m:null}));
   PLAY.capaVis=L.layerGroup().addTo(PLAY.capa);PLAY.vis=[];PLAY.visN=0;
   try{PLAY.vis=await palmasVisitadasPlay(j,pts);}catch(e){PLAY.vis=[];}
-  PLAY.marca=L.marker([pts[0].lat,pts[0].lng],{icon:iconoPersona('#ee7633',34),interactive:false,keyboard:false,zIndexOffset:1000}).addTo(PLAY.capa);
+  PLAY.marca=L.marker([pts[0].lat,pts[0].lng],{icon:iconoFlecha('#ee7633'),interactive:false,keyboard:false,zIndexOffset:1000}).addTo(PLAY.capa);
   $('#plTit').textContent='Recorrido · '+fmtFecha(j.inicio).slice(0,10);
   $('#plSub').textContent=`${j.evaluador} · ${fmtHora(PLAY.t0)} – ${fmtHora(PLAY.t1)} · ${(PLAY.acum[PLAY.acum.length-1]/1000).toFixed(2)} km · ${PLAY.regs.length} diagnósticos · ${(PLAY.paradas||[]).length} paradas`;
   $('#play').hidden=false;$('#dock').hidden=true;$('#superior').hidden=true;$('#flot').hidden=true;$('#btLeyenda').hidden=true;$('#leyenda').hidden=true;
@@ -1907,9 +1926,11 @@ function pintarPlay(){
   const lat=a.lat+(b.lat-a.lat)*k,lng=a.lng+(b.lng-a.lng)*k;
   const ll=P.slice(0,i+1).map(p=>[p.lat,p.lng]);ll.push([lat,lng]);
   PLAY.estela.setLatLngs(ll);PLAY.brillo.setLatLngs(ll);PLAY.marca.setLatLng([lat,lng]);
+  {let j=i;while(j<P.length-1&&dist(P[j].lat,P[j].lng,P[j+1].lat,P[j+1].lng)<1)j++;let h0=i;while(h0>0&&dist(P[h0].lat,P[h0].lng,P[j].lat,P[j].lng)<1)h0--;
+   if(j>h0)girarFlecha(PLAY.marca,rumbo(P[h0],P[j]));}
   for(const q of PLAY.paradas||[]){const v=q.t<=PLAY.t;if(v&&!q.m)q.m=marcadorParada(q.p,PLAY.capa);else if(!v&&q.m){PLAY.capa.removeLayer(q.m);q.m=null;}}
   if(PLAY.vis){let k=PLAY.visN;const rv=Math.max(2.5,radioPalma()-1);
-    while(k<PLAY.vis.length&&PLAY.vis[k].t<=PLAY.t){const q=PLAY.vis[k];q.m=L.circleMarker(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
+    while(k<PLAY.vis.length&&PLAY.vis[k].t<=PLAY.t){const q=PLAY.vis[k];q.m=palma(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
     while(k>0&&PLAY.vis[k-1].t>PLAY.t){k--;const q=PLAY.vis[k];if(q.m){PLAY.capaVis.removeLayer(q.m);q.m=null;}}
     if(k>PLAY.visN){for(const r of PLAY.regs)if(r.on)r.m.bringToFront();} // diagnósticos por encima de las palmas visitadas
     PLAY.visN=k;$('#plVis').textContent=num(k);}
