@@ -9,7 +9,13 @@
 <link rel="icon" type="image/svg+xml" href="icons/sv_icono.svg">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<style>/*LEAFLET_CSS*/.flecha-ic{background:none;border:0;pointer-events:none}
+<style>/*LEAFLET_CSS*/.parada-ic{background:none;border:0}
+.parada-pill{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:2px;white-space:nowrap;height:22px;padding:0 8px 0 7px;border:2px solid #fff;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.45);font:700 11.5px/1 Inter,system-ui,sans-serif;cursor:pointer}
+.parada-pill i{display:block;width:3.5px;height:11px;border-radius:1px;background:#fff}
+.parada-pill b{margin-left:4px;font-weight:700}
+.parada-pill.mini{position:static;transform:none;display:inline-flex;height:16px;padding:0 6px 0 5px;font-size:10px;vertical-align:-3px;margin-right:6px;border-width:1.5px;box-shadow:none}
+.parada-pill.mini i{height:8px;width:2.5px}
+.flecha-ic{background:none;border:0;pointer-events:none}
 .flecha-op{width:90px;height:90px;transform-origin:50% 50%;transition:transform .35s ease-out;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
 .ico-palma{display:inline-block;vertical-align:-3px;margin-right:6px}
 </style>
@@ -356,6 +362,11 @@ const icoPalma=(c,vacio)=>`<svg class="ico-palma" width="16" height="16" viewBox
 const SVG_FLECHA=(c,t)=>`<svg width="${t}" height="${t}" viewBox="-45 -45 90 90" aria-hidden="true"><path d="M0 0 L-15 -38 A41 41 0 0 1 15 -38 Z" fill="${c}" fill-opacity=".3"/><path d="M0 -15 L10.5 11 L0 5.5 L-10.5 11 Z" fill="${c}" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg>`;
 function iconoFlecha(c){return L.divIcon({className:'flecha-ic',iconSize:[90,90],iconAnchor:[45,45],html:`<div class="flecha-op">${SVG_FLECHA(c,90)}</div>`});}
 function dist(a,b,c,d){const R=6371000,r=Math.PI/180;const dl=(c-a)*r,dg=(d-b)*r;const x=Math.sin(dl/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(dg/2)**2;return 2*R*Math.asin(Math.sqrt(x));}
+/* Parada: etiqueta con símbolo de pausa y minutos (naranja sin actividad, azul con diagnóstico, gris sin señal GPS). */
+function paneParadas(){if(!mapa.getPane('paradas')){const pn=mapa.createPane('paradas');pn.style.zIndex=660;}return 'paradas';} // encima de las etiquetas de palmas
+function iconoParada(min,col){const txt=col==='#ff9f1c'?'#1a1200':'#fff';
+  return L.divIcon({className:'parada-ic',iconSize:[0,0],html:`<div class="parada-pill" style="background:${col};color:${txt}"><i></i><i></i><b>${Math.round(Number(min)||0)} min</b></div>`});}
+const pillParada=(col,t)=>`<span class="parada-pill mini" style="background:${col};color:${col==='#ff9f1c'?'#1a1200':'#fff'}"><i></i><i></i><b>${t}</b></span>`;
 /* Rumbo (grados desde el norte, sentido horario) entre dos posiciones. */
 function rumbo(a,b){const kx=Math.cos(a.lat*Math.PI/180);return (Math.atan2((b.lng-a.lng)*kx,b.lat-a.lat)*180/Math.PI+360)%360;}
 /* Gira la flecha por el camino más corto (sin dar la vuelta completa al pasar por el norte). */
@@ -405,7 +416,7 @@ mapa.on('zoomend moveend',()=>{mapa.getContainer().classList.toggle('sin-etq',ma
 function pintarLeyenda(){
   $('#leyenda').innerHTML='<b class="tit" style="font-size:13px">Enfermedad principal</b>'+Object.entries(COLOR_N1).map(([k,c])=>`<div><span class="punto" style="background:${c}"></span>${esc(PROBLEMAS[k]||k)}</div>`).join('')+
   `<div><span class="punto" style="background:${COLOR_ALTA}"></span>De alta</div><div><span class="punto" style="background:#4dd0e1"></span>Palma visitada (reproducción)</div><div><span style="display:inline-block;vertical-align:-5px;margin-right:4px">${SVG_FLECHA('#2f93d5',22)}</span>Operario y rumbo (reproducción)</div>`+
-  '<div style="margin-top:4px"><span class="punto" style="background:#ff9f1c;border:2px solid #fff"></span>Parada</div><div class="tenue">Recorridos: un color por operario.</div>';
+  '<div style="margin-top:4px">'+pillParada('#ff9f1c','min')+'Parada sin actividad</div><div>'+pillParada('#2f93d5','min')+'Parada con diagnóstico</div><div class="tenue">Recorridos: un color por operario.</div>';
 }
 
 /* ---------- Cartografía (cifrada) ---------- */
@@ -583,7 +594,7 @@ function pintarMapa(ajustar){
       pl.on('click',e=>{L.DomEvent.stopPropagation(e);abrirDetalle(j);});pl.bindTooltip(`${esc(j.evaluador)} · ${esc(j.fecha)} ${esc(j.hora_inicio)}–${esc(j.hora_fin)}`,{sticky:true});
       if(!lote)caja.extend(pl.getBounds());}
     for(const p of j.paradas){if(lote&&p.lote!==lote)continue;
-      L.circleMarker([p.lat,p.lng],{renderer:rend,radius:7,color:'#fff',weight:2,fillColor:'#ff9f1c',fillOpacity:.95})
+      L.marker([p.lat,p.lng],{icon:iconoParada(p.duracion_min,/diagn/i.test(p.clase||p.tipo||'')?'#2f93d5':/señal/i.test(p.clase||p.tipo||'')?'#9e9e9e':'#ff9f1c'),keyboard:false,zIndexOffset:500,pane:paneParadas()})
         .bindPopup(`<b class="h">⏸ Parada ${esc(p.n||'')}</b><br>${esc(j.evaluador)} · ${esc(j.fecha)}<br>${esc(p.hora_inicio)}–${esc(p.hora_fin)} · <b>${esc(p.duracion_min)} min</b><br>Lote: ${esc(p.lote||'—')}${p.clase?'<br>'+esc(p.clase):''}`).addTo(capaPar);}
   }
   for(const d of DIAGF){

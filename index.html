@@ -673,6 +673,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 		print-color-adjust: exact;
 		}
 	}
+.parada-ic{background:none;border:0}
+.parada-pill{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:2px;white-space:nowrap;height:22px;padding:0 8px 0 7px;border:2px solid #fff;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.45);font:700 11.5px/1 Inter,system-ui,sans-serif;cursor:pointer}
+.parada-pill i{display:block;width:3.5px;height:11px;border-radius:1px;background:#fff}
+.parada-pill b{margin-left:4px;font-weight:700}
+.parada-pill.mini{position:static;transform:none;display:inline-flex;height:16px;padding:0 6px 0 5px;font-size:10px;vertical-align:-3px;margin-right:6px;border-width:1.5px;box-shadow:none}
+.parada-pill.mini i{height:8px;width:2.5px}
 .flecha-ic{background:none;border:0;pointer-events:none}
 .flecha-op{width:90px;height:90px;transform-origin:50% 50%;transition:transform .35s ease-out;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
 .ico-palma{display:inline-block;vertical-align:-3px;margin-right:6px}
@@ -979,7 +985,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261112:1954</div>
+  <div id="splashVer">VERSIÓN 20261112:1958</div>
 </div>
 
 <div id="login" hidden>
@@ -994,7 +1000,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261112:1954</div>
+  <div id="lgVer2">VERSIÓN 20261112:1958</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1108,7 +1114,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261112:1954';
+const VERSION='20261112:1958';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -1305,6 +1311,11 @@ const D_PALMA=(()=>{let d='';for(let i=0;i<9;i++){const a=i*Math.PI*2/9,c=Math.c
 const icoPalma=(c,vacio)=>`<svg class="ico-palma" width="16" height="16" viewBox="-14 -14 28 28" aria-hidden="true"><path d="${D_PALMA}" fill="${vacio?'none':c}" stroke="${vacio?c:'#13240f'}" stroke-width="1.1" stroke-linejoin="round"/>${vacio?'':'<circle r="2.4" fill="#5a3d1e" stroke="#13240f" stroke-width=".8"/>'}</svg>`;
 const SVG_FLECHA=(c,t)=>`<svg width="${t}" height="${t}" viewBox="-45 -45 90 90" aria-hidden="true"><path d="M0 0 L-15 -38 A41 41 0 0 1 15 -38 Z" fill="${c}" fill-opacity=".3"/><path d="M0 -15 L10.5 11 L0 5.5 L-10.5 11 Z" fill="${c}" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg>`;
 function iconoFlecha(c){return L.divIcon({className:'flecha-ic',iconSize:[90,90],iconAnchor:[45,45],html:`<div class="flecha-op">${SVG_FLECHA(c,90)}</div>`});}
+/* Parada: etiqueta con símbolo de pausa y minutos (naranja sin actividad, azul con diagnóstico, gris sin señal GPS). */
+function paneParadas(){if(!mapa.getPane('paradas')){const pn=mapa.createPane('paradas');pn.style.zIndex=660;}return 'paradas';} // encima de las etiquetas de palmas
+function iconoParada(min,col){const txt=col==='#ff9f1c'?'#1a1200':'#fff';
+  return L.divIcon({className:'parada-ic',iconSize:[0,0],html:`<div class="parada-pill" style="background:${col};color:${txt}"><i></i><i></i><b>${Math.round(Number(min)||0)} min</b></div>`});}
+const pillParada=(col,t)=>`<span class="parada-pill mini" style="background:${col};color:${col==='#ff9f1c'?'#1a1200':'#fff'}"><i></i><i></i><b>${t}</b></span>`;
 /* Rumbo (grados desde el norte, sentido horario) entre dos posiciones. */
 function rumbo(a,b){const kx=Math.cos(a.lat*Math.PI/180);return (Math.atan2((b.lng-a.lng)*kx,b.lat-a.lat)*180/Math.PI+360)%360;}
 /* Gira la flecha por el camino más corto (sin dar la vuelta completa al pasar por el norte). */
@@ -1467,8 +1478,8 @@ function pintarLeyenda(){
   `<div><span class="punto" style="background:${SIN_EVALUAR}"></span>Pendiente por censar</div>
    <div><span class="punto" style="background:#4dd0e1"></span>Visitada por el recorrido (sin diagnóstico)</div>
    <div><span style="display:inline-block;vertical-align:-5px;margin-right:4px">${SVG_FLECHA('#2f93d5',22)}</span>Operario (su ubicación y rumbo)</div>
-   <div><span class="punto" style="background:#ff9f1c;border:2px solid #fff"></span>Parada sin actividad</div>
-   <div><span class="punto" style="background:#2f93d5;border:2px solid #fff"></span>Parada con diagnóstico</div>
+   <div>${pillParada('#ff9f1c','min')}Parada sin actividad</div>
+   <div>${pillParada('#2f93d5','min')}Parada con diagnóstico</div>
    <div><span class="punto" style="background:transparent;border-color:#b0bec5"></span>Sitio sin palma (existencia 0)</div>
    <div><span class="punto" style="border-radius:3px;background:transparent;border:2px solid #22d39a"></span>Lote de la jornada</div>
    <div><span class="punto" style="border-radius:3px;background:transparent;border:2px solid #90cdf1"></span>Otros lotes</div>
@@ -2121,8 +2132,7 @@ const PAR={lista:[]};
 const capaParadas=L.layerGroup().addTo(mapa);
 function marcadorParada(p,capa){
   const col=p.tipo==='con diagnóstico'?'#2f93d5':p.tipo==='sin señal GPS'?'#9e9e9e':'#ff9f1c';
-  return L.circleMarker([p.lat,p.lng],{radius:7+Math.min(9,p.duracion_min/6),color:'#fff',weight:2,fillColor:col,fillOpacity:.9})
-    .bindTooltip(`⏸ ${p.duracion_min} min`,{permanent:true,direction:'top',offset:[0,-8],className:'etq-lote etq-parada'})
+  return L.marker([p.lat,p.lng],{icon:iconoParada(p.duracion_min,col),keyboard:false,zIndexOffset:500,pane:paneParadas()})
     .bindPopup(`<b>Parada ${p.n}</b><br>${hhmm(p.inicio)} – ${p.en_curso?'en curso':hhmm(p.fin)} · <b>${p.duracion_min} min</b><br>${p.lote?'Lote '+esc(p.lote)+' · ':''}${esc(p.tipo)}${p.diagnosticos?` (${p.diagnosticos})`:''}`)
     .addTo(capa);
 }
