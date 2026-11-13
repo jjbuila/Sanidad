@@ -176,6 +176,8 @@ SanidadData/
 **Uso en QGIS:** al abrir el `.geojson`, QGIS ofrece dos subcapas, una de puntos (diagnósticos) y otra de líneas (recorrido). Para consolidar varias jornadas, use *Vectorial → Herramientas de gestión de datos → Combinar capas vectoriales*.
 
 ## 7.1 Visor web (administración)
+
+- **Filtros de selección múltiple:** Programa, Operario, Lote, Estado y **Enfermedad N1, N2 y N3**. Cada filtro abre una lista con buscador, botón *Todos* (quita el filtro), *Marcar los visibles* (marca lo que muestra la búsqueda), casillas para elegir varias opciones y *solo este* para una sola. Sin nada marcado = Todos. Los lotes se limitan al programa elegido; N2 muestra las opciones de lo elegido en N1 y N3 las de N2. Los filtros de enfermedad y estado aplican a los diagnósticos; los demás, a jornadas, recorridos, secuencias y diagnósticos.
 - **Dirección:** `https://jjbuila.github.io/Sanidad/visor.html` (también desde el menú de la app: **Visor web**, visible para administradores y supervisores).
 - **Acceso:** mismo usuario y contraseña de la app. Solo ingresan usuarios con rol **Administrador** o **Supervisor**; los operarios reciben un aviso. El rol *Supervisor* se asigna en `admin.html` y en la app de campo funciona como operario.
 - **Qué muestra:** todas las jornadas sincronizadas en el rango de fechas elegido (Hoy, 7 días, 30 días, Este mes o fechas libres, máximo un año):

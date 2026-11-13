@@ -18,6 +18,21 @@
 .flecha-ic{background:none;border:0;pointer-events:none}
 .flecha-op{width:90px;height:90px;transform-origin:50% 50%;transition:transform .35s ease-out;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
 .ico-palma{display:inline-block;vertical-align:-3px;margin-right:6px}
+.ms{position:relative}
+.ms-bt{width:100%;text-align:left;background:#0a1d16;border:1px solid var(--borde);border-radius:9px;padding:7px 22px 7px 9px;color:var(--texto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;font:inherit;font-size:13.5px;position:relative;min-height:34px}
+.ms-bt::after{content:'▾';position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--tenue)}
+.ms.activo .ms-bt{border-color:var(--acento);box-shadow:0 0 0 1px rgba(34,211,154,.35)}
+#msPop{position:fixed;z-index:3000;width:280px;background:#0c2219;border:1px solid var(--borde);border-radius:12px;padding:10px;box-shadow:0 14px 34px rgba(0,0,0,.55)}
+#msPop input[type=text]{width:100%;box-sizing:border-box}
+#msPop .ms-acc{display:flex;gap:6px;margin:8px 0 6px;flex-wrap:wrap}
+#msPop .ms-lista{max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:1px}
+#msPop .ms-it{display:flex;align-items:center;gap:6px;padding:4px 4px;border-radius:6px}
+#msPop .ms-it:hover{background:rgba(255,255,255,.05)}
+#msPop .ms-it label{flex:1;display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13.5px;min-width:0}
+#msPop .ms-it label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#msPop input[type=checkbox]{accent-color:var(--acento);width:16px;height:16px;flex:none}
+#msPop .solo{background:none;border:0;color:var(--acento);font-size:11.5px;cursor:pointer;white-space:nowrap;padding:2px 4px}
+#msPop .vacio{font-size:12.5px;color:var(--tenue);padding:6px 4px}
 </style>
 <style>/*FUENTES*/</style>
 <style>
@@ -195,10 +210,15 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
           <button class="btn prim" id="btCargar" style="margin-left:auto">CARGAR</button>
         </div>
         <div class="fila4">
-          <div><label class="campo" for="fProg">Programa</label><select id="fProg"><option value="">Todos</option></select></div>
-          <div><label class="campo" for="fOp">Operario</label><select id="fOp"><option value="">Todos</option></select></div>
-          <div><label class="campo" for="fLote">Lote</label><select id="fLote"><option value="">Todos</option></select></div>
-          <div><label class="campo" for="fEst">Estado</label><select id="fEst"><option value="">Todos</option></select></div>
+          <div><label class="campo">Programa</label><div class="ms" data-k="prog"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
+          <div><label class="campo">Operario</label><div class="ms" data-k="op"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
+          <div><label class="campo">Lote</label><div class="ms" data-k="lote"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
+          <div><label class="campo">Estado</label><div class="ms" data-k="est"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
+        </div>
+        <div class="fila3" style="margin-top:8px">
+          <div><label class="campo">Enfermedad N1</label><div class="ms" data-k="n1"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
+          <div><label class="campo">Enfermedad N2</label><div class="ms" data-k="n2"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
+          <div><label class="campo">Enfermedad N3</label><div class="ms" data-k="n3"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
         </div>
         <div id="prog"><b></b></div>
         <div id="progTxt" class="tenue"></div>
@@ -445,9 +465,7 @@ async function cargarCartografia(){
       l.on('click',e=>{L.DomEvent.stopPropagation(e);popupLote(n,e.latlng);});}}).addTo(capaLotes);
   for(const f of LOTES.features){const p=f.properties;PROG.set(p._lote,p.Programa||p.programa||'');f._b=null;}
   const progs=[...new Set([...PROG.values()].filter(Boolean))].sort(ordenNat);
-  $('#fProg').innerHTML='<option value="">Todos</option>'+progs.map(x=>`<option>${esc(x)}</option>`).join('');
-  const lista=LOTES.features.map(f=>f.properties._lote).filter(Boolean).sort(ordenNat);
-  $('#fLote').innerHTML='<option value="">Todos</option>'+lista.map(l=>`<option>${esc(l)}</option>`).join('');
+  msOpciones('prog',progs.map(x=>({v:x,t:x})));opcionesLote();
   try{mapa.fitBounds(L.geoJSON(LOTES).getBounds(),{padding:[20,20],animate:false});}catch(e){}
   mapa.getContainer().classList.toggle('sin-etq',mapa.getZoom()<14);
 }
@@ -495,7 +513,7 @@ async function cargar(){
     JOR=nuevas.sort((a,b)=>String(b.inicio).localeCompare(String(a.inicio)));
     progreso(.98,'Calculando secuencias por lote…');for(const j of JOR){try{await completarTiempos(j);}catch(e){console.warn('tiempos',j.id,e);}}
     const ops=[...new Map(JOR.map(j=>[j.usuario||j.evaluador,j.evaluador])).entries()].sort((a,b)=>ordenNat(a[1],b[1]));
-    const sel=$('#fOp').value;$('#fOp').innerHTML='<option value="">Todos</option>'+ops.map(([u,n])=>`<option value="${esc(u)}" ${u===sel?'selected':''}>${esc(n)}</option>`).join('');
+    msOpciones('op',ops.map(([u,n])=>({v:u,t:n||u})));opcionesEnf();
     progreso(1,`${num(JOR.length)} jornada(s) del ${d1} al ${d2} · ${num(dias.length)} día(s) con datos.`);
     $('#chDatosTxt').textContent=`${num(JOR.length)} jornadas`;
     aplicarFiltros(true);
@@ -586,42 +604,74 @@ async function completarTiempos(j){
       return best>=0?Math.round((tr.t[best]-t0)/1000):null;});}
   h.t0_visita=new Date(t0).toISOString();j.tiemposEstimados=true;
 }
-function filasSecuencias(){const lote=$('#fLote').value;const out=[];
-  for(const j of JORF)for(const s of secuenciasDe(j)){const esL=s.tipo==='lote';if(lote&&!esL)continue;if(lote&&s.lote!==lote)continue;if(esL&&!enProg(s.lote))continue;
+function filasSecuencias(){const hay=FIL.lote.size>0;const out=[];
+  for(const j of JORF)for(const s of secuenciasDe(j)){const esL=s.tipo==='lote';if(hay&&!esL)continue;if(hay&&!FIL.lote.has(s.lote))continue;if(esL&&!enProg(s.lote))continue;
     out.push({_j:j,fecha:j.fecha,evaluador:j.evaluador,usuario:j.usuario,sec:s.secuencia??0,tipo:s.tipo,lote:esL?s.lote:(ETQ_TIPO[s.tipo]||'Desplazamiento'),ini:s.hora_inicio,ini_lab:esL?(s.hora_inicio_labor||s.hora_inicio):'',fin:s.hora_fin,
       tot:Number(s.min_total)||0,desp:esL?Number(s.min_desplazamiento)||0:0,lab:esL?Number(s.min_labor??s.min_total)||0:0,par:Number(s.min_paradas)||0,efe:Number(s.min_efectivo)||0,vel:s.vel_kmh==null?null:Number(s.vel_kmh),km:Number(s.km)||0,palmas:s.palmas_visitadas,ha:s.ha,diag:s.diagnosticos||0,orden:Date.parse(s.inicio)||0});}
   return out;}
 function aplicarFiltros(ajustar){
-  const op=$('#fOp').value,lote=$('#fLote').value,est=$('#fEst').value;
-  const pr=$('#fProg').value;
-  JORF=JOR.filter(j=>(!op||j.usuario===op)&&(!lote||j.lotes.has(lote))&&(!pr||[...j.lotes].some(enProg)));
-  DIAGF=[];for(const j of JORF)for(const d of j.diags)if((!lote||d.lote===lote)&&enProg(d.lote)&&(!est||d.estado===est))DIAGF.push({...d,_j:j});
+  JORF=JOR.filter(j=>(!FIL.op.size||FIL.op.has(j.usuario))&&(!FIL.lote.size||[...j.lotes].some(l=>FIL.lote.has(l)))&&(!FIL.prog.size||[...j.lotes].some(enProg)));
+  DIAGF=[];for(const j of JORF)for(const d of j.diags)if(loteSel(d.lote)&&enProg(d.lote)&&(!FIL.est.size||FIL.est.has(d.estado))&&diagEnf(d))DIAGF.push({...d,_j:j});
   if(SEL&&!JORF.includes(SEL))cerrarDetalle();
   pintarMapa(ajustar);pintarPanel();dibujarPalmas();
 }
-['#fOp','#fLote','#fEst'].forEach(s=>$(s).onchange=()=>aplicarFiltros(true));
-$('#fProg').onchange=()=>{const pr=$('#fProg').value;const sel=$('#fLote').value;
-  const lista=LOTES?LOTES.features.map(f=>f.properties._lote).filter(l=>l&&(!pr||PROG.get(l)===pr)).sort(ordenNat):[];
-  $('#fLote').innerHTML='<option value="">Todos</option>'+lista.map(l=>`<option ${l===sel?'selected':''}>${esc(l)}</option>`).join('');aplicarFiltros(true);};
-const enProg=l=>{const pr=$('#fProg').value;return !pr||PROG.get(l)===pr;};
+/* ---------- Filtros de selección múltiple: nada marcado = Todos; «solo este» = una opción; casillas = varias ---------- */
+const FIL={prog:new Set(),op:new Set(),lote:new Set(),est:new Set(),n1:new Set(),n2:new Set(),n3:new Set()};
+const MSOP={},MSCB={};let MSK=null;
+const loteSel=l=>!FIL.lote.size||FIL.lote.has(l);
+const enProg=l=>!FIL.prog.size||FIL.prog.has(PROG.get(l));
+const diagEnf=d=>(!FIL.n1.size||FIL.n1.has(codN1(d)))&&(!FIL.n2.size||FIL.n2.has(d.nivel2||''))&&(!FIL.n3.size||FIL.n3.has(d.nivel3||''));
+function msTexto(k){const s=FIL[k];if(!s.size)return 'Todos';const o=MSOP[k]||[];if(s.size<=2)return [...s].map(v=>k==='n1'?v:(o.find(x=>x.v===v)||{t:v}).t).join(', ');return s.size+' seleccionados';}
+function msPintar(k){const c=document.querySelector(`.ms[data-k="${k}"]`);if(!c)return;const b=c.querySelector('.ms-bt');b.textContent=msTexto(k);b.title=msTexto(k);c.classList.toggle('activo',FIL[k].size>0);}
+function msOpciones(k,ops){MSOP[k]=ops;for(const v of [...FIL[k]])if(!ops.some(o=>o.v===v))FIL[k].delete(v);msPintar(k);if(MSK===k)msLista();}
+function msCerrar(){const p=$('#msPop');if(p)p.remove();MSK=null;}
+function msCambio(k){msPintar(k);(MSCB[k]||(()=>aplicarFiltros(true)))();}
+function msLista(){const p=$('#msPop');if(!p||!MSK)return;const k=MSK,q=($('#msQ').value||'').toLowerCase();
+  const ops=(MSOP[k]||[]).filter(o=>!q||o.t.toLowerCase().includes(q)||String(o.v).toLowerCase().includes(q));
+  $('#msL').innerHTML=ops.length?ops.map((o,i)=>`<div class="ms-it"><label><input type="checkbox" data-i="${i}" ${FIL[k].has(o.v)?'checked':''}><span>${esc(o.t)}</span></label><button type="button" class="solo" data-i="${i}">solo este</button></div>`).join(''):'<div class="vacio">Sin opciones.</div>';
+  p._ops=ops;}
+function msAbrir(k,el){if(MSK===k){msCerrar();return;}msCerrar();MSK=k;const r=el.getBoundingClientRect();
+  const p=document.createElement('div');p.id='msPop';p.setAttribute('role','listbox');
+  p.innerHTML=`<input type="text" id="msQ" placeholder="Buscar…" aria-label="Buscar opción"><div class="ms-acc"><button type="button" class="btn mini" id="msTodos">Todos</button><button type="button" class="btn mini" id="msVis">Marcar los visibles</button></div><div class="ms-lista" id="msL"></div>`;
+  document.body.appendChild(p);const w=280,x=Math.min(r.left,innerWidth-w-8),arriba=r.bottom+340>innerHeight&&r.top>360;
+  p.style.left=Math.max(8,x)+'px';if(arriba)p.style.bottom=(innerHeight-r.top+4)+'px';else p.style.top=(r.bottom+4)+'px';
+  msLista();setTimeout(()=>$('#msQ').focus(),0);
+  $('#msQ').oninput=msLista;
+  $('#msTodos').onclick=()=>{FIL[k].clear();msLista();msCambio(k);};
+  $('#msVis').onclick=()=>{for(const o of p._ops||[])FIL[k].add(o.v);msLista();msCambio(k);};
+  $('#msL').onclick=e=>{const b=e.target.closest('.solo');if(b){const o=p._ops[+b.dataset.i];FIL[k]=new Set([o.v]);msCerrar();msCambio(k);}}; // «solo este»: elige una y cierra
+  $('#msL').onchange=e=>{const c=e.target.closest('input[type=checkbox]');if(!c)return;const o=p._ops[+c.dataset.i];if(c.checked)FIL[k].add(o.v);else FIL[k].delete(o.v);msCambio(k);};}
+document.addEventListener('click',e=>{const b=e.target.closest('.ms-bt');if(b){msAbrir(b.parentNode.dataset.k,b);return;}if(MSK&&document.contains(e.target)&&!e.target.closest('#msPop'))msCerrar();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&MSK)msCerrar();});
+function msSolo(k,v){FIL[k]=v==null||v===''?new Set():new Set([v]);msPintar(k);}
+/* Opciones dependientes: lotes según el programa; enfermedad N2 según N1 y N3 según N2 (de los diagnósticos cargados). */
+function opcionesLote(){msOpciones('lote',LOTES?LOTES.features.map(f=>f.properties._lote).filter(l=>l&&enProg(l)).sort(ordenNat).map(l=>({v:l,t:l})):[]);}
+function opcionesEnf(){const ds=JOR.flatMap(j=>j.diags);const c1=new Set(ds.map(codN1).filter(Boolean));
+  msOpciones('n1',[...new Set([...Object.keys(PROBLEMAS),...c1])].filter(c=>c1.has(c)||PROBLEMAS[c]).sort((a,b)=>(c1.has(b)-c1.has(a))||ordenNat(a,b)).map(c=>({v:c,t:(PROBLEMAS[c]||c)+(c1.has(c)?'':' · sin registros')})));
+  const d2=ds.filter(d=>!FIL.n1.size||FIL.n1.has(codN1(d)));msOpciones('n2',[...new Set(d2.map(d=>d.nivel2).filter(Boolean))].sort(ordenNat).map(v=>({v,t:v})));
+  const d3=d2.filter(d=>!FIL.n2.size||FIL.n2.has(d.nivel2||''));msOpciones('n3',[...new Set(d3.map(d=>d.nivel3).filter(Boolean))].sort(ordenNat).map(v=>({v,t:v})));}
+MSCB.prog=()=>{opcionesLote();aplicarFiltros(true);};
+MSCB.n1=()=>{opcionesEnf();aplicarFiltros(true);};
+MSCB.n2=()=>{opcionesEnf();aplicarFiltros(true);};
+
 
 /* ---------- Pintar en el mapa ---------- */
 function pintarMapa(ajustar){
   capaRec.clearLayers();capaDiag.clearLayers();capaPar.clearLayers();
-  const caja=L.latLngBounds([]);const lote=$('#fLote').value;
+  const caja=L.latLngBounds([]);const hayL=FIL.lote.size>0;
   for(const j of JORF){
     if(j.track&&j.track.c.length>1){const ll=j.track.c.map(c=>[c[1],c[0]]);
       const pl=L.polyline(ll,{renderer:rend,color:colorOp(j.usuario),weight:3,opacity:.85}).addTo(capaRec);
       pl.on('click',e=>{L.DomEvent.stopPropagation(e);abrirDetalle(j);});pl.bindTooltip(`${esc(j.evaluador)} · ${esc(j.fecha)} ${esc(j.hora_inicio)}–${esc(j.hora_fin)}`,{sticky:true});
-      if(!lote)caja.extend(pl.getBounds());}
-    for(const p of j.paradas){if(lote&&p.lote!==lote)continue;
+      if(!hayL)caja.extend(pl.getBounds());}
+    for(const p of j.paradas){if(hayL&&!FIL.lote.has(p.lote))continue;
       L.marker([p.lat,p.lng],{icon:iconoParada(p.duracion_min,/diagn/i.test(p.clase||p.tipo||'')?'#2f93d5':/señal/i.test(p.clase||p.tipo||'')?'#9e9e9e':'#ff9f1c'),keyboard:false,zIndexOffset:500,pane:paneParadas()})
         .bindPopup(`<b class="h">⏸ Parada ${esc(p.n||'')}</b><br>${esc(j.evaluador)} · ${esc(j.fecha)}<br>${esc(p.hora_inicio)}–${esc(p.hora_fin)} · <b>${esc(p.duracion_min)} min</b><br>Lote: ${esc(p.lote||'—')}${p.clase?'<br>'+esc(p.clase):''}`).addTo(capaPar);}
   }
   for(const d of DIAGF){
     const m=L.circleMarker([d.lat,d.lng],{renderer:rend,radius:6,color:'#fff',weight:1.5,fillColor:colorD(d),fillOpacity:1}).addTo(capaDiag);
     m.on('click',ev=>{L.DomEvent.stopPropagation(ev);popupDiag(d,ev.latlng);});caja.extend([d.lat,d.lng]);}
-  if(lote&&LOTES){const f=LOTES.features.find(x=>x.properties._lote===lote);if(f)caja.extend(L.geoJSON(f).getBounds());}
+  if(hayL&&LOTES)for(const f of LOTES.features)if(FIL.lote.has(f.properties._lote))caja.extend(L.geoJSON(f).getBounds());
   if(ajustar&&caja.isValid()){mapa.stop();mapa.fitBounds(caja,{padding:[30,30],maxZoom:18,animate:false});}
 }
 function etiquetaDiag(d){return [d.lote,d.linea!=null&&d.linea!==''?'L'+d.linea:null,d.palma!=null&&d.palma!==''?'P'+d.palma:null].filter(Boolean).join(' · ');}
@@ -646,7 +696,7 @@ function popupLote(l,ll){
   const fil=resumenLotes().find(x=>x.lote===l);
   L.popup().setLatLng(ll).setContent(`<b class="h">Lote ${esc(l)}</b><br>`+(fil?`${num(fil.jornadas)} jornada(s) · ${num(fil.palmas)} palmas visitadas · <b>${num(fil.ha,2)} ha</b><br>${num(fil.diag)} diagnósticos · ${num(fil.enfermas)} enfermas`:'<span class="tenue">Sin recorridos en el periodo cargado.</span>')+
     `<div style="margin-top:8px"><button class="btn mini" id="ppFil">Filtrar por este lote</button></div>`).openOn(mapa);
-  setTimeout(()=>{const b=$('#ppFil');if(b)b.onclick=()=>{$('#fLote').value=l;mapa.closePopup();aplicarFiltros(true);};},0);
+  setTimeout(()=>{const b=$('#ppFil');if(b)b.onclick=()=>{msSolo('lote',l);mapa.closePopup();aplicarFiltros(true);};},0);
 }
 async function verFotos(d){
   const lista=String(d.fotos||'').split('|').filter(Boolean);if(!lista.length)return;
@@ -751,13 +801,13 @@ function pararPlay(){PLAY.on=false;cancelAnimationFrame(PLAY.raf);const b=$('#pB
 
 /* ---------- Agregados ---------- */
 function resumenLotes(){
-  const lote=$('#fLote').value;const m=new Map();const fila=l=>{if(!m.has(l))m.set(l,{lote:l,tipo:'',jornadas:0,operarios:new Set(),palmas:0,ha:0,diag:0,enfermas:0,paradas:0,min_par:0,ids:new Set(),sinIds:0});return m.get(l);};
-  for(const j of JORF)for(const x of j.por_lote){if((lote&&x.lote!==lote)||!enProg(x.lote))continue;const f=fila(x.lote);f.jornadas++;f.operarios.add(j.usuario);f.palmas+=Number(x.palmas_visitadas)||0;f.ha+=Number(x.ha)||0;
+  const m=new Map();const fila=l=>{if(!m.has(l))m.set(l,{lote:l,tipo:'',jornadas:0,operarios:new Set(),palmas:0,ha:0,diag:0,enfermas:0,paradas:0,min_par:0,ids:new Set(),sinIds:0});return m.get(l);};
+  for(const j of JORF)for(const x of j.por_lote){if(!loteSel(x.lote)||!enProg(x.lote))continue;const f=fila(x.lote);f.jornadas++;f.operarios.add(j.usuario);f.palmas+=Number(x.palmas_visitadas)||0;f.ha+=Number(x.ha)||0;
     const ids=x.ids_palmas_visitadas||[];if(ids.length)ids.forEach(id=>f.ids.add(String(id)));else f.sinIds+=Number(x.palmas_visitadas)||0;
     f.paradas+=Number(x.paradas)||0;f.min_par+=Number(x.minutos_paradas)||0;if(x.tipo_lote)f.tipo=x.tipo_lote;}
   for(const d of DIAGF){const f=fila(d.lote||'—');f.diag++;if(d.estado==='enferma')f.enfermas++;}
   // casos de PC: último diagnóstico de cada palma (todas las jornadas filtradas, sin el filtro de estado)
-  const ult=new Map();for(const j of JORF)for(const d of j.diags){if((lote&&d.lote!==lote)||!enProg(d.lote))continue;const k=d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma);const u=ult.get(k);if(!u||String(d.creado)>String(u.creado))ult.set(k,d);}
+  const ult=new Map();for(const j of JORF)for(const d of j.diags){if(!loteSel(d.lote)||!enProg(d.lote))continue;const k=d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma);const u=ult.get(k);if(!u||String(d.creado)>String(u.creado))ult.set(k,d);}
   for(const d of ult.values())if(esCasoPC(codN1(d),d.nivel2,d.estado))fila(d.lote||'—').pc=(fila(d.lote||'—').pc||0)+1;
   // Avance = palmas distintas visitadas (sin repetir entre jornadas) ÷ palmas totales del lote
   return [...m.values()].map(f=>{const tl=totalLote(f.lote),vis=Math.min(tl||Infinity,f.ids.size+f.sinIds);return {...f,ids:undefined,operarios:f.operarios.size,ha:+f.ha.toFixed(2),distintas:vis,total_lote:tl,avance:tl?+(vis/tl*100).toFixed(1):null,pc:f.pc||0,incid_pc:tl?+((f.pc||0)/tl*100).toFixed(2):null};});
@@ -818,7 +868,7 @@ function pintarPanel(){
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque una jornada para verla en el mapa y reproducir el recorrido.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xJor">⬇ CSV jornadas</button></div>`;$('#xJor').onclick=()=>csvJornadas();
   }else if(TAB==='lotes'){
     const t=tabla('tLot',[{k:'lote',t:'Lote'},{k:'tipo',t:'Tipo'},{k:'jornadas',t:'Jornadas',n:1},{k:'operarios',t:'Operarios',n:1},{k:'palmas',t:'Palmas visitadas',n:1,f:x=>num(x.palmas)},{k:'distintas',t:'Palmas distintas',n:1,f:x=>num(x.distintas)},{k:'total_lote',t:'Total lote',n:1,f:x=>x.total_lote?num(x.total_lote):'—'},{k:'avance',t:'Avance',n:1,f:x=>x.avance==null?'—':'<b>'+num(x.avance,1)+' %</b>'},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'diag',t:'Diag.',n:1},{k:'enfermas',t:'Enfermas',n:1},{k:'pc',t:'Casos PC',n:1},{k:'incid_pc',t:'Incid. PC',n:1,f:x=>x.incid_pc==null?'—':'<b>'+num(x.incid_pc,2)+' %</b>'},{k:'min_par',t:'Min. paradas',n:1}],
-      resumenLotes(),f=>{$('#fLote').value=f.lote;aplicarFiltros(true);});
+      resumenLotes(),f=>{msSolo('lote',f.lote);aplicarFiltros(true);});
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque un lote para filtrar por él. <b>Avance</b> = palmas distintas visitadas (sin repetir entre jornadas) ÷ palmas totales del lote. <b>Incid. PC</b> = casos de PC (último diagnóstico de cada palma, sin casos en recuperación ni dados de alta) ÷ palmas totales del lote (existencia 0 y 1).</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xLot">⬇ CSV lotes</button></div>`;
     $('#xLot').onclick=()=>csv(`lotes_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['lote','tipo','jornadas','operarios','palmas','distintas','total_lote','avance','ha','diag','enfermas','pc','incid_pc','paradas','min_par'],resumenLotes());
   }else if(TAB==='secuencias'){
@@ -832,7 +882,7 @@ function pintarPanel(){
     $('#xSec').onclick=()=>csv(`secuencias_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['fecha','usuario','evaluador','sec','tipo','lote','ini','ini_lab','fin','desp','lab','tot','par','efe','km','vel','palmas','ha','diag'],filas.map(x=>({...x,sec:x.sec||'',vel:x.vel==null?'':x.vel})));
   }else if(TAB==='operarios'){
     const t=tabla('tOp',[{k:'evaluador',t:'Operario'},{k:'jornadas',t:'Jorn.',n:1},{k:'secs',t:'Sec.',n:1},{k:'min',t:'T. total',n:1,f:x=>minHM(x.min)},{k:'min_par',t:'Paradas',n:1,f:x=>minHM(x.min_par)},{k:'min_efe',t:'T. efectivo',n:1,f:x=>'<b>'+minHM(x.min_efe)+'</b>'},{k:'d_ini',t:'Despl. inicial',n:1,f:x=>minHM(x.d_ini)},{k:'d_ent',t:'Despl. entre lotes',n:1,f:x=>minHM(x.d_ent)},{k:'d_fin',t:'Despl. final',n:1,f:x=>minHM(x.d_fin)},{k:'km',t:'Km',n:1,f:x=>num(x.km,2)},{k:'vel',t:'Vel. km/h',n:1,f:x=>x.vel==null?'—':num(x.vel,1)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'ha_dia',t:'Ha/día',n:1,f:x=>num(x.ha_dia,2)},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'diag',t:'Diag.',n:1},{k:'lotes',t:'Lotes',n:1}],
-      resumenOperarios(),f=>{$('#fOp').value=f.usuario;aplicarFiltros(true);});
+      resumenOperarios(),f=>{msSolo('op',f.usuario);aplicarFiltros(true);});
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque un operario para filtrar sus recorridos.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xOp">⬇ CSV operarios</button></div>`;
     $('#xOp').onclick=()=>csv(`operarios_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['usuario','evaluador','jornadas','dias','secs','min','min_par','min_efe','d_ini','d_ent','d_fin','km','vel','ha','ha_dia','palmas','diag','lotes'],resumenOperarios().map(x=>({...x,vel:x.vel==null?'':x.vel})));
   }else{
@@ -875,7 +925,7 @@ async function entrar(){
 }
 (async()=>{
   ponerBase();pintarLeyenda();
-  $('#fEst').innerHTML='<option value="">Todos</option>'+ESTADOS.map(e=>`<option value="${e.id}">${esc(e.n)}</option>`).join('');
+  msOpciones('est',ESTADOS.map(e=>({v:e.id,t:e.n})));
   try{const r=await fetch('datos/acceso.json',{cache:'no-store'});if(r.ok){const j=await r.json();if(j.formato==='sanidad-acceso-1')ACCESO=j;}}catch(e){}
   if(!ACCESO){$('#lgMsg').style.color='var(--rojo)';$('#lgMsg').textContent='No se pudo leer el paquete de acceso. Verifique la conexión a internet.';return;}
   if(await restaurarSesion())await entrar();else setTimeout(()=>$('#lgU').focus(),200);
