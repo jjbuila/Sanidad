@@ -770,7 +770,7 @@ button{cursor:pointer}
 .chip.gira svg{animation:gira 1s linear infinite}
 .chip svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 @keyframes gira{to{transform:rotate(360deg)}}
-@media(max-width:400px){.marca small{display:none}.marca b{font-size:16px;letter-spacing:1.5px}.chip{padding:4px 7px;font-size:12px}}
+@media(max-width:400px){.marca small{display:none}.marca b{font-size:15px;letter-spacing:1.5px}.chip{padding:4px 7px;font-size:12px}}
 
 /* ---------- Mapa ---------- */
 #mapa{position:fixed;top:0;left:0;right:0;bottom:calc(var(--dock) + var(--inf));background:#0b1b15}
@@ -795,12 +795,21 @@ button{cursor:pointer}
 #superior{position:fixed;top:calc(var(--sup) + var(--hud) + 8px);left:10px;right:10px;z-index:950;display:flex;flex-direction:column;gap:8px;pointer-events:none}
 #superior>*{pointer-events:auto}
 @media(min-width:900px){#superior{right:auto;width:440px}}
-#pj{border-radius:16px;padding:9px 12px 10px;cursor:pointer}
-#usuarioBar{display:flex;align-items:center;gap:10px;border-radius:14px;padding:6px 12px 6px 6px;pointer-events:auto}
-#usuarioBar .av{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--acento),#0f9d6b);color:#03140d;font-family:var(--t);font-weight:700;font-size:15px;letter-spacing:.5px}
-#usuarioBar .txt{min-width:0;flex:1}
-#usuarioBar b{display:block;font-family:var(--t);font-weight:700;font-size:15.5px;letter-spacing:.4px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#usuarioBar small{display:block;font-size:11.5px;color:var(--acento);letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pj{border-radius:16px;padding:9px 12px 10px;cursor:pointer;position:relative}
+#pjOcultar{position:absolute;bottom:4px;right:8px;width:32px;height:32px;border-radius:50%;border:1px solid var(--borde2);background:rgba(255,255,255,.07);color:var(--texto,#eaf5f0);display:grid;place-items:center;cursor:pointer;z-index:1}
+#pj .barra{margin-right:42px}
+#pj{padding-bottom:12px}
+#pjMini{align-self:flex-start;display:flex;align-items:center;gap:8px;border-radius:999px;padding:6px 8px 6px 12px;font-family:var(--t);font-weight:700;font-size:16px;letter-spacing:.5px;color:inherit;cursor:pointer}
+#pjMini[hidden]{display:none}
+#pjMini small{font-size:11px;color:var(--tenue);letter-spacing:1px}
+#pjMini .sep{width:1px;height:16px;background:var(--borde)}
+#pjMini .ver{display:flex;align-items:center;gap:2px;margin-left:4px;padding:3px 6px 3px 9px;border-radius:999px;background:rgba(34,211,154,.16);color:var(--acento);font-size:12.5px;letter-spacing:1px}
+#pjMini.parado{border-color:var(--ambar);box-shadow:0 0 0 1px rgba(255,197,61,.55),0 0 18px rgba(255,197,61,.3)}
+#hudUsr{display:block;min-width:0}
+#hudUsr i{display:block;font-style:normal;font-family:var(--t);font-weight:700;font-size:13px;letter-spacing:.3px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+#hudUsr em{display:block;font-style:normal;font-size:10.5px;font-weight:600;color:var(--acento);letter-spacing:.7px;text-transform:uppercase;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.marca.con-usr b{font-size:16px;letter-spacing:2px}
+.marca.con-usr #sub{display:none}
 .pj-fila{display:flex;align-items:center;gap:10px;font-family:var(--t);font-weight:700;font-size:18px;letter-spacing:.5px}
 .pj-fila .sep{width:1px;height:18px;background:var(--borde)}
 .pj-fila.pj2{font-size:14.5px;margin-top:5px;flex-wrap:wrap;row-gap:2px}
@@ -994,7 +1003,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261113:1249</div>
+  <div id="splashVer">VERSIÓN 20261113:1336</div>
 </div>
 
 <div id="login" hidden>
@@ -1009,14 +1018,14 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261113:1249</div>
+  <div id="lgVer2">VERSIÓN 20261113:1336</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
 
 <header id="hud">
   <span class="insignia app"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiPjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiByeD0iMTEyIiBmaWxsPSIjMEYzRDJFIi8+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNjcuNCA2My41KSBzY2FsZSgxLjk2NSkiPjxwYXRoIGQ9Ik0yMCAxMjAgTDMwIDEwNCBNMjAgMTIwIEwzMCAxMzYgTTMyIDEyMCBMNDIgMTAwIE0zMiAxMjAgTDQyIDE0MCBNNDQgMTIwIEw1NCA5OCBNNDQgMTIwIEw1NCAxNDIgTTU2IDEyMCBMNjYgOTggTTU2IDEyMCBMNjYgMTQyIE0xMjYgMTIwIEwxMzYgMTAxIE0xMjYgMTIwIEwxMzYgMTM5IE0xMzggMTIwIEwxNDggMTA1IE0xMzggMTIwIEwxNDggMTM1IE0xNTAgMTIwIEwxNjAgMTA5IE0xNTAgMTIwIEwxNjAgMTMxIE0xNjIgMTIwIEwxNzAgMTEzIE0xNjIgMTIwIEwxNzAgMTI3IiBmaWxsPSJub25lIiBzdHJva2U9IiM1Q0MwOEEiIHN0cm9rZS13aWR0aD0iNyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PHBvbHlsaW5lIHBvaW50cz0iMTAsMTIwIDY0LDEyMCA3Niw5NiA5MCwxNDYgMTA0LDYyIDExOCwxMjAgMTgyLDEyMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRjZGNEVDIiBzdHJva2Utd2lkdGg9IjkiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxjaXJjbGUgY3g9IjEwNCIgY3k9IjU4IiByPSIxMyIgZmlsbD0iI0U4QTMzRCIvPjwvZz48L3N2Zz4=" alt="Sanidad Vegetal"></span>
-  <div class="marca"><b>SANIDAD VEGETAL</b><small id="sub">Palmas de Tumaco</small></div>
+  <div class="marca"><b>SANIDAD VEGETAL</b><small id="sub">Palmas de Tumaco</small><span id="hudUsr" hidden><i id="ubNombre">—</i><em id="ubCargo">—</em></span></div>
   <div class="chips-hud">
     <button class="chip" id="chGps" title="Precisión del GPS"><span class="led"></span><span id="chGpsTxt">GPS</span></button>
     <button class="chip" id="chSync" title="Sincronización"></button>
@@ -1026,8 +1035,9 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 <div id="mapa"></div>
 
 <div id="superior">
-  <div id="usuarioBar" class="glass" hidden><span class="av" id="ubIni">--</span><div class="txt"><b id="ubNombre">—</b><small id="ubCargo">—</small></div></div>
+    <button id="pjMini" class="glass" hidden aria-label="Mostrar el panel de la jornada"><span class="rec"></span><span id="pjMiniT">00:00:00</span><span class="sep"></span><small>AVANCE</small><span id="pjMiniA">0 %</span><span class="ver">VER<svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
   <div id="pj" class="glass" hidden>
+    <button id="pjOcultar" aria-label="Ocultar el panel de la jornada"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <div class="pj-fila"><span class="rec"></span><span id="pjTiempo">00:00:00</span><span class="sep"></span><span><small>KM</small><span id="pjKm">0.00</span></span><span class="sep"></span><span><small>AVANCE</small><span id="pjCenso">0 / 0</span></span></div>
     <div class="pj-fila pj2"><span><small>INICIO</small><span id="pjIni">--:--</span></span><span class="sep"></span><span><small>VISITADAS</small><span id="pjVis">0</span></span><span class="sep"></span><span><small>HA</small><span id="pjHa">0.00</span></span><span class="sep"></span><span><small>PARADAS</small><span id="pjPar">0</span></span></div>
     <div class="pj-fila pj2"><span><small>SECUENCIA</small><span id="pjSec">—</span></span><span class="sep"></span><span><small>LOTE</small><span id="pjSecLote">—</span></span><span class="sep"></span><span><small>T. EFECTIVO</small><span id="pjEfec">0:00</span></span><span class="sep"></span><span><small>VEL. KM/H</small><span id="pjVel">—</span></span></div>
@@ -1122,7 +1132,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261113:1249';
+const VERSION='20261113:1336';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -1265,7 +1275,7 @@ const S={
   lotes:null,palmas:null,idx:new Map(),registros:[],ultimo:new Map(),hechos:new Map(),marcadores:new Map(),
   gps:null,seguir:false,jornada:null,plan:[],planAbierto:false,planModo:'nueva',
   cfg:{evaluador:'',dispositivo:'',base:'dron',urlPropia:'teselas/{z}/{x}/{y}.png',zmaxPropia:20,
-    umbralVoz:2,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:5,radioSel:50,metodoVisita:'calle',paramVer:5,paradaRadio:20,paradaMin:5,soloWifi:false,esperaSync:2,jornadaActiva:null,
+    umbralVoz:2,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:5,bufferTerraza:8,radioSel:50,metodoVisita:'calle',paramVer:6,paradaRadio:20,paradaMin:5,soloWifi:false,esperaSync:2,jornadaActiva:null,
     gh:{owner:'jjbuila',repo:'Sanidad-datos',rama:'main',token:''}}
 };
 let CARTO={version:'',lotes:{}};
@@ -1635,10 +1645,8 @@ function actualizarCab(){
 }
 /* Nombre y cargo del usuario en la parte superior (pantalla principal y jornada). */
 function pintarUsuario(){
-  const ub=$('#usuarioBar');if(!ub)return;if(!SES||PLAY.on){ub.hidden=true;return;}
-  const n=String(SES.nombre||SES.u||'');const p=n.split(/\s+/).filter(Boolean);
-  $('#ubIni').textContent=(p.length>=3?p[2][0]+p[0][0]:p.slice(0,2).map(x=>x[0]).join('')).toUpperCase()||'--';
-  $('#ubNombre').textContent=n;$('#ubCargo').textContent=SES.cargo;ub.hidden=false;
+  const ub=$('#hudUsr');if(!ub)return;const on=!!SES&&!PLAY.on;ub.hidden=!on;document.querySelector('#hud .marca').classList.toggle('con-usr',on);if(!on)return;
+  $('#ubNombre').textContent=String(SES.nombre||SES.u||'');$('#ubCargo').textContent=SES.cargo||'';
 }
 
 /* ---------- GPS ----------
@@ -1861,9 +1869,9 @@ async function confirmarPlan(){
 function idJornada(){const d=new Date();return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}-${uid().slice(0,6)}`;}
 async function iniciarJornada(sel,evaluador){
   const j={id:idJornada(),inicio:new Date().toISOString(),fin:null,evaluador,usuario:SES?SES.u:'',dispositivo:S.cfg.dispositivo,seleccion:sel,estado:'activa',
-    km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||5,metodoVisita:S.cfg.metodoVisita||'calle',paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
+    km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||5,bufferTerraza:Number(S.cfg.bufferTerraza)||8,metodoVisita:S.cfg.metodoVisita||'calle',paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=evaluador;await guardarCfg();
-  TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita);PAR.lista=[];capaParadas.clearLayers();
+  TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita,j.bufferTerraza);PAR.lista=[];capaParadas.clearLayers();
   await cargarPalmasJornada();iniciarGPS();pantallaEncendida(true);actualizarJornadaUI();dibujarLotes();encuadrar(sel.map(s=>s.lote));
   if(S.cfg.seguir!==false){S.seguir=true;pintarSeguir();S.pausaSeguir=Date.now()+12000;} // primero muestra los lotes; luego centra al operario
   setTimeout(()=>revisarSegundoPlano(false),2500);
@@ -1888,24 +1896,28 @@ const pctTxt=(a,b)=>b?(a/b*100).toFixed(1).replace(/\.0$/,''):'0';
 function actualizarCenso(){
   if(!S.jornada)return;
   let tot=0,hec=0;for(const it of S.jornada.seleccion){tot+=totalLote(it.lote);hec+=visitadasLote(it.lote);}
-  $('#pjCenso').textContent=`${num(hec)} / ${num(tot)} · ${pctTxt(hec,tot)} %`;$('#pjBarra').style.width=(tot?Math.min(100,hec/tot*100):0)+'%';
+  $('#pjCenso').textContent=`${num(hec)} / ${num(tot)} · ${pctTxt(hec,tot)} %`;$('#pjMiniA').textContent=`${pctTxt(hec,tot)} %`;$('#pjBarra').style.width=(tot?Math.min(100,hec/tot*100):0)+'%';
 }
 function actualizarJornadaUI(){
-  const a=!!S.jornada;$('#pj').hidden=!a||S.jornada.labor==='cirugia';
+  const a=!!S.jornada,ver=a&&S.jornada.labor!=='cirugia';$('#pj').hidden=!(ver&&S.pjAbierto);$('#pjMini').hidden=!(ver&&!S.pjAbierto);
   $('#btJornada').classList.toggle('activa',a);
   $('#btJornadaIc').innerHTML=a?IC.ruta:IC.play;$('#btJornadaTxt').textContent=a?'Jornada':'Iniciar';
   if(a&&S.jornada.labor!=='cirugia'){actualizarCenso();relojJornada();actualizarVisitaUI();actualizarParadas();try{actualizarSecUI();}catch(e){}}else $('#pj').classList.remove('parado');actualizarCab();
   try{actualizarCirUI();}catch(e){}
 }
-function relojJornada(){if(!S.jornada)return;$('#pjIni').textContent=hhmm(S.jornada.inicio);$('#pjTiempo').textContent=fmtDur(Date.now()-Date.parse(S.jornada.inicio));$('#pjKm').textContent=(S.jornada.km||0).toFixed(2);}
+function relojJornada(){if(!S.jornada)return;$('#pjIni').textContent=hhmm(S.jornada.inicio);$('#pjTiempo').textContent=$('#pjMiniT').textContent=fmtDur(Date.now()-Date.parse(S.jornada.inicio));$('#pjKm').textContent=(S.jornada.km||0).toFixed(2);}
 setInterval(relojJornada,1000);
 $('#btJornada').onclick=()=>{if(PLAY.on)return;if(S.jornada)panelJornada();else abrirPlanificador('nueva');};
 $('#pj').onclick=()=>panelJornada();
+/* Panel de la jornada plegable: inicia oculto (solo la píldora con tiempo y avance) para no ocupar el mapa. */
+S.pjAbierto=false;
+$('#pjMini').onclick=()=>{S.pjAbierto=true;actualizarJornadaUI();};
+$('#pjOcultar').onclick=e=>{e.stopPropagation();S.pjAbierto=false;actualizarJornadaUI();};
 function panelJornada(){
   const j=S.jornada;if(!j)return;
   const filas=j.seleccion.map(it=>{const c=censoLote(it.lote);const p=c.tot?Math.min(100,c.hec/c.tot*100):0;
     return `<div class="prog-lote"><b>${esc(it.lote)}</b><div class="barra" style="margin:0"><i style="width:${p}%"></i></div><span class="tenue">${pctTxt(c.hec,c.tot)} % · ${num(c.hec)}/${num(c.tot)} palmas · L${it.desde??'?'}–${it.hasta??'?'}</span></div>`;}).join('');
-  const regs=S.registros.filter(r=>r.jornada_id===j.id);actualizarParadas();const res=paradasEnLotes(resumenVisita(VIS||nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita),regs),PAR.lista);
+  const regs=S.registros.filter(r=>r.jornada_id===j.id);actualizarParadas();const res=paradasEnLotes(resumenVisita(VIS||nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita,j.bufferTerraza),regs),PAR.lista);
   abrirHoja('Jornada en curso',`
     <div class="stats">
       <div class="stat"><b>${hhmm(j.inicio)}</b><span>Hora de inicio</span></div>
@@ -1933,7 +1945,7 @@ async function finalizarJornada(){
   if(!confirm(`¿Finalizar la jornada?\n\nCensadas: ${c.hec} de ${c.tot} palmas.\nSe detendrá el registro del recorrido.`))return;
   j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
-  const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion);const par=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);
+  const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion,j.bufferTerraza);const par=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);
   j.paradas=par;j.resumen_paradas=resumenParadas(par,j);j.visita=paradasEnLotes(resumenVisita(E,regs,true),par);
   j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin),paradas:par,regs,densidad:j.densidad,visitas:E.conf});
   j.tiempos=tiemposJornada(j.secuencias,j);
@@ -2031,7 +2043,7 @@ async function indiceVisita(l){
    exige llegar a ellos, pero suman a la hectárea.
    Terrazas (lotes terraza y sectores terraza de lotes mixtos): sin confirmación; cuenta toda palma a <= buffer del recorrido dentro del polígono. */
 const RUN_MIN=6,RUN_LARGO=22,RUN_VIVA=90000,RUN_ABIERTA=600000,REGLA_EX=0.8; // RUN_LARGO: metros que el operario avanza A LO LARGO de la calle
-function nuevoEstadoVisita(densidad,buffer,metodo){return {set:new Set(),lotes:new Map(),densidad:Number(densidad)||115,buffer:Number(buffer)||5,metodo:metodo||'calle',maxLat:6,ult:null,
+function nuevoEstadoVisita(densidad,buffer,metodo,bufTer){return {set:new Set(),lotes:new Map(),densidad:Number(densidad)||115,buffer:Number(buffer)||5,bufTer:Number(bufTer)||Number(buffer)||5,metodo:metodo||'calle',maxLat:6,ult:null,
   runs:new Map(),prov:new Set(),abiertas:new Map(),conf:[],linEx:new Map(),regla:new Set(),grids:new Map()};}
 const LFEAT=new Map(),LMET=new Map();
 function featLote(l){if(!LFEAT.size&&S.lotes)for(const f of S.lotes.features)LFEAT.set(String(f.properties._lote),f);return LFEAT.get(String(l));}
@@ -2092,7 +2104,7 @@ function marcarCalle(E,grids,sx,sy,cands){
         if(q.ln==null){sinLinea.push([l,q,d2]);continue;}
         const k=l+'|'+q.ln;let arr=porLinea.get(k);if(!arr)porLinea.set(k,arr=[]);arr.push({q,d2});}}
   }
-  const B2=E.buffer*E.buffer,dl=new Map(),dentro=l=>{if(!dl.has(l))dl.set(l,dentroLote(l,sx,sy));return dl.get(l);};
+  const B2=E.bufTer*E.bufTer,dl=new Map(),dentro=l=>{if(!dl.has(l))dl.set(l,dentroLote(l,sx,sy));return dl.get(l);};
   for(const [l,q,d2] of sinLinea)if(d2<=B2&&dentro(l))cands.push({key:l+'|T',l,q,tot:1e9,sx,sy,ux:null,uy:null}); // terrazas / sin línea: buffer
   if(!porLinea.size)return;
   const lineas=[];
@@ -2175,7 +2187,7 @@ async function visitarTramo(E,p){
   return nuevos;
 }
 /* conT: guarda el segundo de la primera visita confirmada de cada palma (secuencias y reproducción). final: descarta las calles sin confirmar (desplazamiento final). */
-async function calcularVisita(pts,densidad,buffer,metodo,conT,final,sel){const E=nuevoEstadoVisita(densidad,buffer,metodo);E.sel=sel||null;const t0=pts.length?pts[0].t:0;
+async function calcularVisita(pts,densidad,buffer,metodo,conT,final,sel,bufTer){const E=nuevoEstadoVisita(densidad,buffer,metodo,bufTer);E.sel=sel||null;const t0=pts.length?pts[0].t:0;
   for(const p of pts)await visitarTramo(E,p);
   if(final)cerrarVisita(E);
   if(conT){E.t0=t0;E.tv=new Map(E.conf.map(v=>[String(v.id),Math.round((v.t-t0)/1000)]));}
@@ -2186,7 +2198,7 @@ function resumenVisita(E,regs,conIds){
   for(const r of regs||[])fila(r.lote||'—').diagnosticos++;
   const por_lote=[...filas.values()].sort((a,b)=>ordenNat(a.lote,b.lote));
   const tv=por_lote.reduce((a,x)=>a+x.palmas_visitadas,0);
-  return {metodo:E.metodo==='calle'?'calle_entre_lineas':'buffer',densidad_palmas_ha:E.densidad,buffer_m:E.metodo==='calle'?null:E.buffer,buffer_terraza_m:E.metodo==='calle'?E.buffer:undefined,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),sitios_vacios_regla90:por_lote.reduce((a,x)=>a+(x.sitios_vacios_regla90||0),0),regla_existencia0:'≥80 % de palmas existentes de la línea',
+  return {metodo:E.metodo==='calle'?'calle_entre_lineas':'buffer',densidad_palmas_ha:E.densidad,buffer_m:E.metodo==='calle'?null:E.buffer,buffer_terraza_m:E.metodo==='calle'?E.bufTer:undefined,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),sitios_vacios_regla90:por_lote.reduce((a,x)=>a+(x.sitios_vacios_regla90||0),0),regla_existencia0:'≥80 % de palmas existentes de la línea',
     ha_recorridas:+(tv/E.densidad).toFixed(2),...(E.tv&&conIds?{t0_visita:E.t0?new Date(E.t0).toISOString():null}:{}),por_lote};
 }
 let VIS=null;
@@ -2343,7 +2355,7 @@ function actualizarParadas(){
   if(JSON.stringify(PAR.lista.map(p=>[p.inicio,p.duracion_min,p.diagnosticos]))!==prev)dibujarParadas();
   const min=PAR.lista.reduce((a,p)=>a+p.duracion_min,0),act=PAR.lista.find(p=>p.en_curso);
   $('#pjPar').textContent=act?`⏸ ${act.duracion_min}′`:`${PAR.lista.length} · ${durHM(min)}`;
-  $('#pj').classList.toggle('parado',!!act);
+  $('#pj').classList.toggle('parado',!!act);$('#pjMini').classList.toggle('parado',!!act);
 }
 setInterval(()=>{if(S.jornada)actualizarParadas();},30000);
 function tablaParadas(lista,res){
@@ -2812,7 +2824,7 @@ async function abrirPlay(jid){
 async function palmasVisitadasPlay(j,pts){
   let t0,porLote=null;
   if(j.visita&&j.visita.t0_visita&&j.visita.por_lote.some(x=>x.t_visita)){t0=Date.parse(j.visita.t0_visita);porLote=j.visita.por_lote.map(x=>({lote:x.lote,ids:x.ids_palmas_visitadas||[],t:x.t_visita||[]}));}
-  else{const E=await calcularVisita(pts.map(p=>({...p})),j.densidad,j.buffer,j.metodoVisita||'buffer',true,j.estado!=='activa',j.seleccion);t0=E.t0;porLote=[...E.lotes].map(([l,r])=>({lote:l,ids:r.ids,t:r.ids.map(id=>E.tv.get(String(id)))}));}
+  else{const E=await calcularVisita(pts.map(p=>({...p})),j.densidad,j.buffer,j.metodoVisita||'buffer',true,j.estado!=='activa',j.seleccion,j.bufferTerraza);t0=E.t0;porLote=[...E.lotes].map(([l,r])=>({lote:l,ids:r.ids,t:r.ids.map(id=>E.tv.get(String(id)))}));}
   const out=[];
   for(const x of porLote){if(!x.ids.length)continue;let pos=new Map();
     try{for(const a of await leerChunk(x.lote))pos.set(String(a[0]),[a[5],a[4]]);}catch(e){}
@@ -2972,7 +2984,7 @@ async function sincronizar(manual){
     for(const j of lista){
       const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
       if(!j.paradas){j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);}
-      if(!j.visita||!j.secuencias||!j.tiempos){const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion);if(!j.visita||!j.tiempos)j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);
+      if(!j.visita||!j.secuencias||!j.tiempos){const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion,j.bufferTerraza);if(!j.visita||!j.tiempos)j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);
         j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin||new Date().toISOString()),paradas:j.paradas||[],regs,densidad:j.densidad,visitas:E.conf});j.tiempos=tiemposJornada(j.secuencias,j);}
       const ahora=new Date().toISOString();const esC=j.labor==='cirugia',raiz=esC?'cirugia/jornadas':'jornadas';const base=`${raiz}/${fechaLocal(j.inicio)}/${j.id}`;
       const archivos=[];let nombreZip=null;
@@ -3246,7 +3258,8 @@ async function abrirConfig(){
     <p class="tenue">Cada jornada se envía completa una sola vez, después de finalizarla.</p>
     <h3>Cálculo de hectáreas recorridas</h3>
     <div class="fila"><div><label class="campo">Densidad (palmas/ha)</label><input type="number" id="cDens" min="50" max="250" value="${esc(S.cfg.densidad)}"></div>
-      <div><label class="campo">Buffer: terrazas, método buffer y comparativo (m)</label><input type="number" id="cBuf" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferVisita)}"></div></div>
+      <div><label class="campo">Buffer terrazas (m)</label><input type="number" id="cBufT" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferTerraza??8)}"></div></div>
+    <div class="fila"><div><label class="campo">Buffer: método buffer y comparativo (m)</label><input type="number" id="cBuf" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferVisita)}"></div><div></div></div>
     <label class="campo">Método de cálculo de palmas visitadas</label>
     <select id="cMet"><option value="calle" ${S.cfg.metodoVisita!=='buffer'?'selected':''}>Por calle (dos líneas a la altura del operario) — recomendado</option><option value="buffer" ${S.cfg.metodoVisita==='buffer'?'selected':''}>Buffer alrededor del recorrido</option></select>
     <label class="campo">Radio para elegir la palma a diagnosticar (m)</label><input type="number" id="cRad" min="10" max="200" value="${esc(S.cfg.radioSel)}">
@@ -3274,7 +3287,7 @@ async function abrirConfig(){
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#cSalir',cerrarSesion);
   $('#cOk').onclick=async()=>{
-    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||5;S.cfg.metodoVisita=$('#cMet').value;S.cfg.radioSel=Number($('#cRad').value)||50;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
+    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||5;S.cfg.bufferTerraza=Number($('#cBufT').value)||8;S.cfg.metodoVisita=$('#cMet').value;S.cfg.radioSel=Number($('#cRad').value)||50;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
     S.cfg.base='dron';S.cfg.vias=$('#cVias').checked;mostrarVias(S.cfg.vias);
     S.cfg.umbralVoz=Number($('#cUmbral').value)||2;S.cfg.precisionVoz=Number($('#cPrec').value)||15;S.cfg.velocidadVoz=Number($('#cVel').value)||1;S.cfg.precisionTrack=Number($('#cPTrack').value)||30;
     await guardarCfg();ponerBase();estadoSync();cerrarHoja();toast('Configuración guardada.');programarSync(1500);};
@@ -3985,7 +3998,8 @@ $('#btJornada').onclick=()=>{if(PLAY.on)return;if(S.jornada){if(esCir())panelCir
     if((c.v.paramVer||1)<2){S.cfg.bufferVisita=5;S.cfg.umbralVoz=2;S.cfg.radioSel=50;}
     if((c.v.paramVer||1)<3){S.cfg.metodoVisita='calle';}
     if((c.v.paramVer||1)<4){if(!c.v.base||c.v.base==='esri')S.cfg.base='dron';}
-    if((c.v.paramVer||1)<5){S.cfg.soloWifi=false;S.cfg.paramVer=pv;}}
+    if((c.v.paramVer||1)<5){S.cfg.soloWifi=false;S.cfg.paramVer=pv;}
+    if((c.v.paramVer||1)<6){S.cfg.bufferTerraza=8;S.cfg.paramVer=pv;}}
   if(!S.cfg.dispositivo)S.cfg.dispositivo='DISP-'+uid().slice(0,8).toUpperCase();
   await guardarCfg();
   avance('Verificando acceso…');await cargarAcceso();
@@ -4013,7 +4027,7 @@ async function despuesDeIngresar(){
         else{ocultarSplash();await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};await mostrarLogin('Ingrese con el usuario '+j.usuario+' para continuar su jornada.');return despuesDeIngresar();}
       }else if(j.labor==='cirugia'){await restaurarCirugia(j);
       }else{S.jornada=j;const pts=await puntosTrack(j.id);TRACK.ultimo=pts[pts.length-1]||null;TRACK.n=pts.length;prepararTrack(pts.map(p=>[p.lat,p.lng]));
-        VIS=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,false,j.seleccion);VIS.sel=null;TRACK.pts=pts;
+        VIS=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,false,j.seleccion,j.bufferTerraza);VIS.sel=null;TRACK.pts=pts;
         await cargarPalmasJornada();pantallaEncendida(true);toast('Jornada en curso recuperada. El recorrido continúa.',4000);}}
     else{S.cfg.jornadaActiva=null;await guardarCfg();}}
   actualizarJornadaUI();estadoSync();dibujarLotes();
