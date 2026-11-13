@@ -142,6 +142,8 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 - **Ajustes:** el radio y el tiempo mínimo los define el administrador en *Configuración*.
 
 ### Base de datos y recorridos
+- **Descargar recorridos:** en *Datos › Jornadas* cada jornada tiene *Descargar recorrido (GeoJSON)* y *KML (Google Earth)*. En *Menú › Exportar › Mis recorridos* se descargan todos los recorridos del usuario registrados en el celular: GeoJSON (trazado, paradas, diagnósticos y resumen), KML o puntos GPS en CSV.
+- **Incidencia de PC:** en *Datos › Resumen* (columnas Casos PC e Incid. PC junto al lote) y en el visor (tarjeta en *Resumen* y columnas junto al lote en *Lotes*).
 - **DATOS → Diagnósticos**: tabla con filtros por jornada, lote, estado y sincronización, búsqueda y orden por columna. 🔒 indica sincronizado y ⏳ pendiente.
 - **DATOS → Jornadas y recorridos**: cada jornada con su duración, kilómetros, puntos y diagnósticos. El botón **▶ Reproducir recorrido** muestra el track animado con hora, distancia y diagnósticos que aparecen en el momento en que se registraron. Tiene velocidades de ×10 a ×300 y una barra para adelantar o retroceder.
 - **DATOS → Resumen por lote**: avance e incidencia, calculada como (enfermas + en tratamiento) / evaluadas.
@@ -177,7 +179,7 @@ SanidadData/
 
 ## 7.1 Visor web (administración)
 
-- **Filtros de selección múltiple:** Programa, Operario, Lote, Estado y **Enfermedad N1, N2 y N3**. Cada filtro abre una lista con buscador, botón *Todos* (quita el filtro), *Marcar los visibles* (marca lo que muestra la búsqueda), casillas para elegir varias opciones y *solo este* para una sola. Sin nada marcado = Todos. Los lotes se limitan al programa elegido; N2 muestra las opciones de lo elegido en N1 y N3 las de N2. Los filtros de enfermedad y estado aplican a los diagnósticos; los demás, a jornadas, recorridos, secuencias y diagnósticos.
+- **Filtros de selección múltiple:** Programa, Operario, Lote, Estado y **Enfermedad principal, Opción de la enfermedad (si aplica) y Tipo de seguimiento**. Cada filtro abre una lista con buscador, botón *Todos* (quita el filtro), *Marcar los visibles* (marca lo que muestra la búsqueda), casillas para elegir varias opciones y *solo este* para una sola. Sin nada marcado = Todos. Los lotes se limitan al programa elegido; Opción de la enfermedad muestra las de la enfermedad principal elegida y Tipo de seguimiento las de la opción elegida. Los filtros de enfermedad y estado aplican a los diagnósticos; los demás, a jornadas, recorridos, secuencias y diagnósticos.
 - **Dirección:** `https://jjbuila.github.io/Sanidad/visor.html` (también desde el menú de la app: **Visor web**, visible para administradores y supervisores).
 - **Acceso:** mismo usuario y contraseña de la app. Solo ingresan usuarios con rol **Administrador** o **Supervisor**; los operarios reciben un aviso. El rol *Supervisor* se asigna en `admin.html` y en la app de campo funciona como operario.
 - **Qué muestra:** todas las jornadas sincronizadas en el rango de fechas elegido (Hoy, 7 días, 30 días, Este mes o fechas libres, máximo un año):

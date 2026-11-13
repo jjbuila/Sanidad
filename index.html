@@ -990,7 +990,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261112:2138</div>
+  <div id="splashVer">VERSIÓN 20261112:2157</div>
 </div>
 
 <div id="login" hidden>
@@ -1005,7 +1005,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261112:2138</div>
+  <div id="lgVer2">VERSIÓN 20261112:2157</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1119,7 +1119,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261112:2138';
+const VERSION='20261112:2157';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -1948,7 +1948,7 @@ function marcarVisita(E,l,q,nuevos,t,porRegla){if(E.set.has(q.id))return;E.set.a
      vacíos de la punta de la línea. */
   let st=(E.linRango||(E.linRango=new Map())).get(key);if(!st)E.linRango.set(key,st={a:Infinity,b:-Infinity});
   st.a=Math.min(st.a,q.p);st.b=Math.max(st.b,q.p);
-  let viv=0,vis=0;for(const z of ln.pal)if(z.e&&z.p>=st.a&&z.p<=st.b){viv++;if(E.set.has(z.id))vis++;}
+  let viv=0,vis=0;for(const z of ln.pal||[])if(z.e&&z.p>=st.a&&z.p<=st.b){viv++;if(E.set.has(z.id))vis++;}
   if(viv<2||vis<Math.ceil(REGLA_EX*viv))return;
   const lo=st.a<=ln.pMin?-Infinity:st.a,hi=st.b>=ln.pMax?Infinity:st.b;
   for(const z of ln.cero)if(z.p!=null&&z.p>=lo&&z.p<=hi&&!E.set.has(z.id))marcarVisita(E,l,z,nuevos,t,true);}
@@ -2265,7 +2265,7 @@ async function abrirFormulario(base){
       <fieldset ${bloq?'disabled':''}>
       ${!r.n1&&(r.problemas||[]).length?`<div class="aviso">Diagnóstico registrado con el formulario anterior: ${esc(textoDiag(r))}${r.grado_pc?' · Grado PC '+esc(r.grado_pc):''}. Al guardar se reemplaza por el formulario actual.</div>`:''}
       <div class="banda-form" style="--bf:#1b6e52"><span>1</span><b>DIAGNÓSTICO</b></div>
-      <label class="campo">Nivel 1 · Enfermedad principal <i>*</i></label>
+      <label class="campo">Enfermedad principal <i>*</i></label>
       <div class="chips">${N1S.map(x=>chip('radio','n1',x.c,x.n1,(r.n1_codigo||(!r.n1&&r.estado==='sana'?'SN':''))===x.c)).join('')}</div>
       <div id="secN2"></div>
       <div id="secN3"></div>
@@ -2291,16 +2291,16 @@ async function abrirFormulario(base){
   let ult={n1:null,n2:null};
   const pintarN2=()=>{const c=val('n1');if(c===ult.n1)return;ult.n1=c;ult.n2=null;
     const ops=[...new Set(RAMAS.filter(x=>x.c===c&&x.n2).map(x=>x.n2))];
-    $('#secN2').innerHTML=ops.length?`<label class="campo">Nivel 2 · Opción de la enfermedad <i>*</i></label><div class="chips">${ops.map(o=>chip('radio','n2',o,o,(c===r.n1_codigo&&r.n2===o))).join('')}</div>`:'';};
+    $('#secN2').innerHTML=ops.length?`<label class="campo">Opción de la enfermedad (si aplica) <i>*</i></label><div class="chips">${ops.map(o=>chip('radio','n2',o,o,(c===r.n1_codigo&&r.n2===o))).join('')}</div>`:'';};
   const pintarResto=()=>{const c=val('n1');const n2=val('n2');const key=c+'|'+n2;if(key===ult.n2)return;ult.n2=key;
     const tieneN2=RAMAS.some(x=>x.c===c&&x.n2);
     if(!c||c==='SN'||(tieneN2&&!n2)){F.rama=null;$('#secN3').innerHTML='';$('#secSint').innerHTML='';
       $('#secCampos').innerHTML=c==='SN'?siNo('produccion','Producción',r.produccion)+`<label class="campo">Transitabilidad <i>*</i></label><div class="chips">${TRANSIT.map(t=>chip('radio','transitabilidad',t,t,r.transitabilidad===t)).join('')}</div>`:'';
       $('#secFuente').textContent='';return;}
     const {rama,motivo}=ramaDe(c,n2||null,r.palma_id,r.id);F.rama=rama;if(!rama)return;
-    $('#secN3').innerHTML=rama.n3?`<label class="campo">Nivel 3 · Enfermedad (automático)</label><div class="n3auto"><b>${esc(rama.n3)}</b>${motivo?`<span class="tenue"> · ${esc(motivo)}</span>`:''}</div>`:'';
+    $('#secN3').innerHTML=rama.n3?`<label class="campo">Tipo de seguimiento (automático)</label><div class="n3auto"><b>${esc(rama.n3)}</b>${motivo?`<span class="tenue"> · ${esc(motivo)}</span>`:''}</div>`:'';
     const mismos=c===r.n1_codigo&&(r.n2||'')===(n2||'');
-    $('#secSint').innerHTML=`<label class="campo">Nivel 4 · Síntomas observados (puede marcar varios)</label><div class="chips">${rama.s.map(s=>chip('checkbox','sintomas',s,s,mismos?(r.sintomas||[]).includes(s):rama.s.length===1)).join('')}</div>`;
+    $('#secSint').innerHTML=`<label class="campo">Síntomas observados (puede marcar varios)</label><div class="chips">${rama.s.map(s=>chip('checkbox','sintomas',s,s,mismos?(r.sintomas||[]).includes(s):rama.s.length===1)).join('')}</div>`;
     $('#secCampos').innerHTML=(rama.h?`<label class="campo">Estado del hongo <i>*</i></label><div class="chips">${rama.h.map(o=>chip('radio','hongo',o,o,r.hongo===o)).join('')}</div>`:'')+
       (rama.cir?siNo('cirugia','Cirugía',r.cirugia):'')+(rama.prod?siNo('produccion','Producción',r.produccion):'')+(rama.rai?siNo('raices','Raíces buenas',r.raices):'')+
       (rama.tra?`<label class="campo">Transitabilidad <i>*</i></label><div class="chips">${TRANSIT.map(t=>chip('radio','transitabilidad',t,t,r.transitabilidad===t)).join('')}</div>`:'');
@@ -2372,10 +2372,10 @@ async function guardarRegistro(frm){
   if(SYNC.activo){alert('Se está sincronizando con GitHub. Intente de nuevo en unos segundos.');return;}
   const r=F.r;if(r.sync==='sincronizado'){alert('Este diagnóstico ya fue sincronizado y no se puede modificar.');return;}
   const fd=new FormData(frm);const c=fd.get('n1')||'';
-  if(!c){alert('Seleccione el Nivel 1: enfermedad principal.');return;}
+  if(!c){alert('Seleccione la enfermedad principal.');return;}
   const rama=c==='SN'?null:F.rama;
   if(c!=='SN'){
-    if(RAMAS.some(x=>x.c===c&&x.n2)&&!fd.get('n2')){alert('Seleccione el Nivel 2: opción de la enfermedad.');return;}
+    if(RAMAS.some(x=>x.c===c&&x.n2)&&!fd.get('n2')){alert('Seleccione la opción de la enfermedad.');return;}
     if(!rama){alert('No se encontró la combinación en el formulario de ramificación.');return;}
     if(rama.h&&!fd.get('hongo')){alert('Seleccione el estado del hongo.');return;}
     for(const [k,t] of [['cir','cirugia','Cirugía'],['prod','produccion','Producción'],['rai','raices','Raíces buenas']].map(x=>[x[0],x[1]]).map((x,i)=>x)){}
@@ -2528,7 +2528,7 @@ const COLS=[
   {k:'creado',n:'Fecha y hora',v:r=>fmtFecha(r.creado)},
   {k:'lote',n:'Lote',v:r=>r.lote},{k:'linea',n:'Línea',v:r=>r.linea,num:1},{k:'numero',n:'Palma',v:r=>r.numero,num:1},
   {k:'estado',n:'Estado',v:r=>(estadoDe(r.estado)||{}).n||r.estado,h:r=>{const e=estadoDe(r.estado)||{c:'#999',n:r.estado};return `<span class="est"><i style="background:${e.c}"></i>${esc(e.n)}</span>`;}},
-  {k:'n1',n:'Nivel 1',v:r=>r.n1||(r.problemas||[]).join(', ')},{k:'n2',n:'Nivel 2',v:r=>r.n2||''},{k:'n3',n:'Nivel 3',v:r=>r.n3||''},{k:'sintomas',n:'Síntomas',v:r=>(r.sintomas||[]).join(' / ')},
+  {k:'n1',n:'Enfermedad principal',v:r=>r.n1||(r.problemas||[]).join(', ')},{k:'n2',n:'Opción de la enfermedad',v:r=>r.n2||''},{k:'n3',n:'Tipo de seguimiento',v:r=>r.n3||''},{k:'sintomas',n:'Síntomas',v:r=>(r.sintomas||[]).join(' / ')},
   {k:'accion',n:'Acción',v:r=>r.accion},{k:'evaluador',n:'Evaluador',v:r=>r.evaluador},{k:'fotos',n:'Fotos',v:r=>(r.fotos||[]).length,num:1},
   {k:'dist_gps',n:'Dist. GPS (m)',v:r=>r.dist_gps??'',num:1},{k:'palma_id',n:'ID palma',v:r=>r.palma_id,num:1},{k:'jornada_id',n:'Jornada',v:r=>r.jornada_id}
 ];
@@ -2582,10 +2582,13 @@ async function pintarJornadas(){
       <span>Diagnósticos <b>${num(regs.length)}</b></span><span>Puntos GPS <b>${num(n)}</b></span>
       ${j.resumen_paradas?`<span>Paradas <b>${j.resumen_paradas.n_paradas} (${durHM(j.resumen_paradas.minutos_paradas)})</b></span><span>En movimiento <b>${durHM(j.resumen_paradas.minutos_movimiento)}</b></span>`:(S.jornada&&S.jornada.id===j.id?`<span>Paradas <b>${PAR.lista.length}</b></span>`:'')}</div>
       ${res&&res.por_lote.length?`<div class="met">${res.por_lote.map(x=>`<span><b>${esc(x.lote)}</b>: ${num(x.palmas_visitadas)} palmas · ${x.ha.toFixed(2)} ha · ${num(x.diagnosticos)} diag.</span>`).join('')}</div>`:''}
-      <div class="fila"><button class="btn prim" data-play="${esc(j.id)}">${IC.play} Reproducir recorrido</button><button class="btn" data-ver="${esc(j.id)}">Ver diagnósticos</button></div></div>`);
+      <div class="fila"><button class="btn prim" data-play="${esc(j.id)}">${IC.play} Reproducir recorrido</button><button class="btn" data-ver="${esc(j.id)}">Ver diagnósticos</button></div>
+      <div class="fila"><button class="btn" data-dl="${esc(j.id)}">${IC.descarga} Descargar recorrido (GeoJSON)</button><button class="btn" data-kml="${esc(j.id)}">${IC.descarga} KML (Google Earth)</button></div></div>`);
   }
   $('#bdCuerpo').innerHTML=cards.join('')||'<p class="tenue" style="padding:12px">Aún no hay jornadas registradas en este dispositivo.</p>';
   $$('#bdCuerpo [data-play]').forEach(b=>b.onclick=()=>abrirPlay(b.dataset.play));
+  $$('#bdCuerpo [data-dl]').forEach(b=>b.onclick=()=>descargarRecorridos([b.dataset.dl],'geojson'));
+  $$('#bdCuerpo [data-kml]').forEach(b=>b.onclick=()=>descargarRecorridos([b.dataset.kml],'kml'));
   $$('#bdCuerpo [data-ver]').forEach(b=>b.onclick=()=>{BD.f={q:'',jornada:b.dataset.ver,lote:'',estado:'',sync:''};BD.tab='diag';pintarBD();});
 }
 function calcularResumen(){
@@ -2601,10 +2604,10 @@ const incid=x=>x.evaluadas?((x.est.enferma||0)+(x.est.tratamiento||0))/x.evaluad
 function pintarResumen(){
   const R=calcularResumen();const tot={lote:'TOTAL',total:0,total_lote:0,evaluadas:0,pc:0,est:{},prob:{}};
   R.forEach(x=>{tot.total+=x.total;tot.total_lote+=x.total_lote;tot.pc+=x.pc;tot.evaluadas+=x.evaluadas;for(const k in x.est)tot.est[k]=(tot.est[k]||0)+x.est[k];for(const k in x.prob)tot.prob[k]=(tot.prob[k]||0)+x.prob[k];});
-  const fh=x=>`<tr><td><b>${esc(x.lote)}</b></td><td>${num(x.total)}</td><td>${num(x.evaluadas)}</td><td>${x.total?(x.evaluadas/x.total*100).toFixed(1):'0.0'}%</td><td>${x.est.sana||0}</td><td>${(x.est.enferma||0)+(x.est.tratamiento||0)}</td><td>${(x.est.muerta||0)+(x.est.erradicada||0)}</td><td><b>${incid(x).toFixed(1)}%</b></td><td>${num(x.pc)}</td><td><b>${x.total_lote?(x.pc/x.total_lote*100).toFixed(2):'0.00'}%</b></td></tr>`;
+  const fh=x=>`<tr><td><b>${esc(x.lote)}</b></td><td>${num(x.pc)}</td><td><b>${x.total_lote?(x.pc/x.total_lote*100).toFixed(2):'0.00'}%</b></td><td>${num(x.total)}</td><td>${num(x.evaluadas)}</td><td>${x.total?(x.evaluadas/x.total*100).toFixed(1):'0.0'}%</td><td>${x.est.sana||0}</td><td>${(x.est.enferma||0)+(x.est.tratamiento||0)}</td><td>${(x.est.muerta||0)+(x.est.erradicada||0)}</td><td><b>${incid(x).toFixed(1)}%</b></td></tr>`;
   const probs=PROBLEMAS.filter(p=>tot.prob[p.id]).map(p=>`<tr><td>${esc(p.n)}</td><td>${tot.prob[p.id]}</td><td>${tot.evaluadas?(tot.prob[p.id]/tot.evaluadas*100).toFixed(1):'0.0'}%</td></tr>`).join('');
   $('#bdCuerpo').innerHTML=`<p class="tenue">Último diagnóstico de cada palma registrado en este dispositivo. Incidencia = (enfermas + en recuperación/seguimiento) / evaluadas. <b>Incidencia PC</b> = casos de PC (sin los casos en recuperación ni los dados de alta) ÷ palmas totales del lote (existencia 0 y 1).</p>
-    <div class="tabla-cont" style="max-height:none"><table class="res"><thead><tr><th>Lote</th><th>Palmas</th><th>Evaluadas</th><th>% evaluadas</th><th>Sanas</th><th>Enf./Seg.</th><th>Erradic.</th><th>Incid.</th><th>Casos PC</th><th>Incid. PC</th></tr></thead>
+    <div class="tabla-cont" style="max-height:none"><table class="res"><thead><tr><th>Lote</th><th>Casos PC</th><th>Incid. PC</th><th>Palmas</th><th>Evaluadas</th><th>% evaluadas</th><th>Sanas</th><th>Enf./Seg.</th><th>Erradic.</th><th>Incid.</th></tr></thead>
     <tbody>${R.map(fh).join('')}${R.length?fh(tot):'<tr><td colspan="10" class="tenue">Sin datos.</td></tr>'}</tbody></table></div>
     <h3>Problemas detectados</h3>${probs?`<table class="res"><thead><tr><th>Problema</th><th>Palmas</th><th>% evaluadas</th></tr></thead><tbody>${probs}</tbody></table>`:'<p class="tenue">Aún no se han registrado problemas.</p>'}`;
 }
@@ -2763,6 +2766,21 @@ function redPermitida(){const t=tipoRed();if(t==='sin'||t==='none')return false;
 function programarSync(ms){clearTimeout(SYNC.t);SYNC.t=setTimeout(()=>sincronizar(false),ms||3000);}
 async function jornadasPorSincronizar(){return (await dbAll('jornadas')).filter(j=>j.estado==='finalizada'&&j.sync!=='sincronizado').sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));}
 /* Un solo archivo GeoJSON por jornada: diagnósticos (puntos) + recorrido (línea) + datos de la jornada. */
+/* Descarga de recorridos del usuario: GeoJSON (recorrido + paradas + diagnósticos + resumen de la jornada), KML o puntos GPS en CSV. */
+async function descargarRecorridos(ids,fmt){
+  const js=(await dbAll('jornadas')).filter(j=>ids.includes(j.id)).sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));
+  if(!js.length){toast('No hay recorridos registrados en este celular.');return;}
+  const n=js.length===1?js[0].id:`${fechaLocal(js[0].inicio)}_a_${fechaLocal(js[js.length-1].inicio)}`;const ahora=new Date().toISOString();
+  if(fmt==='geojson'){const feats=[],res=[];for(const j of js){const pts=await puntosTrack(j.id);const g=geoJornada(j,S.registros.filter(r=>r.jornada_id===j.id),pts,j.sync_fecha||ahora,null);feats.push(...g.features.map(f=>({...f,properties:{jornada_id:j.id,...f.properties}})));res.push(g.jornada);}
+    descargar(new Blob([JSON.stringify({type:'FeatureCollection',name:'recorridos_'+n,jornadas:res,features:feats})],{type:'application/geo+json'}),`recorridos_${n}.geojson`);return;}
+  if(fmt==='csv'){const filas=[];for(const j of js){const pts=await puntosTrack(j.id);for(const p of pts)filas.push([j.id,j.evaluador,fechaLocal(p.t),fmtHora(p.t),p.lat,p.lng,p.acc]);}
+    descargar(new Blob(['\ufeff'+aCSV(['jornada_id','evaluador','fecha','hora','lat','lng','precision_m'],filas)],{type:'text/csv'}),`recorridos_puntos_${n}.csv`);return;}
+  const x=s=>String(s??'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));let pm='';
+  for(const j of js){const pts=await puntosTrack(j.id);if(pts.length<2)continue;const v=j.visita||{};
+    pm+=`<Placemark><name>${x(fechaLocal(j.inicio)+' '+hhmm(j.inicio)+'–'+hhmm(j.fin)+' · '+j.evaluador)}</name><description>${x(`Km ${(j.km||0).toFixed(2)} · Palmas visitadas ${v.palmas_visitadas??'—'} · Ha ${v.ha_recorridas??'—'}`)}</description><styleUrl>#rec</styleUrl><LineString><tessellate>1</tessellate><coordinates>${pts.map(p=>p.lng+','+p.lat+',0').join(' ')}</coordinates></LineString></Placemark>`;
+    for(const q of j.paradas||[])pm+=`<Placemark><name>${x('Parada '+q.n+' · '+q.duracion_min+' min')}</name><styleUrl>#par</styleUrl><Point><coordinates>${q.lng},${q.lat},0</coordinates></Point></Placemark>`;}
+  const kml=`<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${x('Recorridos '+n)}</name><Style id="rec"><LineStyle><color>ff9ad322</color><width>3</width></LineStyle></Style><Style id="par"><IconStyle><color>ff1c9fff</color></IconStyle></Style>${pm}</Document></kml>`;
+  descargar(new Blob([kml],{type:'application/vnd.google-earth.kml+xml'}),`recorridos_${n}.kml`);}
 function geoJornada(j,regs,pts,ahora,archivoFotos){
   const sel=regs.map(r=>({...r,sync:'sincronizado',sync_fecha:ahora}));
   const feats=sel.filter(r=>r.lat!=null).map(r=>{const f=featReg(r);f.properties={tipo:'diagnostico',...f.properties};return f;});
@@ -2891,7 +2909,16 @@ function menuExportar(){
     <button class="btn prim ancho" id="eZip">${IC.descarga} Paquete completo (.zip con fotos y recorridos)</button>
     <button class="btn ancho" id="eZipC">📤 Compartir paquete (WhatsApp, correo, Drive…)</button>
     <button class="btn ancho" id="eCsv">📄 Tabla CSV (Excel)</button>
-    <button class="btn ancho" id="eGeo">🗺️ GeoJSON de diagnósticos (QGIS)</button>`);
+    <button class="btn ancho" id="eGeo">🗺️ GeoJSON de diagnósticos (QGIS)</button>
+    <h3 style="margin-top:14px">Mis recorridos</h3>
+    <p class="tenue">Recorridos registrados en este celular por <b>${esc(SES?SES.nombre||SES.u:'')}</b>: trazado, paradas, diagnósticos y resumen (palmas, ha, secuencias y desplazamientos).</p>
+    <button class="btn ancho" id="eRecGeo">🛣️ Mis recorridos · GeoJSON (QGIS)</button>
+    <button class="btn ancho" id="eRecKml">🌍 Mis recorridos · KML (Google Earth)</button>
+    <button class="btn ancho" id="eRecCsv">📄 Mis recorridos · puntos GPS (CSV)</button>`);
+  const mios=async()=>(await dbAll('jornadas')).filter(j=>!SES||!j.usuario||j.usuario===SES.u).map(j=>j.id);
+  $('#eRecGeo').onclick=async()=>descargarRecorridos(await mios(),'geojson');
+  $('#eRecKml').onclick=async()=>descargarRecorridos(await mios(),'kml');
+  $('#eRecCsv').onclick=async()=>descargarRecorridos(await mios(),'csv');
   $('#eZip').onclick=async()=>{toast('Preparando paquete…',8000);descargar(await zipCompleto(),`sanidad_vegetal_${n}.zip`);};
   $('#eZipC').onclick=async()=>{toast('Preparando paquete…',8000);compartir(await zipCompleto(),`sanidad_vegetal_${n}.zip`);};
   $('#eCsv').onclick=()=>descargar(new Blob([csvRegs(S.registros)],{type:'text/csv'}),`registros_${n}.csv`);

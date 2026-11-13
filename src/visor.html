@@ -216,9 +216,9 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
           <div><label class="campo">Estado</label><div class="ms" data-k="est"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
         </div>
         <div class="fila3" style="margin-top:8px">
-          <div><label class="campo">Enfermedad N1</label><div class="ms" data-k="n1"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
-          <div><label class="campo">Enfermedad N2</label><div class="ms" data-k="n2"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
-          <div><label class="campo">Enfermedad N3</label><div class="ms" data-k="n3"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
+          <div><label class="campo">Enfermedad principal</label><div class="ms" data-k="n1"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
+          <div><label class="campo">Opción enfermedad (si aplica)</label><div class="ms" data-k="n2"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
+          <div><label class="campo">Tipo seguimiento</label><div class="ms" data-k="n3"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></div>
         </div>
         <div id="prog"><b></b></div>
         <div id="progTxt" class="tenue"></div>
@@ -679,7 +679,7 @@ function htmlDiag(d){const e=estadoDe(d.estado)||{c:'#ccc',n:d.estado_nombre||d.
   const probs=String(d.problemas||'').split('|').filter(Boolean).map(p=>PROBLEMAS[p]||p);
   return `<b class="h">${esc(etiquetaDiag(d))}</b><br><span class="punto" style="background:${colorD(d)}"></span><b>${esc(e.n)}</b>
     <div style="margin-top:6px;display:grid;gap:2px">
-    ${d.nivel1?`<div><b>Nivel 1:</b> ${esc(d.nivel1)}</div>${d.nivel2?`<div><b>Nivel 2:</b> ${esc(d.nivel2)}</div>`:''}${d.nivel3?`<div><b>Nivel 3:</b> ${esc(d.nivel3)}</div>`:''}`:(probs.length?`<div><b>Problemas:</b> ${esc(probs.join(', '))}</div>`:'')}
+    ${d.nivel1?`<div><b>Enfermedad principal:</b> ${esc(d.nivel1)}</div>${d.nivel2?`<div><b>Opción de la enfermedad:</b> ${esc(d.nivel2)}</div>`:''}${d.nivel3?`<div><b>Tipo de seguimiento:</b> ${esc(d.nivel3)}</div>`:''}`:(probs.length?`<div><b>Problemas:</b> ${esc(probs.join(', '))}</div>`:'')}
     ${d.estado_hongo?`<div><b>Hongo:</b> ${esc(d.estado_hongo)}</div>`:''}${d.cirugia?`<div><b>Cirugía:</b> ${esc(d.cirugia)}</div>`:''}${d.produccion?`<div><b>Producción:</b> ${esc(d.produccion)}</div>`:''}
     ${d.raices_buenas?`<div><b>Raíces buenas:</b> ${esc(d.raices_buenas)}</div>`:''}${d.transitabilidad?`<div><b>Transitabilidad:</b> ${esc(d.transitabilidad)}</div>`:''}
     ${d.grado_pc?`<div><b>Grado PC:</b> ${esc(d.grado_pc)}</div>`:''}${d.severidad?`<div><b>Severidad:</b> ${esc(d.severidad)}</div>`:''}
@@ -855,9 +855,11 @@ function pintarPanel(){
       <div class="kpi"><b>${num(JORF.length)}</b><span>Jornadas</span></div><div class="kpi"><b>${num(ops)}</b><span>Operarios</span></div><div class="kpi"><b>${num(lotes)}</b><span>Lotes</span></div>
       <div class="kpi"><b>${num(ha,2)}</b><span>Ha recorridas</span></div><div class="kpi"><b>${num(pal)}</b><span>Palmas visitadas</span></div><div class="kpi"><b>${num(km,1)}</b><span>Km</span></div>
       <div class="kpi"><b>${num(DIAGF.length)}</b><span>Diagnósticos</span></div><div class="kpi"><b style="color:var(--rojo)">${num(enf)}</b><span>Enfermas</span></div><div class="kpi"><b>${num(fotos)}</b><span>Fotos</span></div></div>
+      ${(()=>{const rl=resumenLotes().filter(x=>x.total_lote);const cp=rl.reduce((a,x)=>a+x.pc,0),tp=rl.reduce((a,x)=>a+x.total_lote,0);
+        return `<div class="kpis" style="grid-template-columns:1fr 1fr"><div class="kpi"><b style="color:var(--rojo)">${tp?num(cp/tp*100,2)+' %':'—'}</b><span>Incidencia PC (${num(cp)} casos ÷ ${num(tp)} palmas de ${num(rl.length)} lote(s))</span></div><div class="kpi"><b>${num(cp)}</b><span>Casos de PC activos</span></div></div>`;})()}
       <div class="kpis" style="grid-template-columns:1fr 1fr"><div class="kpi"><b>${esc(minAh(mp))}</b><span>Tiempo en paradas</span></div><div class="kpi"><b>${ops?num(ha/Math.max(1,new Set(JORF.map(j=>j.usuario+'|'+j.fecha)).size),2):'0'}</b><span>Ha por operario-día</span></div></div>
       <h3>Diagnósticos por estado</h3>${barraEstados()}
-      <h3>Enfermedades más frecuentes (Nivel 1)</h3>${barraProblemas()}
+      <h3>Enfermedades más frecuentes (enfermedad principal)</h3>${barraProblemas()}
       ${comp.length?`<h3>Método por calle frente a buffer</h3><div class="tenue" style="font-size:13px">En ${num(comp.length)} jornada(s) con comparativo: por calle <b style="color:var(--texto)">${num(pc)}</b> palmas; buffer <b style="color:var(--texto)">${num(pb)}</b> palmas (${pb?(pc>=pb?'+':'')+num(100*(pc-pb)/pb,1)+' %':'—'}).</div>`:''}
       <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn mini" id="xGeo">⬇ GeoJSON filtrado</button><button class="btn mini" id="xJor">⬇ CSV jornadas</button><button class="btn mini" id="xDiag">⬇ CSV diagnósticos</button></div>`;
     $('#xGeo').onclick=()=>descargar(`sanidad_${$('#fDesde').value}_${$('#fHasta').value}.geojson`,JSON.stringify(geoDeJornadas(JORF)),'application/geo+json');
@@ -867,7 +869,7 @@ function pintarPanel(){
     const t=tabla('tJor',[{k:'fecha',t:'Fecha',asc:false},{k:'evaluador',t:'Operario'},{k:'ini',t:'Inicio'},{k:'fin',t:'Fin'},{k:'dur',t:'Duración',n:1,f:x=>esc(minAh(x.dur))},{k:'km',t:'Km',n:1,f:x=>num(x.km,2)},{k:'vel',t:'Vel. km/h',n:1,f:x=>x.vel==null?'—':num(x.vel,1)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'diag',t:'Diag.',n:1},{k:'par',t:'Paradas',n:1},{k:'lotes',t:'Lotes'}],filas,f=>abrirDetalle(f._j));
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque una jornada para verla en el mapa y reproducir el recorrido.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xJor">⬇ CSV jornadas</button></div>`;$('#xJor').onclick=()=>csvJornadas();
   }else if(TAB==='lotes'){
-    const t=tabla('tLot',[{k:'lote',t:'Lote'},{k:'tipo',t:'Tipo'},{k:'jornadas',t:'Jornadas',n:1},{k:'operarios',t:'Operarios',n:1},{k:'palmas',t:'Palmas visitadas',n:1,f:x=>num(x.palmas)},{k:'distintas',t:'Palmas distintas',n:1,f:x=>num(x.distintas)},{k:'total_lote',t:'Total lote',n:1,f:x=>x.total_lote?num(x.total_lote):'—'},{k:'avance',t:'Avance',n:1,f:x=>x.avance==null?'—':'<b>'+num(x.avance,1)+' %</b>'},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'diag',t:'Diag.',n:1},{k:'enfermas',t:'Enfermas',n:1},{k:'pc',t:'Casos PC',n:1},{k:'incid_pc',t:'Incid. PC',n:1,f:x=>x.incid_pc==null?'—':'<b>'+num(x.incid_pc,2)+' %</b>'},{k:'min_par',t:'Min. paradas',n:1}],
+    const t=tabla('tLot',[{k:'lote',t:'Lote'},{k:'pc',t:'Casos PC',n:1},{k:'incid_pc',t:'Incid. PC',n:1,f:x=>x.incid_pc==null?'—':'<b>'+num(x.incid_pc,2)+' %</b>'},{k:'tipo',t:'Tipo'},{k:'jornadas',t:'Jornadas',n:1},{k:'operarios',t:'Operarios',n:1},{k:'palmas',t:'Palmas visitadas',n:1,f:x=>num(x.palmas)},{k:'distintas',t:'Palmas distintas',n:1,f:x=>num(x.distintas)},{k:'total_lote',t:'Total lote',n:1,f:x=>x.total_lote?num(x.total_lote):'—'},{k:'avance',t:'Avance',n:1,f:x=>x.avance==null?'—':'<b>'+num(x.avance,1)+' %</b>'},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'diag',t:'Diag.',n:1},{k:'enfermas',t:'Enfermas',n:1},{k:'min_par',t:'Min. paradas',n:1}],
       resumenLotes(),f=>{msSolo('lote',f.lote);aplicarFiltros(true);});
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque un lote para filtrar por él. <b>Avance</b> = palmas distintas visitadas (sin repetir entre jornadas) ÷ palmas totales del lote. <b>Incid. PC</b> = casos de PC (último diagnóstico de cada palma, sin casos en recuperación ni dados de alta) ÷ palmas totales del lote (existencia 0 y 1).</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xLot">⬇ CSV lotes</button></div>`;
     $('#xLot').onclick=()=>csv(`lotes_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['lote','tipo','jornadas','operarios','palmas','distintas','total_lote','avance','ha','diag','enfermas','pc','incid_pc','paradas','min_par'],resumenLotes());
