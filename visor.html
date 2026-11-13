@@ -832,7 +832,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261112:1958</div>
+    <div id="lgVer">VERSIÓN 20261112:2104</div>
   </div>
 </div>
 
@@ -919,7 +919,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261112:1958';
+const VERSION='20261112:2104';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -935,6 +935,9 @@ const ESTADOS=[
 const estadoDe=id=>ESTADOS.find(e=>e.id===id);
 const COLOR_N1={PC:'#e53935',PE:'#8e24aa',DBP:'#fb8c00',AR:'#ad1457',CER:'#795548',DEF:'#c0ca33',ESP:'#00acc1',HP:'#3949ab',MJ:'#f48fb1',ML:'#212121',MS:'#1e88e5',PA:'#827717',PEST:'#26a69a',RAYO:'#ffffff',YAR:'#33691e'};
 const COLOR_ALTA='#00e676';
+/* Caso de PC para la incidencia: último diagnóstico de la palma con Nivel 1 = PC, excluidos los casos en recuperación
+   (y los dados de alta, que ya no son casos). Incidencia PC = casos de PC ÷ palmas totales del lote (existencia 0 y 1). */
+const esCasoPC=(c,n2,estado)=>c==='PC'&&!/RECUPERACI|DE ALTA/i.test(n2||'')&&estado!=='tratamiento'&&estado!=='alta';
 const codN1=d=>d.n1_codigo||String(d.problemas||'').split('|').filter(Boolean)[0]||'';
 function colorD(d){if(!d)return '#999';if(d.estado==='alta')return COLOR_ALTA;return COLOR_N1[codN1(d)]||(estadoDe(d.estado)||{c:'#ccc'}).c;}
 const PROBLEMAS={PC:'Pudrición de cogollo (PC)',PE:'Pudrición de estípite (PE)',DBP:'Desprendimiento de bases peciolares (DBP)',AR:'Anillo rojo (AR)',CER:'Cercospora',DEF:'Deficiencias',
@@ -1101,7 +1104,7 @@ function pintarLeyenda(){
 }
 
 /* ---------- Cartografía (cifrada) ---------- */
-let LOTES=null,PALMASZIP=null;const CHUNK=new Map();const PROG=new Map();
+let LOTES=null,PALMASZIP=null,IND_LOTES={};const totalLote=l=>{const m=IND_LOTES[l];return m?Number(m.n)||0:0;};const CHUNK=new Map();const PROG=new Map();
 function enAnillo(x,y,r){let d=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const [xi,yi]=r[i],[xj,yj]=r[j];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))d=!d;}return d;}
 function loteDe(lat,lng){if(!LOTES)return '';
   for(const f of LOTES.features){let k=f._k;if(!k){let a=1e9,b=1e9,c=-1e9,d=-1e9;const ps=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;for(const p of ps)for(const [x,y] of p[0]){a=Math.min(a,x);b=Math.min(b,y);c=Math.max(c,x);d=Math.max(d,y);}k=f._k=[a,b,c,d];}
@@ -1116,6 +1119,7 @@ async function cargarCartografia(){
   const z=await JSZip.loadAsync(await aesDes(SES.dk,buf.slice(4,16),buf.slice(16)));
   LOTES=JSON.parse(await z.file('lotes.geojson').async('string'));
   PALMASZIP=await JSZip.loadAsync(await z.file('palmas.zip').async('arraybuffer'));
+  try{const fi=PALMASZIP.file('indice.json');if(fi)IND_LOTES=(JSON.parse(await fi.async('string')).lotes)||{};}catch(e){}
   const nombre=p=>p.Lote||p.lote||p.LOTE||p.nombre||'';
   L.geoJSON(LOTES,{renderer:rend,style:{color:'#90cdf1',weight:1.2,fillColor:'#90cdf1',fillOpacity:.04},
     onEachFeature:(f,l)=>{const n=nombre(f.properties);f.properties._lote=n;l.bindTooltip(esc(n),{permanent:true,direction:'center',className:'etq-lote'});
@@ -1248,8 +1252,8 @@ async function completarTiempos(j){
 }
 function filasSecuencias(){const lote=$('#fLote').value;const out=[];
   for(const j of JORF)for(const s of secuenciasDe(j)){const esL=s.tipo==='lote';if(lote&&!esL)continue;if(lote&&s.lote!==lote)continue;if(esL&&!enProg(s.lote))continue;
-    out.push({_j:j,fecha:j.fecha,evaluador:j.evaluador,usuario:j.usuario,sec:s.secuencia??0,tipo:s.tipo,lote:esL?s.lote:(ETQ_TIPO[s.tipo]||'Desplazamiento'),ini:s.hora_inicio,fin:s.hora_fin,
-      tot:Number(s.min_total)||0,desp:esL?Number(s.min_desplazamiento)||0:0,par:Number(s.min_paradas)||0,efe:Number(s.min_efectivo)||0,vel:s.vel_kmh==null?null:Number(s.vel_kmh),km:Number(s.km)||0,palmas:s.palmas_visitadas,ha:s.ha,diag:s.diagnosticos||0,orden:Date.parse(s.inicio)||0});}
+    out.push({_j:j,fecha:j.fecha,evaluador:j.evaluador,usuario:j.usuario,sec:s.secuencia??0,tipo:s.tipo,lote:esL?s.lote:(ETQ_TIPO[s.tipo]||'Desplazamiento'),ini:s.hora_inicio,ini_lab:esL?(s.hora_inicio_labor||s.hora_inicio):'',fin:s.hora_fin,
+      tot:Number(s.min_total)||0,desp:esL?Number(s.min_desplazamiento)||0:0,lab:esL?Number(s.min_labor??s.min_total)||0:0,par:Number(s.min_paradas)||0,efe:Number(s.min_efectivo)||0,vel:s.vel_kmh==null?null:Number(s.vel_kmh),km:Number(s.km)||0,palmas:s.palmas_visitadas,ha:s.ha,diag:s.diagnosticos||0,orden:Date.parse(s.inicio)||0});}
   return out;}
 function aplicarFiltros(ajustar){
   const op=$('#fOp').value,lote=$('#fLote').value,est=$('#fEst').value;
@@ -1336,7 +1340,7 @@ function abrirDetalle(j){
   for(const d of j.diags)caja?caja.extend([d.lat,d.lng]):(caja=L.latLngBounds([[d.lat,d.lng]]));
   if(caja)mapa.fitBounds(caja,{padding:[40,40],maxZoom:19});
   const conT=tr&&tr.t.length===tr.c.length&&tr.t.length>1;
-  const filas=j.por_lote.map(x=>`<tr><td><b>${esc(x.lote)}</b>${x.tipo_lote&&x.tipo_lote!=='lineal'?` <span class="tenue">· ${esc(x.tipo_lote)}</span>`:''}</td><td class="n">${num(x.palmas_visitadas)}</td><td class="n">${num(x.ha,2)}</td><td class="n">${num(x.diagnosticos)}</td><td class="n">${num(x.paradas||0)}</td></tr>`).join('');
+  const filas=j.por_lote.map(x=>`<tr><td><b>${esc(x.lote)}</b>${x.tipo_lote&&x.tipo_lote!=='lineal'?` <span class="tenue">· ${esc(x.tipo_lote)}</span>`:''}</td><td class="n">${num(x.palmas_visitadas)}</td><td class="n">${(x.palmas_total_lote||totalLote(x.lote))?num(Number(x.palmas_visitadas)/(x.palmas_total_lote||totalLote(x.lote))*100,1)+' %':'—'}</td><td class="n">${num(x.ha,2)}</td><td class="n">${num(x.diagnosticos)}</td><td class="n">${num(x.paradas||0)}</td></tr>`).join('');
   $('#detalle').innerHTML=`<div class="cab"><b>${esc(j.evaluador)}</b><button class="x" id="dX" title="Cerrar">✕</button></div>
     <div class="tenue">${esc(j.fecha)} · ${esc(j.hora_inicio)} – ${esc(j.hora_fin)} · ${esc(minAh(j.duracion_min))}</div>
     <div class="grid2"><div><b>Km:</b> ${num(j.km,2)}</div><div><b>Ha:</b> ${num(j.ha,2)}</div><div><b>Palmas visitadas:</b> ${num(j.palmas)}</div><div><b>Diagnósticos:</b> ${num(j.diags.length)}</div>
@@ -1351,9 +1355,9 @@ function abrirDetalle(j){
       <span class="tenue" style="font-size:12px;margin-left:auto">${num(tr.c.length)} puntos</span></div>
       <div class="fila" style="font-size:13px"><span class="punto" style="background:#4dd0e1"></span>Palmas visitadas: <b id="pVis" style="font-family:var(--t);font-size:18px">0</b><span class="tenue" id="pVisTot" style="margin-left:4px"></span></div></div>`:'<div class="tenue" style="margin:6px 0">Recorrido sin tiempos: no se puede reproducir.</div>'}
     <h3 style="margin-top:6px">Secuencias por lote</h3>
-    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Sec.</th><th>Lote</th><th>Inicio</th><th>Fin</th><th class="n">Total</th><th class="n">Despl.</th><th class="n">Paradas</th><th class="n">Efectivo</th><th class="n">Vel.</th><th class="n">Palmas</th><th class="n">Ha</th></tr></thead><tbody>${
-      secuenciasDe(j).map(s=>`<tr${s.tipo!=='lote'?' class="tenue"':''}><td><b>${s.secuencia??'—'}</b></td><td><b>${s.tipo!=='lote'?ETQ_TIPO[s.tipo]||'Desplazamiento':esc(s.lote)}</b></td><td>${esc(s.hora_inicio)}</td><td>${esc(s.hora_fin)}</td><td class="n">${minHM(s.min_total)}</td><td class="n">${s.tipo==='lote'&&s.min_desplazamiento!=null?minHM(s.min_desplazamiento):'—'}</td><td class="n">${minHM(s.min_paradas)}</td><td class="n"><b>${s.min_efectivo==null?'—':minHM(s.min_efectivo)}</b></td><td class="n">${s.vel_kmh==null?'—':num(s.vel_kmh,1)}</td><td class="n">${s.palmas_visitadas==null?'—':num(s.palmas_visitadas)}</td><td class="n">${s.ha==null?'—':num(s.ha,2)}</td></tr>`).join('')||'<tr><td colspan="11" class="tenue">Sin recorrido con tiempos.</td></tr>'}</tbody></table></div>
-    <div class="tenue" style="font-size:11.5px">Despl. = desplazamiento entre lotes (se suma al lote al que llega y cuenta como efectivo). El desplazamiento inicial y el final no son tiempo efectivo de un lote. Vel. = km/h de caminata sin paradas.</div>
+    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Sec.</th><th>Lote</th><th>Inicio</th><th>Inicio labor</th><th>Fin</th><th class="n">Despl.</th><th class="n">Labor</th><th class="n">Total</th><th class="n">Paradas</th><th class="n">Efectivo</th><th class="n">Vel.</th><th class="n">Palmas</th><th class="n">Ha</th></tr></thead><tbody>${
+      secuenciasDe(j).map(s=>`<tr${s.tipo!=='lote'?' class="tenue"':''}><td><b>${s.secuencia??'—'}</b></td><td><b>${s.tipo!=='lote'?ETQ_TIPO[s.tipo]||'Desplazamiento':esc(s.lote)}</b></td><td>${esc(s.hora_inicio)}</td><td>${s.tipo==='lote'?esc(s.hora_inicio_labor||s.hora_inicio):'—'}</td><td>${esc(s.hora_fin)}</td><td class="n">${s.tipo==='lote'&&s.min_desplazamiento!=null?minHM(s.min_desplazamiento):'—'}</td><td class="n">${s.tipo==='lote'?minHM(s.min_labor??s.min_total):'—'}</td><td class="n">${minHM(s.min_total)}</td><td class="n">${minHM(s.min_paradas)}</td><td class="n"><b>${s.min_efectivo==null?'—':minHM(s.min_efectivo)}</b></td><td class="n">${s.vel_kmh==null?'—':num(s.vel_kmh,1)}</td><td class="n">${s.palmas_visitadas==null?'—':num(s.palmas_visitadas)}</td><td class="n">${s.ha==null?'—':num(s.ha,2)}</td></tr>`).join('')||'<tr><td colspan="13" class="tenue">Sin recorrido con tiempos.</td></tr>'}</tbody></table></div>
+    <div class="tenue" style="font-size:11.5px">Despl. = desplazamiento entre lotes: va en la misma fila del lote al que llega, separado de la labor (Inicio = fin del lote anterior; Inicio labor = primera palma) y cuenta como efectivo. Total = Despl. + Labor. El desplazamiento inicial y el final no son tiempo efectivo de un lote. Vel. = km/h de caminata sin paradas.</div>
     ${secuenciasDe(j).some(s=>s.reconstruida)?'<div class="tenue" style="font-size:11.5px">Jornada anterior a la versión con secuencias: se reconstruyeron con el recorrido; las palmas se asignan a la secuencia en que el operario pasó junto a ellas.</div>':''}
     <h3 style="margin-top:6px">Por lote</h3>
     <table class="t"><thead><tr><th>Lote</th><th class="n">Palmas</th><th class="n">Ha</th><th class="n">Diag.</th><th class="n">Paradas</th></tr></thead><tbody>${filas||'<tr><td colspan="5" class="tenue">Sin datos por lote.</td></tr>'}</tbody></table>
@@ -1407,11 +1411,16 @@ function pararPlay(){PLAY.on=false;cancelAnimationFrame(PLAY.raf);const b=$('#pB
 
 /* ---------- Agregados ---------- */
 function resumenLotes(){
-  const lote=$('#fLote').value;const m=new Map();const fila=l=>{if(!m.has(l))m.set(l,{lote:l,tipo:'',jornadas:0,operarios:new Set(),palmas:0,ha:0,diag:0,enfermas:0,paradas:0,min_par:0});return m.get(l);};
+  const lote=$('#fLote').value;const m=new Map();const fila=l=>{if(!m.has(l))m.set(l,{lote:l,tipo:'',jornadas:0,operarios:new Set(),palmas:0,ha:0,diag:0,enfermas:0,paradas:0,min_par:0,ids:new Set(),sinIds:0});return m.get(l);};
   for(const j of JORF)for(const x of j.por_lote){if((lote&&x.lote!==lote)||!enProg(x.lote))continue;const f=fila(x.lote);f.jornadas++;f.operarios.add(j.usuario);f.palmas+=Number(x.palmas_visitadas)||0;f.ha+=Number(x.ha)||0;
+    const ids=x.ids_palmas_visitadas||[];if(ids.length)ids.forEach(id=>f.ids.add(String(id)));else f.sinIds+=Number(x.palmas_visitadas)||0;
     f.paradas+=Number(x.paradas)||0;f.min_par+=Number(x.minutos_paradas)||0;if(x.tipo_lote)f.tipo=x.tipo_lote;}
   for(const d of DIAGF){const f=fila(d.lote||'—');f.diag++;if(d.estado==='enferma')f.enfermas++;}
-  return [...m.values()].map(f=>({...f,operarios:f.operarios.size,ha:+f.ha.toFixed(2)}));
+  // casos de PC: último diagnóstico de cada palma (todas las jornadas filtradas, sin el filtro de estado)
+  const ult=new Map();for(const j of JORF)for(const d of j.diags){if((lote&&d.lote!==lote)||!enProg(d.lote))continue;const k=d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma);const u=ult.get(k);if(!u||String(d.creado)>String(u.creado))ult.set(k,d);}
+  for(const d of ult.values())if(esCasoPC(codN1(d),d.nivel2,d.estado))fila(d.lote||'—').pc=(fila(d.lote||'—').pc||0)+1;
+  // Avance = palmas distintas visitadas (sin repetir entre jornadas) ÷ palmas totales del lote
+  return [...m.values()].map(f=>{const tl=totalLote(f.lote),vis=Math.min(tl||Infinity,f.ids.size+f.sinIds);return {...f,ids:undefined,operarios:f.operarios.size,ha:+f.ha.toFixed(2),distintas:vis,total_lote:tl,avance:tl?+(vis/tl*100).toFixed(1):null,pc:f.pc||0,incid_pc:tl?+((f.pc||0)/tl*100).toFixed(2):null};});
 }
 function resumenOperarios(){
   const m=new Map();
@@ -1468,19 +1477,19 @@ function pintarPanel(){
     const t=tabla('tJor',[{k:'fecha',t:'Fecha',asc:false},{k:'evaluador',t:'Operario'},{k:'ini',t:'Inicio'},{k:'fin',t:'Fin'},{k:'dur',t:'Duración',n:1,f:x=>esc(minAh(x.dur))},{k:'km',t:'Km',n:1,f:x=>num(x.km,2)},{k:'vel',t:'Vel. km/h',n:1,f:x=>x.vel==null?'—':num(x.vel,1)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'diag',t:'Diag.',n:1},{k:'par',t:'Paradas',n:1},{k:'lotes',t:'Lotes'}],filas,f=>abrirDetalle(f._j));
     P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque una jornada para verla en el mapa y reproducir el recorrido.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xJor">⬇ CSV jornadas</button></div>`;$('#xJor').onclick=()=>csvJornadas();
   }else if(TAB==='lotes'){
-    const t=tabla('tLot',[{k:'lote',t:'Lote'},{k:'tipo',t:'Tipo'},{k:'jornadas',t:'Jornadas',n:1},{k:'operarios',t:'Operarios',n:1},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'diag',t:'Diag.',n:1},{k:'enfermas',t:'Enfermas',n:1},{k:'min_par',t:'Min. paradas',n:1}],
+    const t=tabla('tLot',[{k:'lote',t:'Lote'},{k:'tipo',t:'Tipo'},{k:'jornadas',t:'Jornadas',n:1},{k:'operarios',t:'Operarios',n:1},{k:'palmas',t:'Palmas visitadas',n:1,f:x=>num(x.palmas)},{k:'distintas',t:'Palmas distintas',n:1,f:x=>num(x.distintas)},{k:'total_lote',t:'Total lote',n:1,f:x=>x.total_lote?num(x.total_lote):'—'},{k:'avance',t:'Avance',n:1,f:x=>x.avance==null?'—':'<b>'+num(x.avance,1)+' %</b>'},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'diag',t:'Diag.',n:1},{k:'enfermas',t:'Enfermas',n:1},{k:'pc',t:'Casos PC',n:1},{k:'incid_pc',t:'Incid. PC',n:1,f:x=>x.incid_pc==null?'—':'<b>'+num(x.incid_pc,2)+' %</b>'},{k:'min_par',t:'Min. paradas',n:1}],
       resumenLotes(),f=>{$('#fLote').value=f.lote;aplicarFiltros(true);});
-    P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque un lote para filtrar por él.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xLot">⬇ CSV lotes</button></div>`;
-    $('#xLot').onclick=()=>csv(`lotes_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['lote','tipo','jornadas','operarios','palmas','ha','diag','enfermas','paradas','min_par'],resumenLotes());
+    P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque un lote para filtrar por él. <b>Avance</b> = palmas distintas visitadas (sin repetir entre jornadas) ÷ palmas totales del lote. <b>Incid. PC</b> = casos de PC (último diagnóstico de cada palma, sin casos en recuperación ni dados de alta) ÷ palmas totales del lote (existencia 0 y 1).</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xLot">⬇ CSV lotes</button></div>`;
+    $('#xLot').onclick=()=>csv(`lotes_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['lote','tipo','jornadas','operarios','palmas','distintas','total_lote','avance','ha','diag','enfermas','pc','incid_pc','paradas','min_par'],resumenLotes());
   }else if(TAB==='secuencias'){
     const filas=filasSecuencias();
-    const t=tabla('tSec',[{k:'orden',t:'Fecha',asc:false,f:x=>esc(x.fecha)},{k:'evaluador',t:'Operario'},{k:'sec',t:'Sec.',n:1,f:x=>x.sec||'—'},{k:'lote',t:'Lote',f:x=>x.tipo!=='lote'?'<span class="tenue">'+esc(x.lote)+'</span>':'<b>'+esc(x.lote)+'</b>'},{k:'ini',t:'Inicio'},{k:'fin',t:'Fin'},
-      {k:'tot',t:'T. total',n:1,f:x=>minHM(x.tot)},{k:'desp',t:'Despl. entre lotes',n:1,f:x=>x.tipo==='lote'?minHM(x.desp):'—'},{k:'par',t:'Paradas',n:1,f:x=>minHM(x.par)},{k:'efe',t:'T. efectivo',n:1,f:x=>x.tipo==='lote'||x.tipo==='desplazamiento'?'<b>'+minHM(x.efe)+'</b>':'—'},{k:'vel',t:'Vel. km/h',n:1,f:x=>x.vel==null?'—':num(x.vel,1)},{k:'palmas',t:'Palmas',n:1,f:x=>x.palmas==null?'—':num(x.palmas)},{k:'ha',t:'Ha',n:1,f:x=>x.ha==null?'—':num(x.ha,2)},{k:'diag',t:'Diag.',n:1}],filas,f=>abrirDetalle(f._j));
+    const t=tabla('tSec',[{k:'orden',t:'Fecha',asc:false,f:x=>esc(x.fecha)},{k:'evaluador',t:'Operario'},{k:'sec',t:'Sec.',n:1,f:x=>x.sec||'—'},{k:'lote',t:'Lote',f:x=>x.tipo!=='lote'?'<span class="tenue">'+esc(x.lote)+'</span>':'<b>'+esc(x.lote)+'</b>'},{k:'ini',t:'Inicio'},{k:'ini_lab',t:'Inicio labor',f:x=>x.tipo==='lote'?esc(x.ini_lab):'—'},{k:'fin',t:'Fin'},
+      {k:'desp',t:'Despl. entre lotes',n:1,f:x=>x.tipo==='lote'?minHM(x.desp):'—'},{k:'lab',t:'T. labor',n:1,f:x=>x.tipo==='lote'?minHM(x.lab):'—'},{k:'tot',t:'T. total',n:1,f:x=>minHM(x.tot)},{k:'par',t:'Paradas',n:1,f:x=>minHM(x.par)},{k:'efe',t:'T. efectivo',n:1,f:x=>x.tipo==='lote'||x.tipo==='desplazamiento'?'<b>'+minHM(x.efe)+'</b>':'—'},{k:'vel',t:'Vel. km/h',n:1,f:x=>x.vel==null?'—':num(x.vel,1)},{k:'palmas',t:'Palmas',n:1,f:x=>x.palmas==null?'—':num(x.palmas)},{k:'ha',t:'Ha',n:1,f:x=>x.ha==null?'—':num(x.ha,2)},{k:'diag',t:'Diag.',n:1}],filas,f=>abrirDetalle(f._j));
     const s=k=>filas.reduce((a,x)=>a+(Number(x[k])||0),0);
     P.innerHTML=`<div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><b>${minHM(s('tot'))}</b><span>Tiempo total</span></div><div class="kpi"><b>${minHM(s('par'))}</b><span>Paradas</span></div><div class="kpi"><b style="color:var(--acento)">${minHM(s('efe'))}</b><span>Tiempo efectivo</span></div></div>
       <div class="tenue" style="margin-bottom:6px;font-size:12.5px">Cada bloque de trabajo en un lote abre una secuencia (1 RI01, 2 RI02, 3 RI01…). <b>Desplazamiento inicial</b>: del inicio de la jornada a la primera calle trabajada. <b>Desplazamiento entre lotes</b>: se suma a la secuencia del lote al que llega y cuenta como efectivo. <b>Desplazamiento final</b>: de la última palma al fin de la jornada. T. efectivo = T. total − paradas. Tiempos en horas:minutos. Toque una fila para ver la jornada.</div>`+t.html+
       `<div style="margin-top:10px"><button class="btn mini" id="xSec">⬇ CSV secuencias</button></div>`;
-    $('#xSec').onclick=()=>csv(`secuencias_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['fecha','usuario','evaluador','sec','tipo','lote','ini','fin','tot','desp','par','efe','km','vel','palmas','ha','diag'],filas.map(x=>({...x,sec:x.sec||'',vel:x.vel==null?'':x.vel})));
+    $('#xSec').onclick=()=>csv(`secuencias_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['fecha','usuario','evaluador','sec','tipo','lote','ini','ini_lab','fin','desp','lab','tot','par','efe','km','vel','palmas','ha','diag'],filas.map(x=>({...x,sec:x.sec||'',vel:x.vel==null?'':x.vel})));
   }else if(TAB==='operarios'){
     const t=tabla('tOp',[{k:'evaluador',t:'Operario'},{k:'jornadas',t:'Jorn.',n:1},{k:'secs',t:'Sec.',n:1},{k:'min',t:'T. total',n:1,f:x=>minHM(x.min)},{k:'min_par',t:'Paradas',n:1,f:x=>minHM(x.min_par)},{k:'min_efe',t:'T. efectivo',n:1,f:x=>'<b>'+minHM(x.min_efe)+'</b>'},{k:'d_ini',t:'Despl. inicial',n:1,f:x=>minHM(x.d_ini)},{k:'d_ent',t:'Despl. entre lotes',n:1,f:x=>minHM(x.d_ent)},{k:'d_fin',t:'Despl. final',n:1,f:x=>minHM(x.d_fin)},{k:'km',t:'Km',n:1,f:x=>num(x.km,2)},{k:'vel',t:'Vel. km/h',n:1,f:x=>x.vel==null?'—':num(x.vel,1)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'ha_dia',t:'Ha/día',n:1,f:x=>num(x.ha_dia,2)},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'diag',t:'Diag.',n:1},{k:'lotes',t:'Lotes',n:1}],
       resumenOperarios(),f=>{$('#fOp').value=f.usuario;aplicarFiltros(true);});
