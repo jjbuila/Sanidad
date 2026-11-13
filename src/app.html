@@ -747,7 +747,7 @@ function dibujarPalmas(){
   const r=radioPalma();
   for(const arr of grupos)for(const f of arr){
     const [lng,lat]=f.geometry.coordinates;const id=f.properties._id;
-    const m=palma([lat,lng],{renderer:rend,radius:r,...estiloPalma(f)});
+    const m=L.circleMarker([lat,lng],{renderer:rend,radius:r,...estiloPalma(f)});
     m.on('click',()=>{if(!PLAY.on)abrirPalma(id);});m.addTo(capaPalmas);S.marcadores.set(id,m);
   }
   dibujarEtiquetasPalmas(grupos);
@@ -781,14 +781,14 @@ function resaltar(lat,lng){
   resalte=L.circleMarker([lat,lng],{radius:radioPalma()+6,color:'#00e5ff',weight:3,fill:false,interactive:false}).addTo(capaGps);
 }
 function pintarLeyenda(){
-  $('#leyenda').innerHTML='<div style="font-weight:700;margin-bottom:2px">Enfermedad principal</div>'+N1S.map(x=>`<div>${icoPalma(COLOR_N1[x.c]||'#999')}${esc((probDe(x.c)||{n:x.n1}).n)}</div>`).join('')+
-  `<div>${icoPalma(COLOR_ALTA)}De alta</div>`+
-  `<div>${icoPalma(SIN_EVALUAR)}Pendiente por censar</div>
-   <div>${icoPalma('#4dd0e1')}Visitada por el recorrido (sin diagnóstico)</div>
+  $('#leyenda').innerHTML='<div style="font-weight:700;margin-bottom:2px">Enfermedad principal</div>'+N1S.map(x=>`<div><span class="punto" style="background:${COLOR_N1[x.c]||'#999'}"></span>${esc((probDe(x.c)||{n:x.n1}).n)}</div>`).join('')+
+  `<div><span class="punto" style="background:${COLOR_ALTA}"></span>De alta</div>`+
+  `<div><span class="punto" style="background:${SIN_EVALUAR}"></span>Pendiente por censar</div>
+   <div><span class="punto" style="background:#4dd0e1"></span>Visitada por el recorrido (sin diagnóstico)</div>
    <div><span style="display:inline-block;vertical-align:-5px;margin-right:4px">${SVG_FLECHA('#2f93d5',22)}</span>Operario (su ubicación y rumbo)</div>
    <div><span class="punto" style="background:#ff9f1c;border:2px solid #fff"></span>Parada sin actividad</div>
    <div><span class="punto" style="background:#2f93d5;border:2px solid #fff"></span>Parada con diagnóstico</div>
-   <div>${icoPalma('#b0bec5',true)}Sitio sin palma (existencia 0)</div>
+   <div><span class="punto" style="background:transparent;border-color:#b0bec5"></span>Sitio sin palma (existencia 0)</div>
    <div><span class="punto" style="border-radius:3px;background:transparent;border:2px solid #22d39a"></span>Lote de la jornada</div>
    <div><span class="punto" style="border-radius:3px;background:transparent;border:2px solid #90cdf1"></span>Otros lotes</div>
    <div><span class="punto" style="border-radius:2px;height:4px;background:#22d39a;border:0"></span>Recorrido</div>`;
@@ -1896,7 +1896,7 @@ async function abrirPlay(jid){
   L.polyline(pts.map(p=>[p.lat,p.lng]),{color:'#90cdf1',weight:3,opacity:.35,dashArray:'6 7',interactive:false}).addTo(PLAY.capa);
   PLAY.brillo=L.polyline([],{color:'#22d39a',weight:12,opacity:.2,interactive:false}).addTo(PLAY.capa);
   PLAY.estela=L.polyline([],{color:'#22d39a',weight:4.5,opacity:1,interactive:false}).addTo(PLAY.capa);
-  PLAY.regs=S.registros.filter(r=>r.jornada_id===jid&&r.lat!=null).map(r=>({t:Date.parse(r.creado),m:palma([r.lat,r.lng],{renderer:rend,radius:7,color:'#fff',weight:2,fillColor:colorReg(r),fillOpacity:1}).bindTooltip(`${etiquetaReg(r)} · ${esc(textoDiag(r)||(estadoDe(r.estado)||{}).n||'')} · ${fmtHora(Date.parse(r.creado))}`),on:false})).sort((a,b)=>a.t-b.t);
+  PLAY.regs=S.registros.filter(r=>r.jornada_id===jid&&r.lat!=null).map(r=>({t:Date.parse(r.creado),m:L.circleMarker([r.lat,r.lng],{radius:7,color:'#fff',weight:2,fillColor:colorReg(r),fillOpacity:1}).bindTooltip(`${etiquetaReg(r)} · ${esc(textoDiag(r)||(estadoDe(r.estado)||{}).n||'')} · ${fmtHora(Date.parse(r.creado))}`),on:false})).sort((a,b)=>a.t-b.t);
   PLAY.paradas=(j.paradas||detectarParadas(pts,j.paradaRadio,j.paradaMin,S.registros.filter(r=>r.jornada_id===jid))).map(p=>({t:p.inicio,p,m:null}));
   PLAY.capaVis=L.layerGroup().addTo(PLAY.capa);PLAY.vis=[];PLAY.visN=0;
   try{PLAY.vis=await palmasVisitadasPlay(j,pts);}catch(e){PLAY.vis=[];}
@@ -1930,7 +1930,7 @@ function pintarPlay(){
    if(j>h0)girarFlecha(PLAY.marca,rumbo(P[h0],P[j]));}
   for(const q of PLAY.paradas||[]){const v=q.t<=PLAY.t;if(v&&!q.m)q.m=marcadorParada(q.p,PLAY.capa);else if(!v&&q.m){PLAY.capa.removeLayer(q.m);q.m=null;}}
   if(PLAY.vis){let k=PLAY.visN;const rv=Math.max(2.5,radioPalma()-1);
-    while(k<PLAY.vis.length&&PLAY.vis[k].t<=PLAY.t){const q=PLAY.vis[k];q.m=palma(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
+    while(k<PLAY.vis.length&&PLAY.vis[k].t<=PLAY.t){const q=PLAY.vis[k];q.m=L.circleMarker(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
     while(k>0&&PLAY.vis[k-1].t>PLAY.t){k--;const q=PLAY.vis[k];if(q.m){PLAY.capaVis.removeLayer(q.m);q.m=null;}}
     if(k>PLAY.visN){for(const r of PLAY.regs)if(r.on)r.m.bringToFront();} // diagnósticos por encima de las palmas visitadas
     PLAY.visN=k;$('#plVis').textContent=num(k);}

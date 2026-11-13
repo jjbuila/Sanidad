@@ -403,8 +403,8 @@ const vis=(id,capa)=>{$(id).onchange=()=>{$(id).checked?capa.addTo(mapa):mapa.re
 vis('#cLotes',capaLotes);vis('#cRec',capaRec);vis('#cDiag',capaDiag);vis('#cPar',capaPar);vis('#cPalmas',capaPalmas);
 mapa.on('zoomend moveend',()=>{mapa.getContainer().classList.toggle('sin-etq',mapa.getZoom()<14);dibujarPalmas();});
 function pintarLeyenda(){
-  $('#leyenda').innerHTML='<b class="tit" style="font-size:13px">Enfermedad principal</b>'+Object.entries(COLOR_N1).map(([k,c])=>`<div>${icoPalma(c)}${esc(PROBLEMAS[k]||k)}</div>`).join('')+
-  `<div>${icoPalma(COLOR_ALTA)}De alta</div><div>${icoPalma('#ffc53d')}Palma (cartografía)</div><div>${icoPalma('#4dd0e1')}Palma visitada (reproducción)</div><div><span style="display:inline-block;vertical-align:-5px;margin-right:4px">${SVG_FLECHA('#2f93d5',22)}</span>Operario y rumbo (reproducción)</div>`+
+  $('#leyenda').innerHTML='<b class="tit" style="font-size:13px">Enfermedad principal</b>'+Object.entries(COLOR_N1).map(([k,c])=>`<div><span class="punto" style="background:${c}"></span>${esc(PROBLEMAS[k]||k)}</div>`).join('')+
+  `<div><span class="punto" style="background:${COLOR_ALTA}"></span>De alta</div><div><span class="punto" style="background:#4dd0e1"></span>Palma visitada (reproducción)</div><div><span style="display:inline-block;vertical-align:-5px;margin-right:4px">${SVG_FLECHA('#2f93d5',22)}</span>Operario y rumbo (reproducción)</div>`+
   '<div style="margin-top:4px"><span class="punto" style="background:#ff9f1c;border:2px solid #fff"></span>Parada</div><div class="tenue">Recorridos: un color por operario.</div>';
 }
 
@@ -444,7 +444,7 @@ function dibujarPalmas(){clearTimeout(palmasT);palmasT=setTimeout(async()=>{
   const b=mapa.getBounds();const diag=new Map();for(const d of DIAGF)diag.set(String(d.palma_id),d);
   for(const f of LOTES.features){const lb=f._b||(f._b=L.geoJSON(f).getBounds());if(!lb.intersects(b))continue;
     for(const a of await chunkLote(f.properties._lote)){if(!b.contains([a[5],a[4]]))continue;const d=diag.get(String(a[0]));
-      palma([a[5],a[4]],{renderer:rend,radius:mapa.getZoom()>=19?6:4,weight:1,color:'#3a2a00',fillColor:d?colorD(d):(a[3]===0?'#ffffff':'#ffc53d'),fillOpacity:a[3]===0?.2:.85,interactive:false}).addTo(capaPalmas);}}
+      L.circleMarker([a[5],a[4]],{renderer:rend,radius:mapa.getZoom()>=19?6:4,weight:1,color:'#3a2a00',fillColor:d?colorD(d):(a[3]===0?'#ffffff':'#ffc53d'),fillOpacity:a[3]===0?.2:.85,interactive:false}).addTo(capaPalmas);}}
   diagAlFrente();
 },150);}
 
@@ -587,7 +587,7 @@ function pintarMapa(ajustar){
         .bindPopup(`<b class="h">⏸ Parada ${esc(p.n||'')}</b><br>${esc(j.evaluador)} · ${esc(j.fecha)}<br>${esc(p.hora_inicio)}–${esc(p.hora_fin)} · <b>${esc(p.duracion_min)} min</b><br>Lote: ${esc(p.lote||'—')}${p.clase?'<br>'+esc(p.clase):''}`).addTo(capaPar);}
   }
   for(const d of DIAGF){
-    const m=palma([d.lat,d.lng],{renderer:rend,radius:6,color:'#fff',weight:1.5,fillColor:colorD(d),fillOpacity:1}).addTo(capaDiag);
+    const m=L.circleMarker([d.lat,d.lng],{renderer:rend,radius:6,color:'#fff',weight:1.5,fillColor:colorD(d),fillOpacity:1}).addTo(capaDiag);
     m.on('click',ev=>{L.DomEvent.stopPropagation(ev);popupDiag(d,ev.latlng);});caja.extend([d.lat,d.lng]);}
   if(lote&&LOTES){const f=LOTES.features.find(x=>x.properties._lote===lote);if(f)caja.extend(L.geoJSON(f).getBounds());}
   if(ajustar&&caja.isValid()){mapa.stop();mapa.fitBounds(caja,{padding:[30,30],maxZoom:18,animate:false});}
@@ -657,7 +657,7 @@ function abrirDetalle(j){
       <div class="fila"><span class="tenue" style="font-size:12px">Velocidad</span><select id="pVel" style="padding:3px 6px;font-size:12.5px"><option value="30">×30</option><option value="60" selected>×60</option><option value="180">×180</option><option value="600">×600</option></select>
       <label style="display:flex;gap:5px;align-items:center;font-size:12.5px"><input type="checkbox" id="pSeg" checked> Seguir al operario</label>
       <span class="tenue" style="font-size:12px;margin-left:auto">${num(tr.c.length)} puntos</span></div>
-      <div class="fila" style="font-size:13px">${icoPalma('#4dd0e1')}Palmas visitadas: <b id="pVis" style="font-family:var(--t);font-size:18px">0</b><span class="tenue" id="pVisTot" style="margin-left:4px"></span></div></div>`:'<div class="tenue" style="margin:6px 0">Recorrido sin tiempos: no se puede reproducir.</div>'}
+      <div class="fila" style="font-size:13px"><span class="punto" style="background:#4dd0e1"></span>Palmas visitadas: <b id="pVis" style="font-family:var(--t);font-size:18px">0</b><span class="tenue" id="pVisTot" style="margin-left:4px"></span></div></div>`:'<div class="tenue" style="margin:6px 0">Recorrido sin tiempos: no se puede reproducir.</div>'}
     <h3 style="margin-top:6px">Secuencias por lote</h3>
     <div style="overflow-x:auto"><table class="t"><thead><tr><th>Sec.</th><th>Lote</th><th>Inicio</th><th>Fin</th><th class="n">Total</th><th class="n">Despl.</th><th class="n">Paradas</th><th class="n">Efectivo</th><th class="n">Vel.</th><th class="n">Palmas</th><th class="n">Ha</th></tr></thead><tbody>${
       secuenciasDe(j).map(s=>`<tr${s.tipo!=='lote'?' class="tenue"':''}><td><b>${s.secuencia??'—'}</b></td><td><b>${s.tipo!=='lote'?ETQ_TIPO[s.tipo]||'Desplazamiento':esc(s.lote)}</b></td><td>${esc(s.hora_inicio)}</td><td>${esc(s.hora_fin)}</td><td class="n">${minHM(s.min_total)}</td><td class="n">${s.tipo==='lote'&&s.min_desplazamiento!=null?minHM(s.min_desplazamiento):'—'}</td><td class="n">${minHM(s.min_paradas)}</td><td class="n"><b>${s.min_efectivo==null?'—':minHM(s.min_efectivo)}</b></td><td class="n">${s.vel_kmh==null?'—':num(s.vel_kmh,1)}</td><td class="n">${s.palmas_visitadas==null?'—':num(s.palmas_visitadas)}</td><td class="n">${s.ha==null?'—':num(s.ha,2)}</td></tr>`).join('')||'<tr><td colspan="11" class="tenue">Sin recorrido con tiempos.</td></tr>'}</tbody></table></div>
@@ -696,7 +696,7 @@ function ponerT(t){const tr=SEL&&SEL.track;if(!tr)return;PLAY.t=t;
   PLAY.estela.setLatLngs(tr.c.slice(0,i+1).map(c=>[c[1],c[0]]).concat([pos]));
   const sg=$('#pSeg');if(PLAY.on&&sg&&sg.checked)seguirOperario(pos);
   if(PLAY.vis&&PLAY.capaVis){let k=PLAY.visN;const rv=mapa.getZoom()>=19?6:mapa.getZoom()>=18?4.5:3;
-    while(k<PLAY.vis.length&&PLAY.vis[k].t<=t){const q=PLAY.vis[k];q.m=palma(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
+    while(k<PLAY.vis.length&&PLAY.vis[k].t<=t){const q=PLAY.vis[k];q.m=L.circleMarker(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
     while(k>0&&PLAY.vis[k-1].t>t){k--;const q=PLAY.vis[k];if(q.m){PLAY.capaVis.removeLayer(q.m);q.m=null;}}
     if(k>PLAY.visN)diagAlFrente(); // los diagnósticos siempre por encima de las palmas visitadas
     PLAY.visN=k;const e=$('#pVis');if(e)e.textContent=num(k);}
