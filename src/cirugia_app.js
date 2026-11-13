@@ -7,7 +7,10 @@
    ===================================================================== */
 const CIRA={capa:L.layerGroup().addTo(mapa),linea:null,usuarios:null,prog:null,ultDistVoz:0,radio:50};
 const esCir=()=>!!(S.jornada&&S.jornada.labor==='cirugia');
-const laboresSES=()=>SES?(SES.labores&&SES.labores.length?SES.labores:(SES.rol==='admin'||SES.rol==='supervisor'?['censo','cirugia']:['censo'])):['censo'];
+/* Labores disponibles en la App. El administrador entra a todos los módulos, sin importar su rol o sus labores. */
+const LABORES_TODAS=['censo','cirugia'];
+const laboresSES=()=>{if(!SES)return ['censo'];if(SES.rol==='admin')return LABORES_TODAS;
+  if(SES.labores&&SES.labores.length)return SES.labores;return SES.rol==='supervisor'?LABORES_TODAS:['censo'];};
 const nomBonito=n=>String(n||'').toLowerCase().replace(/(^|[\s-])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase());
 const etqOrden=o=>`${o.lote} · L${o.linea??'?'} · P${o.palma??'?'}`;
 
@@ -96,7 +99,7 @@ async function abrirInicioCirugia(){
     const el=$('#cProg');
     if(!p)el.innerHTML=origen==='error'?`⚠ No se pudo consultar la programación (${esc(error)}). Puede iniciar y reportar casos nuevos.`:'No hay programación de cirugías para hoy. Puede iniciar y reportar casos nuevos de PC.';
     else if(!pr)el.innerHTML='Su pareja no aparece en la programación de hoy. Revise que haya elegido bien a su pareja o consulte al coordinador.';
-    else el.innerHTML=`<b>Pareja ${pr.n}:</b> ${pr.ordenes.length} palmas · ${pr.km??'—'} km de recorrido<br><span class="tenue">${esc(nomBonito(pr.cirujano.nombre))} (cirujano)${pr.auxiliar.nombre?' · '+esc(nomBonito(pr.auxiliar.nombre))+' (auxiliar)':''}${origen==='local'?' · guardada en el celular':''}</span>`;
+    else el.innerHTML=`<b>Pareja ${pr.n}:</b> ${pr.ordenes.length} palmas · ${pr.km_campo??pr.km??'—'} km en campo${pr.min_campo?' · ~'+pr.min_campo+' min caminando':''}<br><span class="tenue">${esc(nomBonito(pr.cirujano.nombre))} (cirujano)${pr.auxiliar.nombre?' · '+esc(nomBonito(pr.auxiliar.nombre))+' (auxiliar)':''}${origen==='local'?' · guardada en el celular':''}</span>`;
     CIRA.parejaProg=pr||null;};
   document.querySelectorAll('input[name=cRol]').forEach(i=>i.onchange=pintarPar);$('#cPar').onchange=buscarRuta;pintarPar();
   $('#cIni').onclick=async()=>{const rol=(document.querySelector('input[name=cRol]:checked')||{}).value;const par=$('#cPar').value;

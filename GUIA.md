@@ -203,13 +203,16 @@ SanidadData/
 
 ## 7.3 Módulo de cirugía
 
-**Quién lo usa.** Los auxiliares de remoción de tejidos enfermos (cirujanos) y los auxiliares de fumigación como auxiliares de cirugía. En el paquete de acceso cada usuario lleva `labores` (`censo`, `cirugia`, `fumigacion`) y `rol_cirugia` (`cirujano` o `auxiliar`). Los administradores y supervisores tienen todas las labores.
+**Quién lo usa.** Los auxiliares de remoción de tejidos enfermos (cirujanos) y los auxiliares de fumigación como auxiliares de cirugía. En el paquete de acceso cada usuario lleva `labores` (`censo`, `cirugia`, `fumigacion`) y `rol_cirugia` (`cirujano` o `auxiliar`). El administrador entra a todos los módulos sin importar su rol ni sus labores; el supervisor también, salvo que se le asignen labores específicas.
 
 **Qué genera una cirugía.** El último diagnóstico de la palma con PC inicial, PC avanzada o PC reincidente, sea del censo o de un caso nuevo del cirujano, sin cirugía posterior. Plazo: D+1 hábil, de lunes a sábado sin domingos ni festivos de Colombia; los festivos se calculan con la Ley Emiliani y la Semana Santa.
 
 **Programación (visor › ✚ CIRUGÍAS).** Coordinadores, supervisores y verificadores:
 1. Eligen la fecha y arman las parejas (cirujano + auxiliar) con su eficiencia en palmas por día.
-2. Tocan «Generar programación». La programación prioriza los casos vencidos y los que vencen ese día, reparte los casos por cercanía entre las parejas y calcula la ruta más corta desde la oficina central por vías y senderos.
+2. Tocan «Generar programación». La programación prioriza los casos vencidos y los que vencen ese día, y los reparte por cercanía entre las parejas:
+   - Si los casos superan la capacidad, cada pareja recibe su eficiencia.
+   - Si no la superan, se reparten en partes iguales.
+   La ruta es una sola línea continua y combina vías y senderos con atajos por dentro de los lotes entre palmas (hasta 600 m), según el tiempo de caminata de cada sector: vía 4,5 km/h, sendero principal 4,0, sendero secundario 3,8, dentro del lote 3,3. Se informan los km y minutos en campo, aparte del traslado desde la oficina.
 3. Con «Enviar a los celulares» se guarda en `cirugia/programacion/AAAA-MM-DD.json`. Los casos que no alcanzan quedan para el siguiente día hábil.
 
 **En el celular.**

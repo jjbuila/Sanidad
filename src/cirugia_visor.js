@@ -118,8 +118,19 @@ function calcularPendientes(){
 }
 
 /* ---------- Programación inteligente ---------- */
+/* Cupo de cada pareja: si los casos superan la capacidad, cada una recibe su eficiencia; si no, los casos se reparten en
+   partes iguales (sin pasar de la eficiencia de ninguna pareja; lo que sobre lo toman las que tienen cupo). */
+function cuposParejas(n,parejas){
+  const ef=parejas.map(p=>Number(p.ef)||20);const tot=ef.reduce((a,b)=>a+b,0);if(n>=tot)return ef;
+  const cup=new Array(ef.length).fill(0);let quedan=n;
+  while(quedan>0){const ab=ef.map((e,i)=>i).filter(i=>cup[i]<ef[i]);if(!ab.length)break;
+    const q=Math.floor(quedan/ab.length);
+    if(q===0){ab.sort((a,b)=>(ef[b]-cup[b])-(ef[a]-cup[a]));for(const i of ab){if(!quedan)break;cup[i]++;quedan--;}}
+    else for(const i of ab){const g=Math.min(q,ef[i]-cup[i]);cup[i]+=g;quedan-=g;}}
+  return cup;
+}
 function repartir(ordenes,parejas){
-  const k=parejas.length;if(!k)return [];const cap=parejas.map(p=>Number(p.ef)||20);
+  const k=parejas.length;if(!k)return [];const cap=cuposParejas(ordenes.length,parejas);
   const P=ordenes.map(o=>aXY(o.lng,o.lat));
   // semillas: la más lejana a la oficina y luego la más lejana a las ya elegidas
   const of=aXY(oficinaCentral().lng,oficinaCentral().lat);const semillas=[];
@@ -146,10 +157,12 @@ function generarProgramacion(){
   const asig=repartir(sel,parejas);const of=oficinaCentral();
   const out=parejas.map((p,j)=>{const cirj=CIR.usuarios.find(u=>u.u===p.cirujano)||{},aux=CIR.usuarios.find(u=>u.u===p.auxiliar)||{};
     const ords=sel.filter((_,i)=>asig[i]===j);let ruta={orden:ords.map((_,i)=>i),geometria:[],tramos_m:[],km:0};
-    try{if(VIAS.gj&&ords.length)ruta=rutaOptima(VIAS.gj,of,ords);}catch(e){console.warn('ruta',e);}
-    const ordenes=ruta.orden.map((ix,n)=>({...ords[ix],orden:n+1,id:`cir-${fecha}-${ords[ix].palma_id}`,tramo_m:ruta.tramos_m[n]||null}));
+    try{if(VIAS.gj&&ords.length)ruta=rutaOptima(VIAS.gj,of,ords,{dentro:(lng,lat)=>!!loteDe(lat,lng)});}catch(e){console.warn('ruta',e);}
+    const ordenes=ruta.orden.map((ix,n)=>({...ords[ix],orden:n+1,id:`cir-${fecha}-${ords[ix].palma_id}`,tramo_m:ruta.tramos_m[n]||null,tramo_min:(ruta.tramos_min||[])[n]??null}));
     return {n:j+1,color:COLORES_PAREJA[j%COLORES_PAREJA.length],cirujano:{u:p.cirujano,nombre:cirj.nombre||p.cirujano},auxiliar:{u:p.auxiliar||'',nombre:aux.nombre||''},
-      eficiencia:Number(p.ef)||20,km:ruta.km,regreso_m:ruta.tramos_m[ruta.tramos_m.length-1]||null,ruta:ruta.geometria,ordenes};});
+      eficiencia:Number(p.ef)||20,km:ruta.km,km_lote:ruta.km_lote||0,min_caminata:ruta.min_caminata||null,
+      km_campo:+((ruta.tramos_m||[]).slice(1,-1).reduce((a,b)=>a+b,0)/1000).toFixed(2),min_campo:(ruta.tramos_min||[]).slice(1,-1).reduce((a,b)=>a+b,0),
+      km_traslado:+(((ruta.tramos_m||[])[0]||0)/1000+((ruta.tramos_m||[]).length>1?(ruta.tramos_m[ruta.tramos_m.length-1]||0)/1000:0)).toFixed(2),regreso_m:ruta.tramos_m[ruta.tramos_m.length-1]||null,ruta:ruta.geometria,ordenes};});
   CIR.prog={formato:'sanidad-programacion-cirugia-1',fecha,generado:new Date().toISOString(),por:SES.u,por_nombre:SES.nombre,oficina:of,parejas:out,
     sin_programar:quedan.map(o=>({palma_id:o.palma_id,lote:o.lote,linea:o.linea,palma:o.palma,diagnostico:o.diagnostico,vence:o.vence})),enviada:false};
   dput('kv','cir_parejas',CIR.parejas);pintarCir();toast(`Programación lista: ${sel.length} palma(s) en ${out.length} pareja(s). Revise y envíela a los celulares.`,4500);
@@ -223,7 +236,7 @@ function pintarCir(msg){
     if(CIR.prog){const tot=CIR.prog.parejas.reduce((s,p)=>s+p.ordenes.length,0);
       h+=`<p class="tenue" style="margin:8px 0">${CIR.prog.enviada?'✓ Enviada':'Sin enviar'} · generada ${esc(fechaCorta(CIR.prog.generado))} ${hhmm(CIR.prog.generado)} por ${esc(CIR.prog.por_nombre||CIR.prog.por)} · ${num(tot)} palmas</p>`;
       if(CIR.prog.sin_programar&&CIR.prog.sin_programar.length)h+=`<div class="cir-aviso">${num(CIR.prog.sin_programar.length)} caso(s) quedan para el siguiente día hábil (${esc(fechaCorta(habilMas(f)))}): la capacidad de las parejas no alcanza. Aumente la eficiencia o agregue una pareja.</div>`;
-      for(const p of CIR.prog.parejas){h+=`<h3 style="color:${p.color}">Pareja ${p.n} · ${p.ordenes.length} palmas · ${p.km??'—'} km</h3><div class="tenue" style="font-size:12.5px;margin:-4px 0 6px">${esc(p.cirujano.nombre)} (cirujano)${p.auxiliar.nombre?' · '+esc(p.auxiliar.nombre)+' (auxiliar)':''}</div>
+      for(const p of CIR.prog.parejas){h+=`<h3 style="color:${p.color}">Pareja ${p.n} · ${p.ordenes.length} palmas · ${p.km_campo??p.km??'—'} km en campo${p.min_campo?' · '+minAh(p.min_campo)+' caminando':''}</h3><div class="tenue" style="font-size:12px;margin:-6px 0 4px">${p.km_traslado!=null?`Traslado oficina–lotes (ida y regreso): ${p.km_traslado} km`:''}${p.km_lote?` · ${p.km_lote} km por dentro de los lotes, entre palmas`:''}</div><div class="tenue" style="font-size:12.5px;margin:-4px 0 6px">${esc(p.cirujano.nombre)} (cirujano)${p.auxiliar.nombre?' · '+esc(p.auxiliar.nombre)+' (auxiliar)':''}</div>
         <table class="t"><thead><tr><th>#</th><th>Palma</th><th>Diagnóstico</th><th>Censo</th><th>Vence</th></tr></thead><tbody>${p.ordenes.map(o=>`<tr data-ll="${o.lat},${o.lng}"><td>${o.orden}</td><td>${esc(etqPalma(o))}</td><td>${esc(o.diagnostico.replace('PC ',''))}${o.origen==='caso_nuevo'?' · nuevo':''}</td><td>${esc(fechaCorta(o.fecha_censo))}<br><span class="tenue">${esc(nombreCorto(o.censador))}</span></td><td class="${o.vence<f?'venc':o.vence===f?'hoyv':''}">${esc(fechaCorta(o.vence))}</td></tr>`).join('')}</tbody></table>`;}
     }else{h+=`<h3>Casos pendientes</h3>${CIR.pend.length?`<table class="t"><thead><tr><th>Palma</th><th>Diagnóstico</th><th>Censo</th><th>Vence</th></tr></thead><tbody>${CIR.pend.map(o=>`<tr data-ll="${o.lat},${o.lng}"><td>${esc(etqPalma(o))}</td><td>${esc(o.diagnostico)}</td><td>${esc(fechaCorta(o.fecha_censo))}<br><span class="tenue">${esc(nombreCorto(o.censador))}</span></td><td class="${o.vence<f?'venc':o.vence===f?'hoyv':''}">${esc(fechaCorta(o.vence))}</td></tr>`).join('')}</tbody></table>`:'<div class="tenue">No hay casos de PC pendientes de cirugía en los últimos 45 días.</div>'}`;}
   }else{

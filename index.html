@@ -992,7 +992,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261113:0424</div>
+  <div id="splashVer">VERSIÓN 20261113:0445</div>
 </div>
 
 <div id="login" hidden>
@@ -1007,7 +1007,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261113:0424</div>
+  <div id="lgVer2">VERSIÓN 20261113:0445</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1120,7 +1120,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261113:0424';
+const VERSION='20261113:0445';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -3420,11 +3420,11 @@ const PROY={lat0:1.52,k:Math.PI/180*R_TIERRA};
 const aXY=(lng,lat)=>[lng*PROY.k*Math.cos(PROY.lat0*Math.PI/180),lat*PROY.k];
 const deXY=(x,y)=>[x/(PROY.k*Math.cos(PROY.lat0*Math.PI/180)),y/PROY.k];
 /* Factor de costo por tipo de camino: la vía es más rápida que el barro; el tramo dentro del lote (por la calle de palmas) es el más lento. */
-const COSTO_CAMINO={via:1,sendero_principal:1.12,sendero_secundario:1.2,acceso:1.45};
+const COSTO_CAMINO={via:1,sendero_principal:4.5/4.0,sendero_secundario:4.5/3.8,acceso:4.5/3.3};
 function construirRed(gj){
   const nodos=[],adj=[],idx=new Map(),key=(x,y)=>Math.round(x*2)+','+Math.round(y*2); // nodos a 0,5 m
   const nodo=(x,y)=>{const k=key(x,y);let i=idx.get(k);if(i==null){i=nodos.length;nodos.push([x,y]);adj.push([]);idx.set(k,i);}return i;};
-  const arista=(a,b,f)=>{if(a===b)return;const [x1,y1]=nodos[a],[x2,y2]=nodos[b];const w=Math.hypot(x2-x1,y2-y1);adj[a].push([b,w*f,w]);adj[b].push([a,w*f,w]);};
+  const arista=(a,b,f)=>{if(a===b)return;const [x1,y1]=nodos[a],[x2,y2]=nodos[b];const w=Math.hypot(x2-x1,y2-y1);adj[a].push([b,w*f,w,f]);adj[b].push([a,w*f,w,f]);};
   const lineas=(gj&&gj.features||[]).filter(f=>f.geometry&&f.geometry.type==='LineString');
   const segs=[];
   for(const f of lineas){const fac=COSTO_CAMINO[f.properties.tipo]||1.2;const P=f.geometry.coordinates.map(([lng,lat])=>aXY(lng,lat));
@@ -3491,29 +3491,63 @@ function dijkstra(R,origen){
   return {cost,dist,prev};
 }
 function caminoNodos(prev,destino){const out=[];for(let v=destino;v!==-1;v=prev[v])out.push(v);return out.reverse();}
-/* Ruta óptima: parte de la oficina, visita todos los puntos y regresa. Devuelve el orden, la geometría y distancias. */
-function rutaOptima(RED_GJ,oficina,puntos){
-  const R=construirRed(RED_GJ);
-  const o=enlazarPunto(R,oficina.lng,oficina.lat);const ids=puntos.map(p=>enlazarPunto(R,p.lng,p.lat));
+/* Velocidades de caminata (km/h) por sector. El costo de cada tramo es tiempo: metros ÷ velocidad. Dentro del lote se
+   camina entre palmas (por las calles o atravesando líneas) más despacio que por la vía, pero muchas veces el atajo
+   por el lote es más corto que salir a la vía y volver a entrar. */
+const VEL_KMH={via:4.5,sendero_principal:4.0,sendero_secundario:3.8,lote:3.3};
+const FACTOR_LOTE=VEL_KMH.via/VEL_KMH.lote;
+/* ¿El tramo recto entre dos puntos va por dentro de los lotes? (≥85 % de las muestras cada 8 m caen en un lote;
+   así puede cruzar una vía o un sendero, pero no un bosque o una quebrada ancha). */
+function tramoEnLotes(dentro,x1,y1,x2,y2){
+  if(!dentro)return true;const L=Math.hypot(x2-x1,y2-y1);const n=Math.max(2,Math.ceil(L/8));let ok=0;
+  for(let i=0;i<=n;i++){const t=i/n;const [lng,lat]=deXY(x1+t*(x2-x1),y1+t*(y2-y1));if(dentro(lng,lat))ok++;}
+  return ok/(n+1)>=0.85;
+}
+/* Accesos de un punto a la red: hasta 3 caminos cercanos en direcciones distintas, por dentro del lote. */
+function accesosRed(R,x,y,dentro){
+  const cand=[];const r=Math.ceil(450/R.celda);const gx=Math.floor(x/R.celda),gy=Math.floor(y/R.celda);const vistos=new Set();
+  for(let i=-r;i<=r;i++)for(let j=-r;j<=r;j++){const l=R.grid.get((gx+i)+','+(gy+j));if(!l)continue;
+    for(const si of l){if(vistos.has(si))continue;vistos.add(si);const [a,b,fac]=R.segs[si];const [x1,y1]=R.nodos[a],[x2,y2]=R.nodos[b];
+      const dx=x2-x1,dy=y2-y1,L2=dx*dx+dy*dy||1e-9;let t=((x-x1)*dx+(y-y1)*dy)/L2;t=Math.max(0,Math.min(1,t));const px=x1+t*dx,py=y1+t*dy,d=Math.hypot(x-px,y-py);
+      if(d<=450)cand.push({x:px,y:py,d,a,b,fac,ang:Math.atan2(py-y,px-x)});}}
+  cand.sort((u,v)=>u.d-v.d);const out=[];
+  for(const c of cand){if(out.length>=3)break;if(out.some(o=>Math.abs(Math.atan2(Math.sin(o.ang-c.ang),Math.cos(o.ang-c.ang)))<Math.PI/3))continue;
+    if(out.length&&!tramoEnLotes(dentro,x,y,c.x,c.y))continue;out.push(c);}
+  if(!out.length&&cand.length)out.push(cand[0]);
+  return out;
+}
+function nodoNuevo(R,x,y){R.nodos.push([x,y]);R.adj.push([]);return R.nodos.length-1;}
+function unir(R,u,v,f){const [ax,ay]=R.nodos[u],[bx,by]=R.nodos[v];const w=Math.hypot(bx-ax,by-ay);R.adj[u].push([v,w*f,w,f]);R.adj[v].push([u,w*f,w,f]);}
+/* Ruta óptima: parte de la oficina, visita todos los puntos y regresa. Grafo combinado: vías y senderos + accesos desde cada
+   palma + tramos directos palma a palma por dentro de los lotes (≤600 m). El orden se resuelve con vecino más cercano + 2-opt
+   sobre los tiempos de caminata; la geometría es una sola línea continua. opciones.dentro(lng,lat) → ¿el punto está en un lote? */
+function rutaOptima(RED_GJ,oficina,puntos,opciones={}){
+  const dentro=opciones.dentro||null;const R=construirRed(RED_GJ);
+  const o=enlazarPunto(R,oficina.lng,oficina.lat);
+  const P=puntos.map(p=>aXY(p.lng,p.lat));
+  const ids=P.map(([x,y])=>{const id=nodoNuevo(R,x,y);for(const c of accesosRed(R,x,y,dentro)){const n=nodoNuevo(R,c.x,c.y);unir(R,n,c.a,c.fac);unir(R,n,c.b,c.fac);unir(R,id,n,FACTOR_LOTE*(c===undefined?1:1));}return id;});
+  for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){const [x1,y1]=P[i],[x2,y2]=P[j];const d=Math.hypot(x2-x1,y2-y1);
+    if(d<=600&&tramoEnLotes(dentro,x1,y1,x2,y2))unir(R,ids[i],ids[j],FACTOR_LOTE);}
   const todos=[o,...ids];const D=[],C=[],PREV=[];
   for(const s of todos){if(s==null){D.push(null);C.push(null);PREV.push(null);continue;}const r=dijkstra(R,s);D.push(todos.map(t=>t==null?Infinity:r.dist[t]));C.push(todos.map(t=>t==null?Infinity:r.cost[t]));PREV.push(r.prev);}
   const n=puntos.length;const costo=(i,j)=>{const a=C[i],b=a&&a[j];if(b!=null&&isFinite(b))return b;const pi=i?puntos[i-1]:oficina,pj=j?puntos[j-1]:oficina;return dM(pi.lat,pi.lng,pj.lat,pj.lng)*2;};
-  // vecino más cercano desde la oficina (índice 0)
   let orden=[],libres=new Set(Array.from({length:n},(_,i)=>i+1)),act=0;
   while(libres.size){let mejor=null,mc=Infinity;for(const j of libres){const c=costo(act,j);if(c<mc){mc=c;mejor=j;}}orden.push(mejor);libres.delete(mejor);act=mejor;}
-  // 2-opt sobre el circuito oficina → … → oficina
-  const total=o2=>{let s=costo(0,o2[0]);for(let i=1;i<o2.length;i++)s+=costo(o2[i-1],o2[i]);return s+costo(o2[o2.length-1],0);};
   let mejora=true,vueltas=0;
-  while(mejora&&vueltas++<60){mejora=false;for(let i=0;i<orden.length-1;i++)for(let k=i+1;k<orden.length;k++){
+  while(mejora&&vueltas++<80){mejora=false;for(let i=0;i<orden.length-1;i++)for(let k=i+1;k<orden.length;k++){
     const a=i?orden[i-1]:0,b=orden[i],c=orden[k],d=k+1<orden.length?orden[k+1]:0;
     if(costo(a,c)+costo(b,d)<costo(a,b)+costo(c,d)-0.5){orden=orden.slice(0,i).concat(orden.slice(i,k+1).reverse(),orden.slice(k+1));mejora=true;}}}
-  // geometría y distancias por tramo
-  const geom=[],tramos=[];let acum=0;const sec=[0,...orden,0];
-  for(let s=1;s<sec.length;s++){const i=sec[s-1],j=sec[s];let m=0;
-    if(PREV[i]&&todos[j]!=null&&isFinite(C[i][j])){const ns=caminoNodos(PREV[i],todos[j]);m=D[i][j];for(const v of ns){const [lng,lat]=deXY(...R.nodos[v]);geom.push([+lng.toFixed(7),+lat.toFixed(7)]);}}
-    else{const pi=i?puntos[i-1]:oficina,pj=j?puntos[j-1]:oficina;m=dM(pi.lat,pi.lng,pj.lat,pj.lng);geom.push([pi.lng,pi.lat],[pj.lng,pj.lat]);}
-    acum+=m;tramos.push(Math.round(m));}
-  return {orden:orden.map(i=>i-1),geometria:geom,tramos_m:tramos,km:+(acum/1000).toFixed(2)};
+  // geometría continua, distancias y tiempos por tramo (y metros por dentro del lote)
+  const geom=[],tramos=[],tiempos=[];let acum=0,acumLote=0,acumCosto=0;const sec=[0,...orden,0];
+  const pegar=(lng,lat)=>{const u=geom[geom.length-1];if(!u||Math.abs(u[0]-lng)>1e-8||Math.abs(u[1]-lat)>1e-8)geom.push([+lng.toFixed(7),+lat.toFixed(7)]);};
+  for(let s=1;s<sec.length;s++){const i=sec[s-1],j=sec[s];let m=0,c=0;
+    if(PREV[i]&&todos[j]!=null&&isFinite(C[i][j])){const ns=caminoNodos(PREV[i],todos[j]);m=D[i][j];c=C[i][j];
+      for(let q=0;q<ns.length;q++){const [lng,lat]=deXY(...R.nodos[ns[q]]);pegar(lng,lat);
+        if(q){const e=R.adj[ns[q-1]].find(x=>x[0]===ns[q]);if(e&&e[3]===FACTOR_LOTE)acumLote+=e[2];}}}
+    else{const pi=i?puntos[i-1]:oficina,pj=j?puntos[j-1]:oficina;m=dM(pi.lat,pi.lng,pj.lat,pj.lng);c=m*FACTOR_LOTE;pegar(pi.lng,pi.lat);pegar(pj.lng,pj.lat);}
+    acum+=m;acumCosto+=c;tramos.push(Math.round(m));tiempos.push(Math.round(c/(VEL_KMH.via*1000/60)));}
+  return {orden:orden.map(i=>i-1),geometria:geom,tramos_m:tramos,tramos_min:tiempos,km:+(acum/1000).toFixed(2),km_lote:+(acumLote/1000).toFixed(2),
+    min_caminata:Math.round(acumCosto/(VEL_KMH.via*1000/60))};
 }
 
 /* ---------- 3. Reglas de cirugía ---------- */
@@ -3540,7 +3574,10 @@ const CORRECCIONES_CIR=[
    ===================================================================== */
 const CIRA={capa:L.layerGroup().addTo(mapa),linea:null,usuarios:null,prog:null,ultDistVoz:0,radio:50};
 const esCir=()=>!!(S.jornada&&S.jornada.labor==='cirugia');
-const laboresSES=()=>SES?(SES.labores&&SES.labores.length?SES.labores:(SES.rol==='admin'||SES.rol==='supervisor'?['censo','cirugia']:['censo'])):['censo'];
+/* Labores disponibles en la App. El administrador entra a todos los módulos, sin importar su rol o sus labores. */
+const LABORES_TODAS=['censo','cirugia'];
+const laboresSES=()=>{if(!SES)return ['censo'];if(SES.rol==='admin')return LABORES_TODAS;
+  if(SES.labores&&SES.labores.length)return SES.labores;return SES.rol==='supervisor'?LABORES_TODAS:['censo'];};
 const nomBonito=n=>String(n||'').toLowerCase().replace(/(^|[\s-])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase());
 const etqOrden=o=>`${o.lote} · L${o.linea??'?'} · P${o.palma??'?'}`;
 
@@ -3629,7 +3666,7 @@ async function abrirInicioCirugia(){
     const el=$('#cProg');
     if(!p)el.innerHTML=origen==='error'?`⚠ No se pudo consultar la programación (${esc(error)}). Puede iniciar y reportar casos nuevos.`:'No hay programación de cirugías para hoy. Puede iniciar y reportar casos nuevos de PC.';
     else if(!pr)el.innerHTML='Su pareja no aparece en la programación de hoy. Revise que haya elegido bien a su pareja o consulte al coordinador.';
-    else el.innerHTML=`<b>Pareja ${pr.n}:</b> ${pr.ordenes.length} palmas · ${pr.km??'—'} km de recorrido<br><span class="tenue">${esc(nomBonito(pr.cirujano.nombre))} (cirujano)${pr.auxiliar.nombre?' · '+esc(nomBonito(pr.auxiliar.nombre))+' (auxiliar)':''}${origen==='local'?' · guardada en el celular':''}</span>`;
+    else el.innerHTML=`<b>Pareja ${pr.n}:</b> ${pr.ordenes.length} palmas · ${pr.km_campo??pr.km??'—'} km en campo${pr.min_campo?' · ~'+pr.min_campo+' min caminando':''}<br><span class="tenue">${esc(nomBonito(pr.cirujano.nombre))} (cirujano)${pr.auxiliar.nombre?' · '+esc(nomBonito(pr.auxiliar.nombre))+' (auxiliar)':''}${origen==='local'?' · guardada en el celular':''}</span>`;
     CIRA.parejaProg=pr||null;};
   document.querySelectorAll('input[name=cRol]').forEach(i=>i.onchange=pintarPar);$('#cPar').onchange=buscarRuta;pintarPar();
   $('#cIni').onclick=async()=>{const rol=(document.querySelector('input[name=cRol]:checked')||{}).value;const par=$('#cPar').value;
