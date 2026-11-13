@@ -1345,12 +1345,15 @@ function actualizarVisitaUI(){
 const hhmm=t=>t?fmtHora(t).slice(0,5):'—';
 function tablaLotes(res,j){
   const sel=j&&j.seleccion?new Map(j.seleccion.map(s=>[s.lote,s])):new Map();
+  let sq=[];try{sq=normSecuencias(j&&j.secuencias?j.secuencias:(j&&j===S.jornada?secuenciasEnCurso():[]));}catch(e){}
+  const tpl=tiemposPorLote(sq),dI=sq.filter(s=>s.tipo==='desplazamiento_inicial'),dF=sq.filter(s=>s.tipo==='desplazamiento_final'),conT=sq.length>0;
+  const filaD=(etq,a)=>conT&&a.length?`<tr class="tenue"><td><b>${etq}</b></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>${res.por_lote.some(x=>x.paradas!=null)?`<td>${minHM(a.reduce((s,x)=>s+(Number(x.min_paradas)||0),0))}</td>`:''}<td>—</td><td>${minHM(a.reduce((s,x)=>s+(Number(x.min_total)||0),0))}</td><td>—</td></tr>`:'';
   const filas=res.por_lote.map(x=>`<tr><td><b>${esc(x.lote)}</b>${sel.has(x.lote)?'':' <span class="tenue">(fuera de selección)</span>'}</td><td>${num(x.palmas_visitadas)}</td><td><b>${x.ha.toFixed(2)}</b></td><td>${num(x.diagnosticos)}</td></tr>`).join('');
   const cp=res.por_lote.some(x=>x.paradas!=null);
   const tl={terraza:' <span class="tenue">· terraza</span>',mixto:' <span class="tenue">· mixto</span>'};
-  const filas2=res.por_lote.map(x=>`<tr><td><b>${esc(x.lote)}</b>${tl[x.tipo_lote]||''}${sel.has(x.lote)?'':' <span class="tenue">(fuera de selección)</span>'}</td><td>${num(x.palmas_visitadas)}</td><td>${num(x.palmas_total_lote??totalLote(x.lote))}</td><td><b>${pctTxt(x.palmas_visitadas,x.palmas_total_lote??totalLote(x.lote))} %</b></td><td><b>${x.ha.toFixed(2)}</b></td><td>${num(x.diagnosticos)}</td>${cp?`<td>${x.paradas||0}${x.minutos_paradas?` (${x.minutos_paradas}′)`:''}</td>`:''}</tr>`).join('');
-  return `<table class="res"><thead><tr><th>Lote</th><th>Palmas visitadas</th><th>Total lote</th><th>Avance</th><th>Ha</th><th>Diag.</th>${cp?'<th>Paradas</th>':''}</tr></thead><tbody>${filas2||'<tr><td colspan="7" class="tenue">Aún sin recorrido.</td></tr>'}
-    ${res.por_lote.length>1?`<tr><td><b>TOTAL</b></td><td><b>${num(res.palmas_visitadas)}</b></td><td><b>${num(res.por_lote.reduce((a,x)=>a+(x.palmas_total_lote??totalLote(x.lote)),0))}</b></td><td><b>${pctTxt(res.palmas_visitadas,res.por_lote.reduce((a,x)=>a+(x.palmas_total_lote??totalLote(x.lote)),0))} %</b></td><td><b>${res.ha_recorridas.toFixed(2)}</b></td><td><b>${num(res.por_lote.reduce((a,x)=>a+x.diagnosticos,0))}</b></td>${cp?`<td><b>${res.por_lote.reduce((a,x)=>a+(x.paradas||0),0)}</b></td>`:''}</tr>`:''}</tbody></table>
+  const filas2=[...res.por_lote].sort((a,b)=>ordSec(sq,a.lote)-ordSec(sq,b.lote)).map(x=>`<tr><td><b>${esc(x.lote)}</b>${tl[x.tipo_lote]||''}${sel.has(x.lote)?'':' <span class="tenue">(fuera de selección)</span>'}</td><td>${num(x.palmas_visitadas)}</td><td>${num(x.palmas_total_lote??totalLote(x.lote))}</td><td><b>${pctTxt(x.palmas_visitadas,x.palmas_total_lote??totalLote(x.lote))} %</b></td><td><b>${x.ha.toFixed(2)}</b></td><td>${num(x.diagnosticos)}</td>${cp?`<td>${x.paradas||0}${x.minutos_paradas?` (${x.minutos_paradas}′)`:''}</td>`:''}${conT?(t=>`<td>${t?minHM(t.desp):'—'}</td><td>${t?minHM(t.tot):'—'}</td><td><b>${t?minHM(t.efe):'—'}</b></td>`)(tpl.get(String(x.lote))):''}</tr>`).join('');
+  return `<table class="res"><thead><tr><th>Lote</th><th>Palmas visitadas</th><th>Total lote</th><th>Avance</th><th>Ha</th><th>Diag.</th>${cp?'<th>Paradas</th>':''}${conT?'<th>Despl. entre lotes</th><th>T. total</th><th>T. efectivo</th>':''}</tr></thead><tbody>${filaD('Desplazamiento inicial',dI)}${filas2||'<tr><td colspan="10" class="tenue">Aún sin recorrido.</td></tr>'}${filaD('Desplazamiento final',dF)}
+    ${res.por_lote.length>1?`<tr><td><b>TOTAL</b></td><td><b>${num(res.palmas_visitadas)}</b></td><td><b>${num(res.por_lote.reduce((a,x)=>a+(x.palmas_total_lote??totalLote(x.lote)),0))}</b></td><td><b>${pctTxt(res.palmas_visitadas,res.por_lote.reduce((a,x)=>a+(x.palmas_total_lote??totalLote(x.lote)),0))} %</b></td><td><b>${res.ha_recorridas.toFixed(2)}</b></td><td><b>${num(res.por_lote.reduce((a,x)=>a+x.diagnosticos,0))}</b></td>${cp?`<td><b>${res.por_lote.reduce((a,x)=>a+(x.paradas||0),0)}</b></td>`:''}${conT?`<td><b>${minHM([...tpl.values()].reduce((a,t)=>a+t.desp,0))}</b></td><td><b>${minHM(sq.reduce((a,s)=>a+(Number(s.min_total)||0),0))}</b></td><td><b>${minHM([...tpl.values()].reduce((a,t)=>a+t.efe,0))}</b></td>`:''}</tr>`:''}</tbody></table>
     <p class="tenue">${res.metodo==='buffer'?`Palmas visitadas = sitios a ${res.buffer_m} m o menos del recorrido.`:`Palmas visitadas = en lotes lineales, las dos líneas de la calle por donde pasa el operario, a la altura del recorrido; en terrazas (sin línea o por curvas de nivel), las palmas a ${res.buffer_terraza_m||5} m o menos del recorrido.`} Ha = palmas visitadas ÷ ${res.densidad_palmas_ha} palmas/ha. Avance = palmas visitadas ÷ palmas totales del lote (todos los sitios de la cartografía).${res.comparativo_buffer?` Comparativo con buffer de ${res.comparativo_buffer.buffer_m} m: ${num(res.comparativo_buffer.palmas_visitadas)} palmas · ${res.comparativo_buffer.ha_recorridas.toFixed(2)} ha.`:''}</p>`;
 }
 
@@ -1388,6 +1391,23 @@ function resumenParadas(lista,j){
    Cada bloque de trabajo en un lote abre una secuencia (1 RI01, 2 RI02, 3 RI01…). T. efectivo = T. total − paradas. */
 const SEQ_MIN=60000;
 function lotePunto(p){if(p._l===undefined)p._l=loteDe(p.lat,p.lng)||'';return p._l;}
+/* Jornadas sincronizadas con la versión anterior traen filas «Desplazamiento» sueltas: el primero pasa a Desplazamiento
+   inicial, el último a Desplazamiento final y los intermedios se suman como Despl. entre lotes al lote al que llegan. */
+function normSecuencias(ls){if(!ls||!ls.some(s=>s.tipo==='desplazamiento'))return ls||[];
+  const iL=ls.findIndex(s=>s.tipo==='lote'),fL=ls.length-1-[...ls].reverse().findIndex(s=>s.tipo==='lote');const N=v=>Number(v)||0;
+  const out=[];let pend=null;
+  ls.forEach((s,i)=>{
+    if(s.tipo==='desplazamiento'){if(iL<0||i<iL)out.push({...s,tipo:'desplazamiento_inicial',min_efectivo:null});else if(i>fL)out.push({...s,tipo:'desplazamiento_final',min_efectivo:null});else pend=s;return;}
+    if(s.tipo==='lote'&&pend){const d=pend;pend=null;
+      s={...s,inicio:d.inicio,hora_inicio:d.hora_inicio,inicio_labor:s.inicio,hora_inicio_labor:s.hora_inicio,min_desplazamiento:+N(d.min_total).toFixed(1),min_labor:s.min_total,
+        min_total:+(N(d.min_total)+N(s.min_total)).toFixed(1),min_paradas:+(N(d.min_paradas)+N(s.min_paradas)).toFixed(1),min_efectivo:+(N(d.min_efectivo)+N(s.min_efectivo)).toFixed(1),
+        paradas:N(d.paradas)+N(s.paradas),km:+(N(d.km)+N(s.km)).toFixed(3),diagnosticos:N(d.diagnosticos)+N(s.diagnosticos)};}
+    out.push(s);});
+  return out;}
+/* Tiempos por lote a partir de las secuencias: desplazamiento entre lotes (suma al efectivo del lote al que llega), total y efectivo. */
+const ordSec=(ls,l)=>{const i=(ls||[]).findIndex(s=>s.tipo==='lote'&&String(s.lote)===String(l));return i<0?1e9:i;}; // orden de los lotes según la jornada
+function tiemposPorLote(ls){const m=new Map();for(const s of ls||[])if(s.tipo==='lote'){const k=String(s.lote);const r=m.get(k)||{desp:0,tot:0,efe:0,par:0};
+  r.desp+=Number(s.min_desplazamiento)||0;r.tot+=Number(s.min_total)||0;r.efe+=Number(s.min_efectivo)||0;r.par+=Number(s.min_paradas)||0;m.set(k,r);}return m;}
 const ETQ_TIPO={desplazamiento_inicial:'Desplazamiento inicial',desplazamiento_final:'Desplazamiento final',desplazamiento:'Desplazamiento'};
 function secuenciasDe(pts,o){
   pts=pts||[];const ini0=Math.min(o.inicio||Infinity,pts.length?pts[0].t:Infinity),fin0=Math.max(o.fin||0,pts.length?pts[pts.length-1].t:0);
@@ -1429,7 +1449,7 @@ function tiemposJornada(ls,j){
 function velocidadCaminata(km,minMov){km=Number(km)||0;minMov=Number(minMov)||0;return minMov>=1&&km>0?+(km/(minMov/60)).toFixed(2):null;}
 const minHM=m=>{m=Math.round(Number(m)||0);return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');};
 function tablaSecuencias(ls){
-  if(!ls||!ls.length)return '<p class="tenue">Aún sin recorrido.</p>';
+  ls=normSecuencias(ls);if(!ls||!ls.length)return '<p class="tenue">Aún sin recorrido.</p>';
   const tot=k=>ls.reduce((a,x)=>a+(Number(x[k])||0),0),totL=k=>ls.filter(x=>x.tipo==='lote').reduce((a,x)=>a+(Number(x[k])||0),0);
   const km=tot('km'),movT=(tot('min_total')-tot('min_paradas'))/60;
   const filas=ls.map(x=>`<tr${x.tipo!=='lote'?' class="tenue"':''}><td><b>${x.secuencia??'—'}</b></td><td><b>${x.tipo!=='lote'?ETQ_TIPO[x.tipo]||'Desplazamiento':esc(x.lote)}</b></td><td>${esc(x.hora_inicio)}</td><td>${x.tipo==='lote'?esc(x.hora_inicio_labor||x.hora_inicio):'—'}</td><td>${esc(x.hora_fin)}</td><td>${x.tipo==='lote'?minHM(x.min_desplazamiento):'—'}</td><td>${x.tipo==='lote'?minHM(x.min_labor??x.min_total):'—'}</td><td>${minHM(x.min_total)}</td><td>${minHM(x.min_paradas)}</td><td><b>${x.min_efectivo==null?'—':minHM(x.min_efectivo)}</b></td><td>${x.vel_kmh==null?'—':Number(x.vel_kmh).toFixed(1)}</td><td>${num(x.palmas_visitadas)}</td><td>${Number(x.ha).toFixed(2)}</td><td>${num(x.diagnosticos)}</td></tr>`).join('');

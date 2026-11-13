@@ -536,9 +536,26 @@ function normalizar(g,f,zipSha){
    La app las calcula al finalizar la jornada. Para jornadas antiguas se reconstruyen aquí con el recorrido y los polígonos
    (sin palmas visitadas por secuencia). Tiempo efectivo = total − paradas; el desplazamiento entre lotes es tiempo efectivo. */
 const minHM=m=>{if(m==null||isNaN(m))return '—';m=Math.round(Number(m));return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');};
+/* Jornadas sincronizadas con la versión anterior traen filas «Desplazamiento» sueltas: el primero pasa a Desplazamiento
+   inicial, el último a Desplazamiento final y los intermedios se suman como Despl. entre lotes al lote al que llegan. */
+function normSecuencias(ls){if(!ls||!ls.some(s=>s.tipo==='desplazamiento'))return ls||[];
+  const iL=ls.findIndex(s=>s.tipo==='lote'),fL=ls.length-1-[...ls].reverse().findIndex(s=>s.tipo==='lote');const N=v=>Number(v)||0;
+  const out=[];let pend=null;
+  ls.forEach((s,i)=>{
+    if(s.tipo==='desplazamiento'){if(iL<0||i<iL)out.push({...s,tipo:'desplazamiento_inicial',min_efectivo:null});else if(i>fL)out.push({...s,tipo:'desplazamiento_final',min_efectivo:null});else pend=s;return;}
+    if(s.tipo==='lote'&&pend){const d=pend;pend=null;
+      s={...s,inicio:d.inicio,hora_inicio:d.hora_inicio,inicio_labor:s.inicio,hora_inicio_labor:s.hora_inicio,min_desplazamiento:+N(d.min_total).toFixed(1),min_labor:s.min_total,
+        min_total:+(N(d.min_total)+N(s.min_total)).toFixed(1),min_paradas:+(N(d.min_paradas)+N(s.min_paradas)).toFixed(1),min_efectivo:+(N(d.min_efectivo)+N(s.min_efectivo)).toFixed(1),
+        paradas:N(d.paradas)+N(s.paradas),km:+(N(d.km)+N(s.km)).toFixed(3),diagnosticos:N(d.diagnosticos)+N(s.diagnosticos)};}
+    out.push(s);});
+  return out;}
+/* Tiempos por lote a partir de las secuencias: desplazamiento entre lotes (suma al efectivo del lote al que llega), total y efectivo. */
+const ordSec=(ls,l)=>{const i=(ls||[]).findIndex(s=>s.tipo==='lote'&&String(s.lote)===String(l));return i<0?1e9:i;}; // orden de los lotes según la jornada
+function tiemposPorLote(ls){const m=new Map();for(const s of ls||[])if(s.tipo==='lote'){const k=String(s.lote);const r=m.get(k)||{desp:0,tot:0,efe:0,par:0};
+  r.desp+=Number(s.min_desplazamiento)||0;r.tot+=Number(s.min_total)||0;r.efe+=Number(s.min_efectivo)||0;r.par+=Number(s.min_paradas)||0;m.set(k,r);}return m;}
 const ETQ_TIPO={desplazamiento_inicial:'Desplazamiento inicial',desplazamiento_final:'Desplazamiento final',desplazamiento:'Desplazamiento'};
 function secuenciasDe(j){
-  if(j.secuencias)return j.secuencias;
+  if(j.secuencias)return (j._secN||(j._secN=normSecuencias(j.secuencias)));
   const tr=j.track;if(!tr||tr.t.length!==tr.c.length||tr.t.length<2||!LOTES)return [];
   const ls=tr.c.map(c=>loteDe(c[1],c[0]));let runs=[];
   ls.forEach((l,i)=>{const r=runs[runs.length-1];if(r&&r.l===l)r.i1=i;else runs.push({l,i0:i,i1:i});});
@@ -554,7 +571,7 @@ function secuenciasDe(j){
     return {secuencia:r.l?++n:null,tipo:r.l?'lote':'desplazamiento',lote:r.l||'',inicio:new Date(a).toISOString(),fin:new Date(b).toISOString(),hora_inicio:hhmm(a),hora_fin:hhmm(b),
       min_total:+((b-a)/60000).toFixed(1),min_paradas:+(pm/60000).toFixed(1),min_efectivo:+((b-a-pm)/60000).toFixed(1),paradas:np,diagnosticos:dg,reconstruida:true,
       ...(()=>{if(!conPalmas)return {palmas_visitadas:null,ha:null};const ult=k===runs.length-1;const pv=tvs.filter(t=>t>=a&&(t<b||(ult&&t<=b))).length;return {palmas_visitadas:pv,ha:+(pv/(j.densidad||115)).toFixed(2)};})()};});
-  return j.secuencias;
+  j._secN=normSecuencias(j.secuencias);return j._secN;
 }
 /* Jornadas sincronizadas antes de la versión con secuencias: traen las palmas visitadas (ids) pero no el momento de la visita.
    Se estima como el primer punto del recorrido a 12 m o menos de la palma (o el más cercano), para repartirlas por secuencia y para la reproducción. */
@@ -659,7 +676,10 @@ function abrirDetalle(j){
   for(const d of j.diags)caja?caja.extend([d.lat,d.lng]):(caja=L.latLngBounds([[d.lat,d.lng]]));
   if(caja)mapa.fitBounds(caja,{padding:[40,40],maxZoom:19});
   const conT=tr&&tr.t.length===tr.c.length&&tr.t.length>1;
-  const filas=j.por_lote.map(x=>`<tr><td><b>${esc(x.lote)}</b>${x.tipo_lote&&x.tipo_lote!=='lineal'?` <span class="tenue">· ${esc(x.tipo_lote)}</span>`:''}</td><td class="n">${num(x.palmas_visitadas)}</td><td class="n">${(x.palmas_total_lote||totalLote(x.lote))?num(Number(x.palmas_visitadas)/(x.palmas_total_lote||totalLote(x.lote))*100,1)+' %':'—'}</td><td class="n">${num(x.ha,2)}</td><td class="n">${num(x.diagnosticos)}</td><td class="n">${num(x.paradas||0)}</td></tr>`).join('');
+  const sq=secuenciasDe(j),tl=tiemposPorLote(sq),dI=sq.filter(s=>s.tipo==='desplazamiento_inicial'),dF=sq.filter(s=>s.tipo==='desplazamiento_final');
+  const filaD=(etq,a)=>a.length?`<tr class="tenue"><td><b>${etq}</b></td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">${minHM(a.reduce((s,x)=>s+(Number(x.min_paradas)||0),0))}</td><td class="n">—</td><td class="n">${minHM(a.reduce((s,x)=>s+(Number(x.min_total)||0),0))}</td><td class="n">—</td></tr>`:'';
+  const filas=filaD('Desplazamiento inicial',dI)+[...j.por_lote].sort((a,b)=>ordSec(sq,a.lote)-ordSec(sq,b.lote)).map(x=>{const t=tl.get(String(x.lote));const tot=x.palmas_total_lote||totalLote(x.lote);
+    return `<tr><td><b>${esc(x.lote)}</b>${x.tipo_lote&&x.tipo_lote!=='lineal'?` <span class="tenue">· ${esc(x.tipo_lote)}</span>`:''}</td><td class="n">${num(x.palmas_visitadas)}</td><td class="n">${tot?num(Number(x.palmas_visitadas)/tot*100,1)+' %':'—'}</td><td class="n">${num(x.ha,2)}</td><td class="n">${num(x.diagnosticos)}</td><td class="n">${t?minHM(t.par):num(x.paradas||0)}</td><td class="n">${t?minHM(t.desp):'—'}</td><td class="n">${t?minHM(t.tot):'—'}</td><td class="n"><b>${t?minHM(t.efe):'—'}</b></td></tr>`;}).join('')+filaD('Desplazamiento final',dF);
   $('#detalle').innerHTML=`<div class="cab"><b>${esc(j.evaluador)}</b><button class="x" id="dX" title="Cerrar">✕</button></div>
     <div class="tenue">${esc(j.fecha)} · ${esc(j.hora_inicio)} – ${esc(j.hora_fin)} · ${esc(minAh(j.duracion_min))}</div>
     <div class="grid2"><div><b>Km:</b> ${num(j.km,2)}</div><div><b>Ha:</b> ${num(j.ha,2)}</div><div><b>Palmas visitadas:</b> ${num(j.palmas)}</div><div><b>Diagnósticos:</b> ${num(j.diags.length)}</div>
@@ -679,7 +699,8 @@ function abrirDetalle(j){
     <div class="tenue" style="font-size:11.5px">Despl. = desplazamiento entre lotes: va en la misma fila del lote al que llega, separado de la labor (Inicio = fin del lote anterior; Inicio labor = primera palma) y cuenta como efectivo. Total = Despl. + Labor. El desplazamiento inicial y el final no son tiempo efectivo de un lote. Vel. = km/h de caminata sin paradas.</div>
     ${secuenciasDe(j).some(s=>s.reconstruida)?'<div class="tenue" style="font-size:11.5px">Jornada anterior a la versión con secuencias: se reconstruyeron con el recorrido; las palmas se asignan a la secuencia en que el operario pasó junto a ellas.</div>':''}
     <h3 style="margin-top:6px">Por lote</h3>
-    <table class="t"><thead><tr><th>Lote</th><th class="n">Palmas</th><th class="n">Ha</th><th class="n">Diag.</th><th class="n">Paradas</th></tr></thead><tbody>${filas||'<tr><td colspan="5" class="tenue">Sin datos por lote.</td></tr>'}</tbody></table>
+    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Lote</th><th class="n">Palmas</th><th class="n">Avance</th><th class="n">Ha</th><th class="n">Diag.</th><th class="n">Paradas</th><th class="n">Despl. entre lotes</th><th class="n">T. total</th><th class="n">T. efectivo</th></tr></thead><tbody>${filas||'<tr><td colspan="9" class="tenue">Sin datos por lote.</td></tr>'}</tbody></table></div>
+    <div class="tenue" style="font-size:11.5px">Avance = palmas visitadas ÷ palmas totales del lote. Despl. entre lotes = tiempo desde el lote anterior; suma al T. efectivo del lote. Paradas y tiempos en horas:minutos.</div>
     <div class="tenue" style="font-size:12px;margin-top:8px">${esc(j.app)} · Dispositivo ${esc(j.dispositivo||'—')} · Sincronizada ${esc(j.sincronizado?new Date(j.sincronizado).toLocaleString('es-CO'):'—')}</div>
     <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn mini" id="dGeo">⬇ GeoJSON de la jornada</button></div>`;
   $('#detalle').hidden=false;$('#dX').onclick=cerrarDetalle;
