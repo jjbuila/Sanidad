@@ -171,9 +171,9 @@ async function kek(clave,salt){const base=await crypto.subtle.importKey('raw',en
 const llaveDatos=raw=>crypto.subtle.importKey('raw',raw,{name:'AES-GCM'},false,['encrypt','decrypt']);
 async function cifrar(llave,bytes){const iv=rnd(12);const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},llave,bytes);return {iv:b64(iv),ct:b64(ct)};}
 async function descifrar(llave,o){return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:deB64(o.iv)},llave,deB64(o.ct)));}
-async function entradaUsuario(dk,dkRaw,u,nombre,rol,clave){
+async function entradaUsuario(dk,dkRaw,u,nombre,rol,clave,extra){
   const salt=rnd(16);const k=await kek(clave,salt);const w=await cifrar(k,dkRaw);
-  return {u,salt:b64(salt),iv:w.iv,ct:w.ct,meta:await cifrar(dk,enc.encode(JSON.stringify({nombre,rol})))};
+  return {u,salt:b64(salt),iv:w.iv,ct:w.ct,meta:await cifrar(dk,enc.encode(JSON.stringify({...(extra||{}),nombre,rol})))}; // conserva cargo, labores y demás datos
 }
 async function cifrarCarto(dk,files){
   const fl=files.find(f=>/\.(geo)?json$/i.test(f.name)),fz=files.find(f=>/\.zip$/i.test(f.name));
@@ -308,7 +308,7 @@ $('#eGuardar').onclick=async()=>{
     bt.disabled=true;bt.textContent='Cifrando…';
     const usuarios=[];
     for(const x of a.usuarios){if(ED.eliminar.has(x.u))continue;
-      const c=ED.claves.get(x.u);if(c){const m=ED.lista.find(y=>y.u===x.u);usuarios.push(await entradaUsuario(ED.dk,ED.dkRaw,x.u,m.nombre,m.rol,c));}else usuarios.push(x);}
+      const c=ED.claves.get(x.u);if(c){const m=ED.lista.find(y=>y.u===x.u);usuarios.push(await entradaUsuario(ED.dk,ED.dkRaw,x.u,m.nombre,m.rol,c,m));}else usuarios.push(x);}
     for(const x of nuevos)usuarios.push(await entradaUsuario(ED.dk,ED.dkRaw,x.u,x.nombre,x.rol,x.clave));
     a.usuarios=usuarios;a.repo={owner:$('#eOwner').value.trim(),repo:$('#eRepo').value.trim(),rama:$('#eRama').value.trim()||'main'};
     const t=$('#eToken').value.trim();if(t){if(!/^(github_pat_|ghp_)/.test(t))throw new Error('El token debe empezar por github_pat_.');a.token=await cifrar(ED.dk,enc.encode(t));}

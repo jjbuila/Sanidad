@@ -849,7 +849,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261113:0027</div>
+    <div id="lgVer">VERSIÓN 20261113:0424</div>
   </div>
 </div>
 
@@ -942,7 +942,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261113:0027';
+const VERSION='20261113:0424';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1207,6 +1207,165 @@ function leyendaVias(){
    <div><svg width="34" height="12" style="vertical-align:-2px;margin-right:6px" aria-hidden="true"><line x1="4" y1="6" x2="30" y2="6" stroke="#4b321b" stroke-width="5" stroke-linecap="round"/><line x1="4" y1="6" x2="30" y2="6" stroke="#bb8753" stroke-width="3" stroke-linecap="round"/></svg>Sendero secundario (barro)</div>
    <div><svg width="18" height="18" viewBox="0 0 34 34" style="vertical-align:-4px;margin:0 14px 0 8px" aria-hidden="true"><circle cx="17" cy="17" r="15.5" fill="#0F3D2E" stroke="#fff" stroke-width="2.5"/><path d="M9 25V15l8-6 8 6v10h-5.5v-6h-5v6z" fill="#fff"/></svg>Oficina central</div>`;
 }
+
+/* ===================== NÚCLEO COMÚN DE LABORES (App, visor y programador) =====================
+   1) Calendario laboral colombiano: festivos (Ley 51 de 1983 «Ley Emiliani» y fiestas móviles por Semana Santa).
+      Día hábil = lunes a sábado que no sea festivo. Plazo D+1 hábil para cirugías.
+   2) Red de caminos: grafo de vías y senderos (vias.enc), caminos más cortos (Dijkstra) y orden de visita
+      (vecino más cercano + 2-opt) para rutas de palmas puntuales.
+   3) Reglas de cirugía: qué diagnósticos generan orden de cirugía y las condiciones de corrección. */
+
+/* ---------- 1. Calendario ---------- */
+const NUCLEO_CAL={cache:new Map()};
+function pascuaCO(y){ // algoritmo de Meeus/Jones/Butcher (calendario gregoriano)
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,
+    i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mes=Math.floor((h+l-7*m+114)/31),dia=((h+l-7*m+114)%31)+1;
+  return new Date(Date.UTC(y,mes-1,dia));
+}
+const isoUTC=d=>d.toISOString().slice(0,10);
+const masDias=(d,n)=>new Date(d.getTime()+n*86400000);
+const aLunes=d=>{const w=d.getUTCDay();return w===1?d:masDias(d,(8-w)%7||7);};
+function festivosCO(y){
+  if(NUCLEO_CAL.cache.has(y))return NUCLEO_CAL.cache.get(y);
+  const F=new Map(),fijo=(m,d,n)=>F.set(isoUTC(new Date(Date.UTC(y,m-1,d))),n),
+    emiliani=(m,d,n)=>F.set(isoUTC(aLunes(new Date(Date.UTC(y,m-1,d)))),n),P=pascuaCO(y);
+  fijo(1,1,'Año Nuevo');fijo(5,1,'Día del Trabajo');fijo(7,20,'Día de la Independencia');fijo(8,7,'Batalla de Boyacá');
+  fijo(12,8,'Inmaculada Concepción');fijo(12,25,'Navidad');
+  emiliani(1,6,'Reyes Magos');emiliani(3,19,'San José');emiliani(6,29,'San Pedro y San Pablo');emiliani(8,15,'Asunción de la Virgen');
+  emiliani(10,12,'Día de la Raza');emiliani(11,1,'Todos los Santos');emiliani(11,11,'Independencia de Cartagena');
+  F.set(isoUTC(masDias(P,-3)),'Jueves Santo');F.set(isoUTC(masDias(P,-2)),'Viernes Santo');
+  F.set(isoUTC(masDias(P,43)),'Ascensión del Señor');F.set(isoUTC(masDias(P,64)),'Corpus Christi');F.set(isoUTC(masDias(P,71)),'Sagrado Corazón');
+  NUCLEO_CAL.cache.set(y,F);return F;
+}
+const fechaISO=f=>{if(typeof f==='string')return f.slice(0,10);const d=new Date(f);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+function esFestivo(f){const s=fechaISO(f);return festivosCO(+s.slice(0,4)).get(s)||null;}
+function esHabil(f){const s=fechaISO(f);const w=new Date(s+'T12:00:00Z').getUTCDay();return w!==0&&!esFestivo(s);}
+/* Siguiente día hábil después de f (D+n hábil). */
+function habilMas(f,n=1){let d=new Date(fechaISO(f)+'T12:00:00Z');let k=0;while(k<n){d=masDias(d,1);if(esHabil(isoUTC(d)))k++;}return isoUTC(d);}
+function diasHabilesEntre(a,b){ // hábiles en (a, b]
+  a=fechaISO(a);b=fechaISO(b);if(b<=a)return 0;let d=new Date(a+'T12:00:00Z'),n=0;while(isoUTC(d)<b){d=masDias(d,1);if(esHabil(isoUTC(d)))n++;}return n;}
+const DIAS_SEM=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const MESES_C=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function fechaCorta(f){const s=fechaISO(f);const d=new Date(s+'T12:00:00Z');return `${DIAS_SEM[d.getUTCDay()].slice(0,3)} ${d.getUTCDate()} ${MESES_C[d.getUTCMonth()]}`;}
+
+/* ---------- 2. Red de caminos ---------- */
+const R_TIERRA=6371000;
+function dM(lat1,lng1,lat2,lng2){const r=Math.PI/180,x=(lng2-lng1)*r*Math.cos((lat1+lat2)/2*r),y=(lat2-lat1)*r;return Math.sqrt(x*x+y*y)*R_TIERRA;}
+/* Proyección local en metros alrededor de la plantación. */
+const PROY={lat0:1.52,k:Math.PI/180*R_TIERRA};
+const aXY=(lng,lat)=>[lng*PROY.k*Math.cos(PROY.lat0*Math.PI/180),lat*PROY.k];
+const deXY=(x,y)=>[x/(PROY.k*Math.cos(PROY.lat0*Math.PI/180)),y/PROY.k];
+/* Factor de costo por tipo de camino: la vía es más rápida que el barro; el tramo dentro del lote (por la calle de palmas) es el más lento. */
+const COSTO_CAMINO={via:1,sendero_principal:1.12,sendero_secundario:1.2,acceso:1.45};
+function construirRed(gj){
+  const nodos=[],adj=[],idx=new Map(),key=(x,y)=>Math.round(x*2)+','+Math.round(y*2); // nodos a 0,5 m
+  const nodo=(x,y)=>{const k=key(x,y);let i=idx.get(k);if(i==null){i=nodos.length;nodos.push([x,y]);adj.push([]);idx.set(k,i);}return i;};
+  const arista=(a,b,f)=>{if(a===b)return;const [x1,y1]=nodos[a],[x2,y2]=nodos[b];const w=Math.hypot(x2-x1,y2-y1);adj[a].push([b,w*f,w]);adj[b].push([a,w*f,w]);};
+  const lineas=(gj&&gj.features||[]).filter(f=>f.geometry&&f.geometry.type==='LineString');
+  const segs=[];
+  for(const f of lineas){const fac=COSTO_CAMINO[f.properties.tipo]||1.2;const P=f.geometry.coordinates.map(([lng,lat])=>aXY(lng,lat));
+    const ids=P.map(([x,y])=>nodo(x,y));for(let i=1;i<ids.length;i++){arista(ids[i-1],ids[i],fac);segs.push([ids[i-1],ids[i],fac]);}}
+  /* Cruces: extremo de una línea que cae sobre otra (≤4 m) → se une al punto más cercano de esa línea. Nodos casi iguales (≤3 m) → se unen. */
+  const celda=25,grid=new Map(),gk=(x,y)=>Math.floor(x/celda)+','+Math.floor(y/celda);
+  segs.forEach((s,i)=>{const [a,b]=s;const [x1,y1]=nodos[a],[x2,y2]=nodos[b];
+    for(let gx=Math.floor(Math.min(x1,x2)/celda);gx<=Math.floor(Math.max(x1,x2)/celda);gx++)for(let gy=Math.floor(Math.min(y1,y2)/celda);gy<=Math.floor(Math.max(y1,y2)/celda);gy++){const k=gx+','+gy;if(!grid.has(k))grid.set(k,[]);grid.get(k).push(i);}});
+  const RED={nodos,adj,segs,grid,celda,gk};
+  // cruces en medio de los tramos (líneas que se atraviesan sin vértice común)
+  const nSeg=segs.length;
+  for(const [k,l] of grid){for(let u=0;u<l.length;u++)for(let v=u+1;v<l.length;v++){const s1=segs[l[u]],s2=segs[l[v]];if(!s1||!s2||l[u]>=nSeg||l[v]>=nSeg)continue;
+    const [a,b]=s1,[c,d]=s2;if(a===c||a===d||b===c||b===d)continue;const [x1,y1]=nodos[a],[x2,y2]=nodos[b],[x3,y3]=nodos[c],[x4,y4]=nodos[d];
+    const den=(x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);if(Math.abs(den)<1e-9)continue;const t=((x1-x3)*(y3-y4)-(y1-y3)*(x3-x4))/den,w=((x1-x3)*(y1-y2)-(y1-y3)*(x1-x2))/den;
+    if(t>0&&t<1&&w>0&&w<1){const n=nodo(x1+t*(x2-x1),y1+t*(y2-y1));arista(a,n,s1[2]);arista(n,b,s1[2]);arista(c,n,s2[2]);arista(n,d,s2[2]);}}}
+  // extremos sueltos: se unen a la línea más cercana (≤25 m); así quedan conectados vías y senderos digitalizados con pequeños huecos
+  const grado=adj.map(a=>a.length);
+  for(let i=0;i<grado.length;i++){if(grado[i]!==1)continue;const [x,y]=nodos[i];
+    const p=puntoEnRed(RED,x,y,25,i);if(p&&p.d>0.01){const n=nodo(p.x,p.y);if(n!==p.a&&n!==p.b){arista(p.a,n,p.fac);arista(n,p.b,p.fac);}arista(i,n,Math.max(p.fac,1.3));}}
+  // componentes que siguen aisladas: se unen a la componente principal por el par de nodos más cercano (≤60 m)
+  unirComponentes(RED,60);
+  return RED;
+}
+function unirComponentes(R,maxD){
+  for(let vuelta=0;vuelta<6;vuelta++){
+    const n=R.nodos.length,comp=new Int32Array(n).fill(-1),tam=[];let nc=0;
+    for(let i=0;i<n;i++){if(comp[i]>=0||!R.adj[i].length)continue;const st=[i];comp[i]=nc;let t=0;while(st.length){const u=st.pop();t++;for(const [v] of R.adj[u])if(comp[v]<0){comp[v]=nc;st.push(v);}}tam.push(t);nc++;}
+    if(nc<=1)return;const prin=tam.indexOf(Math.max(...tam));
+    const celda=maxD,g=new Map();for(let i=0;i<n;i++){if(comp[i]!==prin)continue;const [x,y]=R.nodos[i];const k=Math.floor(x/celda)+','+Math.floor(y/celda);if(!g.has(k))g.set(k,[]);g.get(k).push(i);}
+    const mejor=new Map();
+    for(let i=0;i<n;i++){const c=comp[i];if(c<0||c===prin)continue;const [x,y]=R.nodos[i];const gx=Math.floor(x/celda),gy=Math.floor(y/celda);
+      for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const l=g.get((gx+a)+','+(gy+b));if(!l)continue;for(const j of l){const d=Math.hypot(R.nodos[j][0]-x,R.nodos[j][1]-y);if(d<=maxD&&(!mejor.has(c)||d<mejor.get(c)[0]))mejor.set(c,[d,i,j]);}}}
+    if(!mejor.size)return;
+    for(const [c,[d,i,j]] of mejor){R.adj[i].push([j,d*1.5,d]);R.adj[j].push([i,d*1.5,d]);}
+  }
+}
+/* Punto más cercano de la red a (x,y) dentro de maxD metros. excluye: nodo que no puede ser extremo del segmento. */
+function puntoEnRed(R,x,y,maxD,excluye){
+  let mejor=null;const r=Math.ceil(maxD/R.celda);const gx=Math.floor(x/R.celda),gy=Math.floor(y/R.celda);const vistos=new Set();
+  for(let i=-r;i<=r;i++)for(let j=-r;j<=r;j++){const l=R.grid.get((gx+i)+','+(gy+j));if(!l)continue;
+    for(const si of l){if(vistos.has(si))continue;vistos.add(si);const [a,b,fac]=R.segs[si];if(a===excluye||b===excluye)continue;
+      const [x1,y1]=R.nodos[a],[x2,y2]=R.nodos[b];const dx=x2-x1,dy=y2-y1,L2=dx*dx+dy*dy||1e-9;let t=((x-x1)*dx+(y-y1)*dy)/L2;t=Math.max(0,Math.min(1,t));
+      const px=x1+t*dx,py=y1+t*dy,d=Math.hypot(x-px,y-py);if(d<=maxD&&(!mejor||d<mejor.d))mejor={x:px,y:py,d,a,b,fac,t};}}
+  return mejor;
+}
+/* Enlaza un punto (palma, oficina) a la red: va en línea recta (por la calle de palmas) hasta el camino más cercano. */
+function enlazarPunto(R,lng,lat){
+  const [x,y]=aXY(lng,lat);let p=null;for(const m of [60,150,400,1200]){p=puntoEnRed(R,x,y,m);if(p)break;}
+  if(!p)return null;
+  const id=R.nodos.length;R.nodos.push([x,y]);R.adj.push([]);
+  const pid=R.nodos.length;R.nodos.push([p.x,p.y]);R.adj.push([]);
+  const [x1,y1]=R.nodos[p.a],[x2,y2]=R.nodos[p.b];
+  const ad=(u,v,f)=>{const [ax,ay]=R.nodos[u],[bx,by]=R.nodos[v];const w=Math.hypot(bx-ax,by-ay);R.adj[u].push([v,w*f,w]);R.adj[v].push([u,w*f,w]);};
+  ad(pid,p.a,p.fac);ad(pid,p.b,p.fac);ad(id,pid,COSTO_CAMINO.acceso);
+  return id;
+}
+/* Dijkstra con montículo binario: costo y distancia real desde el origen a todos los nodos. */
+function dijkstra(R,origen){
+  const n=R.nodos.length,cost=new Float64Array(n).fill(Infinity),dist=new Float64Array(n),prev=new Int32Array(n).fill(-1);
+  const h=[];const push=(c,v)=>{h.push([c,v]);let i=h.length-1;while(i>0){const p=(i-1)>>1;if(h[p][0]<=h[i][0])break;[h[p],h[i]]=[h[i],h[p]];i=p;}};
+  const pop=()=>{const t=h[0],l=h.pop();if(h.length){h[0]=l;let i=0;for(;;){const a=2*i+1,b=a+1;let m=i;if(a<h.length&&h[a][0]<h[m][0])m=a;if(b<h.length&&h[b][0]<h[m][0])m=b;if(m===i)break;[h[m],h[i]]=[h[i],h[m]];i=m;}}return t;};
+  cost[origen]=0;push(0,origen);
+  while(h.length){const [c,u]=pop();if(c>cost[u])continue;for(const [v,w,real] of R.adj[u]){const nc=c+w;if(nc<cost[v]){cost[v]=nc;dist[v]=dist[u]+real;prev[v]=u;push(nc,v);}}}
+  return {cost,dist,prev};
+}
+function caminoNodos(prev,destino){const out=[];for(let v=destino;v!==-1;v=prev[v])out.push(v);return out.reverse();}
+/* Ruta óptima: parte de la oficina, visita todos los puntos y regresa. Devuelve el orden, la geometría y distancias. */
+function rutaOptima(RED_GJ,oficina,puntos){
+  const R=construirRed(RED_GJ);
+  const o=enlazarPunto(R,oficina.lng,oficina.lat);const ids=puntos.map(p=>enlazarPunto(R,p.lng,p.lat));
+  const todos=[o,...ids];const D=[],C=[],PREV=[];
+  for(const s of todos){if(s==null){D.push(null);C.push(null);PREV.push(null);continue;}const r=dijkstra(R,s);D.push(todos.map(t=>t==null?Infinity:r.dist[t]));C.push(todos.map(t=>t==null?Infinity:r.cost[t]));PREV.push(r.prev);}
+  const n=puntos.length;const costo=(i,j)=>{const a=C[i],b=a&&a[j];if(b!=null&&isFinite(b))return b;const pi=i?puntos[i-1]:oficina,pj=j?puntos[j-1]:oficina;return dM(pi.lat,pi.lng,pj.lat,pj.lng)*2;};
+  // vecino más cercano desde la oficina (índice 0)
+  let orden=[],libres=new Set(Array.from({length:n},(_,i)=>i+1)),act=0;
+  while(libres.size){let mejor=null,mc=Infinity;for(const j of libres){const c=costo(act,j);if(c<mc){mc=c;mejor=j;}}orden.push(mejor);libres.delete(mejor);act=mejor;}
+  // 2-opt sobre el circuito oficina → … → oficina
+  const total=o2=>{let s=costo(0,o2[0]);for(let i=1;i<o2.length;i++)s+=costo(o2[i-1],o2[i]);return s+costo(o2[o2.length-1],0);};
+  let mejora=true,vueltas=0;
+  while(mejora&&vueltas++<60){mejora=false;for(let i=0;i<orden.length-1;i++)for(let k=i+1;k<orden.length;k++){
+    const a=i?orden[i-1]:0,b=orden[i],c=orden[k],d=k+1<orden.length?orden[k+1]:0;
+    if(costo(a,c)+costo(b,d)<costo(a,b)+costo(c,d)-0.5){orden=orden.slice(0,i).concat(orden.slice(i,k+1).reverse(),orden.slice(k+1));mejora=true;}}}
+  // geometría y distancias por tramo
+  const geom=[],tramos=[];let acum=0;const sec=[0,...orden,0];
+  for(let s=1;s<sec.length;s++){const i=sec[s-1],j=sec[s];let m=0;
+    if(PREV[i]&&todos[j]!=null&&isFinite(C[i][j])){const ns=caminoNodos(PREV[i],todos[j]);m=D[i][j];for(const v of ns){const [lng,lat]=deXY(...R.nodos[v]);geom.push([+lng.toFixed(7),+lat.toFixed(7)]);}}
+    else{const pi=i?puntos[i-1]:oficina,pj=j?puntos[j-1]:oficina;m=dM(pi.lat,pi.lng,pj.lat,pj.lng);geom.push([pi.lng,pi.lat],[pj.lng,pj.lat]);}
+    acum+=m;tramos.push(Math.round(m));}
+  return {orden:orden.map(i=>i-1),geometria:geom,tramos_m:tramos,km:+(acum/1000).toFixed(2)};
+}
+
+/* ---------- 3. Reglas de cirugía ---------- */
+const CIR_N2=['PC INICIAL','PC AVANZADA','PC REINCIDENTE'];
+const esCasoCirugia=d=>!!d&&(d.n1_codigo==='PC'||/PUDRICI[ÓO]N DE COGOLLO/i.test(d.nivel1||d.n1||''))&&CIR_N2.includes(String(d.nivel2||d.n2||'').toUpperCase());
+const PRODUCTOS_CIR={quimico:['Mancozeb','Malathion','Clorpirifos','Oxicloruro de cobre','Mancozeb + Malathion'],biologico:['Beauveria bassiana','Quelato de zinc']};
+/* Correcciones del cirujano: estado real de la palma cuando el censo quedó mal. */
+const CORRECCIONES_CIR=[
+  {id:'recuperacion',t:'PC en recuperación',n1_codigo:'PC',n1:'PUDRICIÓN DE COGOLLO (PC)',n2:'PC EN RECUPERACIÓN',n3:'SEGUIMIENTO PC',estado:'tratamiento'},
+  {id:'crater',t:'Cráter',n1_codigo:'PC',n1:'PUDRICIÓN DE COGOLLO (PC)',n2:'CRATER',n3:'SEGUIMIENTO PC',estado:'enferma'},
+  {id:'muerta',t:'Palma muerta',n1_codigo:'MUERTA',n1:'PALMA MUERTA',n2:'',n3:'',estado:'muerta'},
+  {id:'erradicar',t:'Para erradicar',n1_codigo:'PC',n1:'PUDRICIÓN DE COGOLLO (PC)',n2:'PARA ERRADICAR',n3:'SEGUIMIENTO PC',estado:'enferma',accion:'erradicar'},
+  {id:'sana',t:'Palma sana',n1_codigo:'SN',n1:'SIN NOVEDAD (PALMA SANA)',n2:'',n3:'',estado:'sana'},
+  {id:'boro',t:'Deficiencia de boro',n1_codigo:'DEF',n1:'DEFICIENCIAS',n2:'BORO (B)',n3:'',estado:'enferma'},
+  {id:'doblamiento',t:'Doblamiento de cogollo',n1_codigo:'DC',n1:'DOBLAMIENTO DE COGOLLO',n2:'',n3:'',estado:'novedad'}
+];
 
 $('#cVias').onchange=()=>mostrarVias($('#cVias').checked);
 mapa.on('zoomend moveend',()=>{mapa.getContainer().classList.toggle('sin-etq',mapa.getZoom()<14);dibujarPalmas();});
@@ -1700,6 +1859,256 @@ async function entrar(){
   try{await cargarVias();}catch(e){}
   ponerRango(6);await cargar();
 }
+/* =====================================================================
+   PROGRAMADOR Y SEGUIMIENTO DE CIRUGÍAS (visor web)
+   · Casos pendientes: palmas cuyo último diagnóstico (censo o corrección del cirujano) es PC inicial, avanzada o
+     reincidente y que no tienen cirugía posterior. Plazo: D+1 hábil (lunes a sábado, sin festivos).
+   · Programación inteligente: reparte los casos entre las parejas según su eficiencia (palmas/día), prioriza
+     vencidos y los que vencen en la fecha, y ordena cada ruta sobre vías y senderos desde la oficina central.
+   · La programación se guarda en el repositorio (cirugia/programacion/AAAA-MM-DD.json) y la App la descarga.
+   ===================================================================== */
+const CIR={on:false,cargado:false,cargando:false,diags:[],cirugias:[],correcciones:[],marcas:[],jornadas:[],pend:[],usuarios:[],
+  parejas:[],prog:null,progSha:null,capa:L.layerGroup(),fecha:null,tab:'prog'};
+const COLORES_PAREJA=['#22d39a','#f2a33a','#4fb3ff','#c77dff'];
+const OFICINA_DEF={lat:1.526032,lng:-78.734753};
+function oficinaCentral(){const f=VIAS.gj&&VIAS.gj.features.find(x=>x.properties.tipo==='oficina');return f?{lng:f.geometry.coordinates[0],lat:f.geometry.coordinates[1]}:OFICINA_DEF;}
+const nombreCorto=n=>{const p=String(n||'').trim().split(/\s+/);if(p.length>=3)return (p[2]+' '+p[0]).toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase());return String(n||'').toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase());};
+const etqPalma=o=>`${o.lote} · L${o.linea??'?'} · P${o.palma??'?'}`;
+
+/* ---------- Interfaz ---------- */
+(function montarCirugia(){
+  const css=document.createElement('style');css.textContent=`
+  body.modo-cir #filtros,body.modo-cir nav.tabs,body.modo-cir #panel{display:none!important}
+  #cirPanel{flex:1;overflow:auto;padding:12px 14px 30px;display:none}
+  body.modo-cir #cirPanel{display:block}
+  .cir-num{background:none;border:0}
+  .cir-num b{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;color:#06140f;font:700 11.5px/1 system-ui;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+  .cir-par{border:1px solid var(--borde);border-radius:12px;padding:10px;margin:0 0 8px;display:grid;gap:6px}
+  .cir-par .cab{display:flex;align-items:center;gap:8px}
+  .cir-par .cab i{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .cir-par select{width:100%}
+  .cir-ef{display:flex;align-items:center;gap:8px;font-size:12.5px}
+  .cir-ef input{flex:1;accent-color:var(--acento)}
+  .cir-aviso{border:1px solid var(--ambar);background:rgba(255,197,61,.08);border-radius:10px;padding:8px 10px;font-size:12.8px;margin:8px 0}
+  .cir-tabs{display:flex;gap:6px;margin:0 0 10px}
+  .cir-tabs button.on{border-color:var(--acento);background:rgba(34,211,154,.15)}
+  .venc{color:#ff8a80;font-weight:700}.hoyv{color:var(--ambar);font-weight:600}
+  .hist{border-left:2px solid var(--borde);margin:6px 0 0 4px;padding-left:10px;display:grid;gap:6px;font-size:12.5px}
+  .hist .v{position:relative}.hist .v::before{content:'';position:absolute;left:-15px;top:4px;width:8px;height:8px;border-radius:50%;background:#5c6b64}
+  .hist .v.vig::before{background:var(--acento)}.hist .v.vieja b{text-decoration:line-through;color:var(--tenue)}`;
+  document.head.appendChild(css);
+  const bt=document.createElement('button');bt.className='btn mini';bt.id='btCir';bt.innerHTML='✚ CIRUGÍAS';bt.title='Programador y seguimiento de cirugías';
+  $('#chDatos').before(bt);
+  const p=document.createElement('div');p.id='cirPanel';$('aside').appendChild(p);
+  bt.onclick=()=>alternarCirugia();
+})();
+function alternarCirugia(on){
+  CIR.on=on==null?!CIR.on:on;document.body.classList.toggle('modo-cir',CIR.on);$('#btCir').classList.toggle('prim',CIR.on);
+  for(const c of [capaRec,capaDiag,capaPar])CIR.on?mapa.removeLayer(c):(c.addTo(mapa));
+  if(CIR.on){CIR.capa.addTo(mapa);if(!CIR.cargado&&!CIR.cargando)cirCargar();else pintarCir();}
+  else{mapa.removeLayer(CIR.capa);}
+}
+
+/* ---------- Usuarios del paquete (nombres, cargos y labores) ---------- */
+async function cirUsuarios(){
+  if(CIR.usuarios.length)return CIR.usuarios;
+  const out=[];for(const x of ACCESO.usuarios){try{const m=JSON.parse(DEC.decode(await desObj(SES.dk,x.meta)));out.push({u:x.u,...m});}catch(e){}}
+  CIR.usuarios=out.sort((a,b)=>ordenNat(a.nombre,b.nombre));return CIR.usuarios;
+}
+const cirujanos=()=>CIR.usuarios.filter(x=>x.rol_cirugia==='cirujano');
+const auxiliaresCir=()=>CIR.usuarios.filter(x=>(x.labores||[]).includes('cirugia'));
+
+/* ---------- Carga de datos: censo (45 días) y jornadas de cirugía ---------- */
+async function listarDias(raiz,d1,d2){
+  let r;try{r=await (await gh(`/contents/${raiz}?ref=${encodeURIComponent(SES.repo.rama)}`)).json();}catch(e){if(e.status===404)return [];throw e;}
+  return (Array.isArray(r)?r:[]).filter(x=>x.type==='dir'&&x.name>=d1&&x.name<=d2).map(x=>({path:x.name,sha:x.sha}));
+}
+async function cirCargar(){
+  CIR.cargando=true;pintarCir('Cargando el censo de los últimos 45 días y las cirugías…');
+  try{
+    await cirUsuarios();
+    const hoy=hoyISO(),d1=hoyISO(new Date(Date.now()-45*86400000));
+    const [diasC,diasX]=await Promise.all([listarDias('jornadas',d1,hoy),listarDias('cirugia/jornadas',d1,hoy)]);
+    const arch=[];
+    await enParalelo(diasC,6,async d=>{for(const f of await arbol(d.sha))if(f.type==='blob')arch.push({...f,dia:d.path,cir:false});});
+    await enParalelo(diasX,6,async d=>{for(const f of await arbol(d.sha))if(f.type==='blob')arch.push({...f,dia:d.path,cir:true});});
+    const zips=new Map(arch.filter(f=>f.path.endsWith('_fotos.zip')).map(f=>[(f.cir?'c/':'')+f.dia+'/'+f.path,f.sha]));
+    const diags=[],cirs=[],corr=[],marcas=[],jors=[];let n=0;const geos=arch.filter(f=>f.path.endsWith('.geojson'));
+    await enParalelo(geos,6,async f=>{try{const g=JSON.parse(await blobTexto(f.sha));
+      const zip=zips.get((f.cir?'c/':'')+f.dia+'/'+f.path.replace(/\.geojson$/,'_fotos.zip'));
+      if(!f.cir){const j=normalizar(g,f,zip);for(const d of j.diags){d._j=j;diags.push(d);}}
+      else{const h=g.jornada||{};const j={...h,zipSha:zip,ruta:f.dia+'/'+f.path,cirugias:0};jors.push(j);
+        for(const ft of g.features||[]){const p=ft.properties||{};const ll=ft.geometry&&ft.geometry.type==='Point'?{lng:ft.geometry.coordinates[0],lat:ft.geometry.coordinates[1]}:{};
+          const o={...p,...ll,_j:j};
+          if(p.tipo==='cirugia'){cirs.push(o);j.cirugias++;}else if(p.tipo==='diagnostico')corr.push(o);else if(p.tipo==='marca')marcas.push(o);}}
+    }catch(e){console.warn('archivo ilegible',f.path,e);}n++;pintarCir(`Leyendo archivos: ${n} de ${geos.length}`);});
+    CIR.diags=diags;CIR.cirugias=cirs;CIR.correcciones=corr;CIR.marcas=marcas;CIR.jornadas=jors;
+    calcularPendientes();CIR.cargado=true;
+    const guard=await dget('kv','cir_parejas');CIR.parejas=Array.isArray(guard)&&guard.length?guard:parejasIniciales();
+    if(!CIR.fecha)CIR.fecha=esHabil(hoyISO())&&new Date().getHours()<12?hoyISO():habilMas(hoyISO());
+    await leerProgramacion(CIR.fecha);
+  }catch(e){toast(e.message,6000);}
+  finally{CIR.cargando=false;pintarCir();}
+}
+function parejasIniciales(){const c=cirujanos();const out=[];for(let i=0;i+1<c.length&&out.length<2;i+=2)out.push({cirujano:c[i].u,auxiliar:c[i+1].u,ef:20});if(!out.length)out.push({cirujano:'',auxiliar:'',ef:20});return out;}
+const tDe=x=>Date.parse(x.modificado||x.creado||x.hora_fin||x.fecha)||0;
+/* Historia por palma: diagnósticos del censo, correcciones y casos nuevos del cirujano y cirugías. */
+function historia(pid){
+  const ev=[];
+  for(const d of CIR.diags)if(String(d.palma_id)===String(pid))ev.push({t:tDe(d),clase:'censo',d});
+  for(const d of CIR.correcciones)if(String(d.palma_id)===String(pid))ev.push({t:tDe(d),clase:d.origen==='caso_nuevo'?'caso_nuevo':'correccion',d});
+  for(const c of CIR.cirugias)if(String(c.palma_id)===String(pid))ev.push({t:tDe(c),clase:'cirugia',d:c});
+  return ev.sort((a,b)=>a.t-b.t);
+}
+function calcularPendientes(){
+  const ult=new Map(),ultCir=new Map();
+  const ponD=(d,clase)=>{const k=String(d.palma_id);const t=tDe(d);const u=ult.get(k);if(!u||t>=u.t)ult.set(k,{t,d,clase});};
+  CIR.diags.forEach(d=>ponD(d,'censo'));CIR.correcciones.forEach(d=>ponD(d,d.origen==='caso_nuevo'?'caso_nuevo':'correccion'));
+  for(const c of CIR.cirugias){const k=String(c.palma_id);const t=tDe(c);const u=ultCir.get(k);if(!u||t>u.t)ultCir.set(k,{t,c});}
+  const pend=[];
+  for(const [k,{t,d,clase}] of ult){if(!esCasoCirugia(d))continue;const c=ultCir.get(k);if(c&&c.t>=t-60000)continue;
+    const f=fechaISO(new Date(t));pend.push({palma_id:k,lote:d.lote,linea:d.linea,palma:d.palma,lat:d.lat,lng:d.lng,n1_codigo:d.n1_codigo||'PC',diagnostico:String(d.nivel2||'').toUpperCase(),
+      seguimiento:d.nivel3||'',fecha_censo:f,vence:habilMas(f),censador:d.evaluador||'',diag_id:d.id||'',origen:clase,creado:new Date(t).toISOString()});}
+  const prioN2={'PC AVANZADA':0,'PC REINCIDENTE':1,'PC INICIAL':2};
+  CIR.pend=pend.sort((a,b)=>a.vence.localeCompare(b.vence)||(prioN2[a.diagnostico]??3)-(prioN2[b.diagnostico]??3)||ordenNat(a.lote,b.lote));
+  // cumplimiento D+1 de los últimos 30 días: casos que se volvieron «de cirugía» y si se operaron a tiempo
+  const desde=Date.now()-30*86400000;let tot=0,ok=0;
+  for(const d of [...CIR.diags,...CIR.correcciones]){if(!esCasoCirugia(d))continue;const t=tDe(d);if(t<desde)continue;const vence=habilMas(fechaISO(new Date(t)));
+    if(vence>hoyISO())continue;tot++;const c=CIR.cirugias.find(x=>String(x.palma_id)===String(d.palma_id)&&tDe(x)>=t-60000);if(c&&fechaISO(new Date(tDe(c)))<=vence)ok++;}
+  CIR.cumplimiento=tot?Math.round(ok/tot*100):null;CIR.cumpTot=tot;
+}
+
+/* ---------- Programación inteligente ---------- */
+function repartir(ordenes,parejas){
+  const k=parejas.length;if(!k)return [];const cap=parejas.map(p=>Number(p.ef)||20);
+  const P=ordenes.map(o=>aXY(o.lng,o.lat));
+  // semillas: la más lejana a la oficina y luego la más lejana a las ya elegidas
+  const of=aXY(oficinaCentral().lng,oficinaCentral().lat);const semillas=[];
+  let i0=0,dm=-1;P.forEach((p,i)=>{const d=Math.hypot(p[0]-of[0],p[1]-of[1]);if(d>dm){dm=d;i0=i;}});if(P.length)semillas.push(P[i0]);
+  while(semillas.length<k&&semillas.length<P.length){let bi=0,bd=-1;P.forEach((p,i)=>{const d=Math.min(...semillas.map(s=>Math.hypot(p[0]-s[0],p[1]-s[1])));if(d>bd){bd=d;bi=i;}});semillas.push(P[bi]);}
+  while(semillas.length<k)semillas.push(of);
+  let asig=new Array(P.length).fill(0),cent=semillas.map(s=>[...s]);
+  for(let it=0;it<6;it++){
+    const libre=[...cap];asig=new Array(P.length).fill(-1);
+    // primero los puntos con más diferencia entre su mejor y segunda opción (los «indecisos» al final)
+    const ord=P.map((p,i)=>{const ds=cent.map(c=>Math.hypot(p[0]-c[0],p[1]-c[1])).sort((a,b)=>a-b);return {i,reg:(ds[1]??ds[0])-ds[0]};}).sort((a,b)=>b.reg-a.reg);
+    for(const {i} of ord){const p=P[i];const op=cent.map((c,j)=>({j,d:Math.hypot(p[0]-c[0],p[1]-c[1])})).sort((a,b)=>a.d-b.d);
+      const el=op.find(x=>libre[x.j]>0)||op[0];asig[i]=el.j;libre[el.j]--;}
+    cent=cent.map((c,j)=>{const m=P.filter((_,i)=>asig[i]===j);return m.length?[m.reduce((s,p)=>s+p[0],0)/m.length,m.reduce((s,p)=>s+p[1],0)/m.length]:c;});
+  }
+  return asig;
+}
+function generarProgramacion(){
+  const fecha=CIR.fecha;const parejas=CIR.parejas.filter(p=>p.cirujano);
+  if(!parejas.length){toast('Defina al menos una pareja con su cirujano.');return;}
+  const cap=parejas.reduce((s,p)=>s+(Number(p.ef)||20),0);
+  const cand=CIR.pend.filter(o=>o.fecha_censo<fecha||(o.fecha_censo<=fecha&&o.vence>=fecha)); // censados antes del día programado
+  const sel=cand.slice(0,cap),quedan=cand.slice(cap);
+  const asig=repartir(sel,parejas);const of=oficinaCentral();
+  const out=parejas.map((p,j)=>{const cirj=CIR.usuarios.find(u=>u.u===p.cirujano)||{},aux=CIR.usuarios.find(u=>u.u===p.auxiliar)||{};
+    const ords=sel.filter((_,i)=>asig[i]===j);let ruta={orden:ords.map((_,i)=>i),geometria:[],tramos_m:[],km:0};
+    try{if(VIAS.gj&&ords.length)ruta=rutaOptima(VIAS.gj,of,ords);}catch(e){console.warn('ruta',e);}
+    const ordenes=ruta.orden.map((ix,n)=>({...ords[ix],orden:n+1,id:`cir-${fecha}-${ords[ix].palma_id}`,tramo_m:ruta.tramos_m[n]||null}));
+    return {n:j+1,color:COLORES_PAREJA[j%COLORES_PAREJA.length],cirujano:{u:p.cirujano,nombre:cirj.nombre||p.cirujano},auxiliar:{u:p.auxiliar||'',nombre:aux.nombre||''},
+      eficiencia:Number(p.ef)||20,km:ruta.km,regreso_m:ruta.tramos_m[ruta.tramos_m.length-1]||null,ruta:ruta.geometria,ordenes};});
+  CIR.prog={formato:'sanidad-programacion-cirugia-1',fecha,generado:new Date().toISOString(),por:SES.u,por_nombre:SES.nombre,oficina:of,parejas:out,
+    sin_programar:quedan.map(o=>({palma_id:o.palma_id,lote:o.lote,linea:o.linea,palma:o.palma,diagnostico:o.diagnostico,vence:o.vence})),enviada:false};
+  dput('kv','cir_parejas',CIR.parejas);pintarCir();toast(`Programación lista: ${sel.length} palma(s) en ${out.length} pareja(s). Revise y envíela a los celulares.`,4500);
+}
+async function leerProgramacion(fecha){
+  CIR.prog=null;CIR.progSha=null;
+  try{const r=await gh(`/contents/cirugia/programacion/${fecha}.json?ref=${encodeURIComponent(SES.repo.rama)}`);const j=await r.json();
+    CIR.progSha=j.sha;CIR.prog={...JSON.parse(DEC.decode(deB64(j.content.replace(/\s/g,'')))),enviada:true};}
+  catch(e){if(e.status!==404)toast(e.message,5000);}
+}
+async function ghPut(path,texto,mensaje,sha){
+  const g=SES.repo;
+  const r=await fetch(`${GHAPI}/repos/${encodeURIComponent(g.owner)}/${encodeURIComponent(g.repo)}/contents/${path.split('/').map(encodeURIComponent).join('/')}`,{method:'PUT',cache:'no-store',
+    headers:{'Authorization':'Bearer '+SES.token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},
+    body:JSON.stringify({message:mensaje,content:aB64(ENC.encode(texto)),branch:g.rama,...(sha?{sha}:{})})});
+  if(!r.ok){let m='';try{m=(await r.json()).message||'';}catch(e){}const e=new Error(errorGH(r.status,m));e.status=r.status;throw e;}
+  return (await r.json()).content.sha;
+}
+async function enviarProgramacion(){
+  if(!CIR.prog)return;const b=$('#cirEnviar');if(b){b.disabled=true;b.textContent='Enviando…';}
+  try{const datos={...CIR.prog};delete datos.enviada;datos.enviado=new Date().toISOString();
+    let sha=CIR.progSha;if(!sha){try{const r=await gh(`/contents/cirugia/programacion/${CIR.prog.fecha}.json?ref=${encodeURIComponent(SES.repo.rama)}`);sha=(await r.json()).sha;}catch(e){}}
+    CIR.progSha=await ghPut(`cirugia/programacion/${CIR.prog.fecha}.json`,JSON.stringify(datos),`Programación de cirugías ${CIR.prog.fecha} · ${SES.nombre}`,sha);
+    CIR.prog={...datos,enviada:true};toast('✓ Programación enviada. Las parejas la reciben al iniciar la jornada de cirugía.',5000);}
+  catch(e){toast('No se pudo enviar: '+e.message,6000);}
+  finally{pintarCir();}
+}
+
+/* ---------- Pintado ---------- */
+function marcadorNum(o,color,n){return L.marker([o.lat,o.lng],{icon:L.divIcon({className:'cir-num',iconSize:[22,22],iconAnchor:[11,11],html:`<b style="background:${color}">${n}</b>`}),keyboard:false});}
+function htmlHistoria(pid){
+  const ev=historia(pid);if(!ev.length)return '';
+  const ultD=[...ev].reverse().find(e=>e.clase!=='cirugia');
+  return '<div class="hist">'+ev.map(e=>{const d=e.d;const f=new Date(e.t);const cuando=`${fechaCorta(f)} ${hhmm(f)}`;
+    if(e.clase==='cirugia')return `<div class="v vig"><span class="tenue">Cirugía · ${cuando}</span><br><b>${esc(d.tipo_cirugia||'')}</b> · ${esc(d.producto||'')}<br><span class="tenue">${esc(nombreCorto(d.cirujano_nombre||d.cirujano))}${d.auxiliar_nombre?' + '+esc(nombreCorto(d.auxiliar_nombre)):''} · ${d.duracion_min??'—'} min</span></div>`;
+    const et={censo:'Censo',correccion:'Corrección del cirujano',caso_nuevo:'Caso nuevo (cirujano)'}[e.clase];
+    return `<div class="v ${e===ultD?'vig':'vieja'}"><span class="tenue">${et} · ${cuando}${e===ultD?' · vigente':''}</span><br><b>${esc([d.nivel1,d.nivel2].filter(Boolean).join(' · '))}</b><br><span class="tenue">${esc(nombreCorto(d.evaluador))}</span></div>`;}).join('')+'</div>';
+}
+function pintarMapaCir(){
+  CIR.capa.clearLayers();
+  if(CIR.prog){for(const p of CIR.prog.parejas){
+      if(p.ruta&&p.ruta.length>1){L.polyline(p.ruta.map(([x,y])=>[y,x]),{renderer:rend,color:'#06140f',weight:7,opacity:.6,interactive:false}).addTo(CIR.capa);
+        L.polyline(p.ruta.map(([x,y])=>[y,x]),{renderer:rend,color:p.color,weight:4,opacity:.95,dashArray:'8 6',interactive:false}).addTo(CIR.capa);}
+      for(const o of p.ordenes)marcadorNum(o,p.color,o.orden).bindPopup(`<b>${esc(etqPalma(o))}</b><br>Pareja ${p.n} · orden ${o.orden}<br>${esc(o.diagnostico)} · vence ${fechaCorta(o.vence)}${htmlHistoria(o.palma_id)}`,{maxWidth:300}).addTo(CIR.capa);}
+    const prog=new Set(CIR.prog.parejas.flatMap(p=>p.ordenes.map(o=>String(o.palma_id))));
+    for(const o of CIR.pend)if(!prog.has(String(o.palma_id))&&o.lat!=null)L.circleMarker([o.lat,o.lng],{renderer:rend,radius:6,color:'#fff',weight:1.5,fillColor:'#e53935',fillOpacity:.9})
+      .bindPopup(`<b>${esc(etqPalma(o))}</b><br>Sin programar · ${esc(o.diagnostico)} · vence ${fechaCorta(o.vence)}${htmlHistoria(o.palma_id)}`,{maxWidth:300}).addTo(CIR.capa);}
+  else for(const o of CIR.pend)if(o.lat!=null)L.circleMarker([o.lat,o.lng],{renderer:rend,radius:6,color:'#fff',weight:1.5,fillColor:o.vence<CIR.fecha?'#ff1744':'#e53935',fillOpacity:.9})
+      .bindPopup(`<b>${esc(etqPalma(o))}</b><br>${esc(o.diagnostico)} · censo ${fechaCorta(o.fecha_censo)} · vence ${fechaCorta(o.vence)}<br>${esc(nombreCorto(o.censador))}${htmlHistoria(o.palma_id)}`,{maxWidth:300}).addTo(CIR.capa);
+  const of=oficinaCentral();
+}
+function pintarCir(msg){
+  const P=$('#cirPanel');if(!P)return;
+  if(!CIR.cargado){P.innerHTML=`<h3>Cirugías</h3><div class="tenue">${esc(msg||'Preparando…')}</div>`;return;}
+  const f=CIR.fecha;const venc=CIR.pend.filter(o=>o.vence<f).length,venceF=CIR.pend.filter(o=>o.vence===f).length;
+  const fest=esFestivo(f),hab=esHabil(f);
+  const tabs=`<div class="cir-tabs"><button class="btn mini ${CIR.tab==='prog'?'on':''}" data-ct="prog">PROGRAMACIÓN</button><button class="btn mini ${CIR.tab==='seg'?'on':''}" data-ct="seg">CIRUGÍAS REALIZADAS</button><button class="btn mini" id="cirRec" title="Volver a leer los datos">↻</button></div>`;
+  let h=tabs;
+  if(CIR.tab==='prog'){
+    h+=`<div class="kpis"><div class="kpi"><b>${num(CIR.pend.length)}</b><span>Casos pendientes</span></div><div class="kpi"><b class="venc">${num(venc)}</b><span>Vencidos</span></div><div class="kpi"><b class="hoyv">${num(venceF)}</b><span>Vencen el ${esc(fechaCorta(f))}</span></div></div>
+    <div class="kpis"><div class="kpi"><b>${CIR.cumplimiento==null?'—':CIR.cumplimiento+' %'}</b><span>Cumplimiento D+1 (30 días)</span></div><div class="kpi"><b>${num(CIR.cirugias.length)}</b><span>Cirugías (45 días)</span></div><div class="kpi"><b>${num(CIR.correcciones.filter(c=>c.origen!=='caso_nuevo').length)}</b><span>Correcciones</span></div></div>
+    <label class="campo" for="cirFecha">Programar para</label>
+    <div style="display:flex;gap:8px;align-items:center"><input type="date" id="cirFecha" value="${f}"><span class="tenue">${fest?'⚠ Festivo: '+esc(fest):hab?esc(fechaCorta(f)):'⚠ Domingo'}</span></div>
+    <h3>Parejas y eficiencia (palmas/día)</h3>
+    ${CIR.parejas.map((p,i)=>`<div class="cir-par"><div class="cab"><i style="background:${COLORES_PAREJA[i%4]}"></i><b>Pareja ${i+1}</b>${CIR.parejas.length>1?`<button class="btn mini" data-quitar="${i}" style="margin-left:auto">Quitar</button>`:''}</div>
+      <label class="campo" for="pc${i}">Cirujano</label><select id="pc${i}" data-p="${i}" data-k="cirujano"><option value="">—</option>${cirujanos().map(u=>`<option value="${esc(u.u)}" ${u.u===p.cirujano?'selected':''}>${esc(u.nombre)}</option>`).join('')}</select>
+      <label class="campo" for="pa${i}">Auxiliar</label><select id="pa${i}" data-p="${i}" data-k="auxiliar"><option value="">—</option>${auxiliaresCir().filter(u=>u.u!==p.cirujano).map(u=>`<option value="${esc(u.u)}" ${u.u===p.auxiliar?'selected':''}>${esc(u.nombre)} · ${esc(u.rol_cirugia==='cirujano'?'cirujano':'aux. fumigación')}</option>`).join('')}</select>
+      <div class="cir-ef"><span>Eficiencia</span><input type="range" min="12" max="30" value="${p.ef}" data-p="${i}" data-k="ef" aria-label="Eficiencia de la pareja ${i+1}"><b id="ef${i}">${p.ef}</b></div></div>`).join('')}
+    ${CIR.parejas.length<4?'<button class="btn mini" id="cirMasPar">+ Agregar pareja</button>':''}
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn prim" id="cirGenerar">GENERAR PROGRAMACIÓN</button>${CIR.prog?`<button class="btn nar" id="cirEnviar" ${CIR.prog.enviada?'':''}>${CIR.prog.enviada?'REENVIAR A LOS CELULARES':'ENVIAR A LOS CELULARES'}</button>`:''}</div>`;
+    if(CIR.prog){const tot=CIR.prog.parejas.reduce((s,p)=>s+p.ordenes.length,0);
+      h+=`<p class="tenue" style="margin:8px 0">${CIR.prog.enviada?'✓ Enviada':'Sin enviar'} · generada ${esc(fechaCorta(CIR.prog.generado))} ${hhmm(CIR.prog.generado)} por ${esc(CIR.prog.por_nombre||CIR.prog.por)} · ${num(tot)} palmas</p>`;
+      if(CIR.prog.sin_programar&&CIR.prog.sin_programar.length)h+=`<div class="cir-aviso">${num(CIR.prog.sin_programar.length)} caso(s) quedan para el siguiente día hábil (${esc(fechaCorta(habilMas(f)))}): la capacidad de las parejas no alcanza. Aumente la eficiencia o agregue una pareja.</div>`;
+      for(const p of CIR.prog.parejas){h+=`<h3 style="color:${p.color}">Pareja ${p.n} · ${p.ordenes.length} palmas · ${p.km??'—'} km</h3><div class="tenue" style="font-size:12.5px;margin:-4px 0 6px">${esc(p.cirujano.nombre)} (cirujano)${p.auxiliar.nombre?' · '+esc(p.auxiliar.nombre)+' (auxiliar)':''}</div>
+        <table class="t"><thead><tr><th>#</th><th>Palma</th><th>Diagnóstico</th><th>Censo</th><th>Vence</th></tr></thead><tbody>${p.ordenes.map(o=>`<tr data-ll="${o.lat},${o.lng}"><td>${o.orden}</td><td>${esc(etqPalma(o))}</td><td>${esc(o.diagnostico.replace('PC ',''))}${o.origen==='caso_nuevo'?' · nuevo':''}</td><td>${esc(fechaCorta(o.fecha_censo))}<br><span class="tenue">${esc(nombreCorto(o.censador))}</span></td><td class="${o.vence<f?'venc':o.vence===f?'hoyv':''}">${esc(fechaCorta(o.vence))}</td></tr>`).join('')}</tbody></table>`;}
+    }else{h+=`<h3>Casos pendientes</h3>${CIR.pend.length?`<table class="t"><thead><tr><th>Palma</th><th>Diagnóstico</th><th>Censo</th><th>Vence</th></tr></thead><tbody>${CIR.pend.map(o=>`<tr data-ll="${o.lat},${o.lng}"><td>${esc(etqPalma(o))}</td><td>${esc(o.diagnostico)}</td><td>${esc(fechaCorta(o.fecha_censo))}<br><span class="tenue">${esc(nombreCorto(o.censador))}</span></td><td class="${o.vence<f?'venc':o.vence===f?'hoyv':''}">${esc(fechaCorta(o.vence))}</td></tr>`).join('')}</tbody></table>`:'<div class="tenue">No hay casos de PC pendientes de cirugía en los últimos 45 días.</div>'}`;}
+  }else{
+    const cs=[...CIR.cirugias].sort((a,b)=>tDe(b)-tDe(a));
+    h+=`<div class="kpis"><div class="kpi"><b>${num(cs.length)}</b><span>Cirugías (45 días)</span></div><div class="kpi"><b>${num(cs.filter(c=>c.origen==='caso_nuevo').length)}</b><span>Casos nuevos operados</span></div><div class="kpi"><b>${(()=>{const d=cs.map(c=>Number(c.duracion_min)).filter(x=>x>0);return d.length?Math.round(d.reduce((a,b)=>a+b,0)/d.length)+' min':'—';})()}</b><span>Duración promedio</span></div></div>
+    <h3>Cirugías realizadas</h3>${cs.length?`<table class="t"><thead><tr><th>Fecha</th><th>Palma</th><th>Cirugía</th><th>Producto</th><th>Pareja</th><th>Fotos</th></tr></thead><tbody>${cs.map((c,i)=>`<tr data-ll="${c.lat},${c.lng}"><td>${esc(fechaCorta(new Date(tDe(c))))}<br><span class="tenue">${esc(c.hora_foto_antes||'')}–${esc(c.hora_foto_despues||'')}</span></td><td>${esc(etqPalma(c))}</td><td>${esc(String(c.tipo_cirugia||'').replace('PC ',''))}${c.origen==='caso_nuevo'?'<br><span class="tenue">caso nuevo</span>':''}</td><td>${esc(c.producto||'')}<br><span class="tenue">${esc(c.producto_tipo||'')}</span></td><td>${esc(nombreCorto(c.cirujano_nombre||c.cirujano))}<br><span class="tenue">${esc(nombreCorto(c.auxiliar_nombre||''))}</span></td><td>${(c.fotos||'').split('|').filter(Boolean).length?`<button class="btn mini" data-fot="${i}">Ver</button>`:'—'}</td></tr>`).join('')}</tbody></table>`:'<div class="tenue">Aún no hay cirugías sincronizadas.</div>'}
+    <h3>Correcciones del diagnóstico</h3>${CIR.correcciones.filter(c=>c.origen!=='caso_nuevo').length?`<table class="t"><thead><tr><th>Palma</th><th>Censo (antes)</th><th>Cirujano (vigente)</th></tr></thead><tbody>${CIR.correcciones.filter(c=>c.origen!=='caso_nuevo').map(c=>`<tr data-ll="${c.lat},${c.lng}"><td>${esc(etqPalma(c))}</td><td class="tenue">${esc(c.corrige_texto||'')}<br>${esc(nombreCorto(c.corrige_evaluador||''))}</td><td><b>${esc([c.nivel1,c.nivel2].filter(Boolean).join(' · '))}</b><br><span class="tenue">${esc(nombreCorto(c.evaluador))} · ${esc(fechaCorta(new Date(tDe(c))))}</span></td></tr>`).join('')}</tbody></table>`:'<div class="tenue">Sin correcciones.</div>'}`;
+    CIR._cs=cs;
+  }
+  P.innerHTML=h;
+  P.querySelectorAll('[data-ct]').forEach(b=>b.onclick=()=>{CIR.tab=b.dataset.ct;pintarCir();});
+  const rec=$('#cirRec');if(rec)rec.onclick=()=>{CIR.cargado=false;cirCargar();};
+  const fi=$('#cirFecha');if(fi)fi.onchange=async()=>{CIR.fecha=fi.value||hoyISO();await leerProgramacion(CIR.fecha);pintarCir();};
+  P.querySelectorAll('select[data-p]').forEach(s=>s.onchange=()=>{CIR.parejas[+s.dataset.p][s.dataset.k]=s.value;dput('kv','cir_parejas',CIR.parejas);pintarCir();});
+  P.querySelectorAll('input[type=range][data-p]').forEach(s=>{s.oninput=()=>{$('#ef'+s.dataset.p).textContent=s.value;};s.onchange=()=>{CIR.parejas[+s.dataset.p].ef=+s.value;dput('kv','cir_parejas',CIR.parejas);};});
+  P.querySelectorAll('[data-quitar]').forEach(b=>b.onclick=()=>{CIR.parejas.splice(+b.dataset.quitar,1);dput('kv','cir_parejas',CIR.parejas);pintarCir();});
+  const mas=$('#cirMasPar');if(mas)mas.onclick=()=>{CIR.parejas.push({cirujano:'',auxiliar:'',ef:20});pintarCir();};
+  const g=$('#cirGenerar');if(g)g.onclick=generarProgramacion;
+  const en=$('#cirEnviar');if(en)en.onclick=enviarProgramacion;
+  P.querySelectorAll('tr[data-ll]').forEach(tr=>tr.onclick=()=>{const [a,b]=tr.dataset.ll.split(',').map(Number);if(isFinite(a)&&isFinite(b))mapa.setView([a,b],18);});
+  P.querySelectorAll('[data-fot]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();const c=CIR._cs[+b.dataset.fot];verFotos({...c,_j:c._j,lote:c.lote,linea:c.linea,palma:c.palma});});
+  pintarMapaCir();
+}
+
 (async()=>{
   ponerBase();pintarLeyenda();
   msOpciones('est',ESTADOS.map(e=>({v:e.id,t:e.n})));

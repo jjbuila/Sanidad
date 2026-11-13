@@ -439,6 +439,7 @@ const capaLotes=L.layerGroup().addTo(mapa),capaRec=L.layerGroup().addTo(mapa),ca
 const vis=(id,capa)=>{$(id).onchange=()=>{$(id).checked?capa.addTo(mapa):mapa.removeLayer(capa);if(id==='#cPalmas')dibujarPalmas();};};
 vis('#cLotes',capaLotes);vis('#cRec',capaRec);vis('#cDiag',capaDiag);vis('#cPar',capaPar);vis('#cPalmas',capaPalmas);
 /*VIAS_JS*/
+/*NUCLEO_JS*/
 $('#cVias').onchange=()=>mostrarVias($('#cVias').checked);
 mapa.on('zoomend moveend',()=>{mapa.getContainer().classList.toggle('sin-etq',mapa.getZoom()<14);dibujarPalmas();});
 function pintarLeyenda(){
@@ -931,6 +932,7 @@ async function entrar(){
   try{await cargarVias();}catch(e){}
   ponerRango(6);await cargar();
 }
+/*CIRUGIA_VISOR_JS*/
 (async()=>{
   ponerBase();pintarLeyenda();
   msOpciones('est',ESTADOS.map(e=>({v:e.id,t:e.n})));

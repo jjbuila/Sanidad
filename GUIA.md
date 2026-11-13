@@ -201,6 +201,33 @@ SanidadData/
 - **Consumo de GitHub:** cada archivo se descarga una sola vez y queda en caché del navegador (los archivos sincronizados no cambian). Una consulta de 7 días con 120 operarios usa unas 850 solicitudes la primera vez y casi ninguna después; el límite es 5.000 por hora.
 - **Seguridad:** el token sigue cifrado en `datos/acceso.json`; solo se descifra en el navegador con la contraseña. Con «Recordar en este equipo» la sesión queda cifrada con una llave que no sale del navegador; use **Salir** en equipos compartidos.
 
+## 7.3 Módulo de cirugía
+
+**Quién lo usa.** Los auxiliares de remoción de tejidos enfermos (cirujanos) y los auxiliares de fumigación como auxiliares de cirugía. En el paquete de acceso cada usuario lleva `labores` (`censo`, `cirugia`, `fumigacion`) y `rol_cirugia` (`cirujano` o `auxiliar`). Los administradores y supervisores tienen todas las labores.
+
+**Qué genera una cirugía.** El último diagnóstico de la palma con PC inicial, PC avanzada o PC reincidente, sea del censo o de un caso nuevo del cirujano, sin cirugía posterior. Plazo: D+1 hábil, de lunes a sábado sin domingos ni festivos de Colombia; los festivos se calculan con la Ley Emiliani y la Semana Santa.
+
+**Programación (visor › ✚ CIRUGÍAS).** Coordinadores, supervisores y verificadores:
+1. Eligen la fecha y arman las parejas (cirujano + auxiliar) con su eficiencia en palmas por día.
+2. Tocan «Generar programación». La programación prioriza los casos vencidos y los que vencen ese día, reparte los casos por cercanía entre las parejas y calcula la ruta más corta desde la oficina central por vías y senderos.
+3. Con «Enviar a los celulares» se guarda en `cirugia/programacion/AAAA-MM-DD.json`. Los casos que no alcanzan quedan para el siguiente día hábil.
+
+**En el celular.**
+1. INICIAR › Cirugía. Se elige el rol y la pareja, y la App descarga la programación del día; queda guardada para trabajar sin señal.
+2. La ruta aparece numerada, con la siguiente palma anunciada por voz y su plazo.
+3. **Cirujano:** confirma la PC y registra la cirugía, en este orden:
+   - tipo de cirugía;
+   - producto químico (Mancozeb, Malathion, Clorpirifos, Oxicloruro de cobre o Mancozeb + Malathion) o biológico (Beauveria bassiana o Quelato de zinc);
+   - foto de antes y foto de después, obligatorias y solo con la cámara. La hora de cada foto define el inicio, el fin y la duración.
+4. Si el diagnóstico del censo estaba mal, el cirujano lo corrige con foto obligatoria. Las opciones son: PC en recuperación, cráter, palma muerta, para erradicar, palma sana, deficiencia de boro y doblamiento de cogollo. También puede reportar y operar casos nuevos de PC.
+5. **Auxiliar:** marca cada palma en su propio celular.
+6. Nada se borra: el visor muestra la versión del censador y la del cirujano. La vigente es la última.
+
+**Datos.** `cirugia/jornadas/AAAA-MM-DD/<jornada>.geojson` incluye:
+- cirugías, correcciones, casos nuevos y marcas del auxiliar;
+- recorrido y paradas;
+- un ZIP con las fotos.
+
 ## 7.2 Ortofoto del dron
 - **Origen:** `ORTHO.tif` (9,2 cm por píxel, 108.480 × 154.151 píxeles, 4 bandas, sin comprimir, **66,9 GB**, MAGNA-SIRGAS Colombia Oeste Oeste EPSG:3114).
 - **Versión liviana (alta definición):**

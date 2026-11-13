@@ -752,6 +752,7 @@ function estiloPalma(f){
   if(h)return {fillColor:colorReg(h),fillOpacity:1,color:'#ffffff',weight:2};
   if(VIS&&VIS.set.has(f.properties._id))return f.properties._existe===false?{fillColor:'#4dd0e1',fillOpacity:.25,color:'#4dd0e1',weight:1}:{fillColor:'#4dd0e1',fillOpacity:.95,color:'#0b3d44',weight:1};
   if(f.properties._existe===false)return {fillColor:'#ffffff',fillOpacity:.12,color:'#b0bec5',weight:1};
+  if(S.jornada&&S.jornada.labor==='cirugia')return {fillColor:'#a5b8ae',fillOpacity:.45,color:'#3d5248',weight:1}; // cirugía: palmas en gris suave; resaltan las de la ruta
   return {fillColor:SIN_EVALUAR,fillOpacity:.95,color:'#3a2a00',weight:1};
 }
 function zMinPalmas(){return (S.palmas&&S.palmas.features.length>8000)?17:0;}
@@ -1119,10 +1120,11 @@ function actualizarCenso(){
   $('#pjCenso').textContent=`${num(hec)} / ${num(tot)} · ${pctTxt(hec,tot)} %`;$('#pjBarra').style.width=(tot?Math.min(100,hec/tot*100):0)+'%';
 }
 function actualizarJornadaUI(){
-  const a=!!S.jornada;$('#pj').hidden=!a;
+  const a=!!S.jornada;$('#pj').hidden=!a||S.jornada.labor==='cirugia';
   $('#btJornada').classList.toggle('activa',a);
   $('#btJornadaIc').innerHTML=a?IC.ruta:IC.play;$('#btJornadaTxt').textContent=a?'Jornada':'Iniciar';
-  if(a){actualizarCenso();relojJornada();actualizarVisitaUI();actualizarParadas();try{actualizarSecUI();}catch(e){}}else $('#pj').classList.remove('parado');actualizarCab();
+  if(a&&S.jornada.labor!=='cirugia'){actualizarCenso();relojJornada();actualizarVisitaUI();actualizarParadas();try{actualizarSecUI();}catch(e){}}else $('#pj').classList.remove('parado');actualizarCab();
+  try{actualizarCirUI();}catch(e){}
 }
 function relojJornada(){if(!S.jornada)return;$('#pjIni').textContent=hhmm(S.jornada.inicio);$('#pjTiempo').textContent=fmtDur(Date.now()-Date.parse(S.jornada.inicio));$('#pjKm').textContent=(S.jornada.km||0).toFixed(2);}
 setInterval(relojJornada,1000);
@@ -1716,7 +1718,7 @@ $('#camDisparo').onclick=async()=>{
   const c=document.createElement('canvas');c.width=Math.round(v.videoWidth*k);c.height=Math.round(v.videoHeight*k);c.getContext('2d').drawImage(v,0,0,c.width,c.height);
   const fl=$('#camFlash');fl.style.opacity=.85;setTimeout(()=>fl.style.opacity=0,120);if(navigator.vibrate)navigator.vibrate(40);
   const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.78));c.width=c.height=0;if(!blob)return;
-  const id=uid();const buf=await blob.arrayBuffer();F.fotosNuevas.push({id,buf,type:'image/jpeg'});agregarMiniatura(id,blob,true,false);
+  const id=uid();const buf=await blob.arrayBuffer();if(F.alFoto){const fn=F.alFoto;cerrarCamara();fn(id,blob,buf);return;}F.fotosNuevas.push({id,buf,type:'image/jpeg'});agregarMiniatura(id,blob,true,false);
   CAM.n++;$('#camN').textContent=CAM.n+(CAM.n===1?' foto':' fotos');
 };
 async function procesarArchivosFoto(inp){
@@ -1726,7 +1728,7 @@ async function procesarArchivosFoto(inp){
 }
 $('#inFoto').onchange=async()=>{
   const files=Array.from($('#inFoto').files||[]);if(!F)return;
-  for(const file of files){try{const c=await comprimir(file);const id=uid();F.fotosNuevas.push({id,...c});agregarMiniatura(id,new Blob([c.buf],{type:c.type}),true,false);}
+  for(const file of files){try{const c=await comprimir(file);const id=uid();if(F.alFoto){const fn=F.alFoto;fn(id,new Blob([c.buf],{type:c.type}),c.buf);return;}F.fotosNuevas.push({id,...c});agregarMiniatura(id,new Blob([c.buf],{type:c.type}),true,false);}
     catch(e){toast('No se pudo procesar la foto: '+e.message);}}
 };
 function cargarImg(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file);const i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i);};i.onerror=()=>rej(new Error('formato no soportado'));i.src=u;});}
@@ -2195,13 +2197,13 @@ async function sincronizar(manual){
       if(!j.paradas){j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);}
       if(!j.visita||!j.secuencias||!j.tiempos){const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion);if(!j.visita||!j.tiempos)j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);
         j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin||new Date().toISOString()),paradas:j.paradas||[],regs,densidad:j.densidad,visitas:E.conf});j.tiempos=tiemposJornada(j.secuencias,j);}
-      const ahora=new Date().toISOString();const base=`jornadas/${fechaLocal(j.inicio)}/${j.id}`;
+      const ahora=new Date().toISOString();const esC=j.labor==='cirugia',raiz=esC?'cirugia/jornadas':'jornadas';const base=`${raiz}/${fechaLocal(j.inicio)}/${j.id}`;
       const archivos=[];let nombreZip=null;
       const ids=regs.flatMap(r=>r.fotos||[]);
       if(ids.length){const z=new JSZip();for(const fid of ids){const f=await dbGet('fotos',fid);if(f)z.file(fid+'.jpg',f.buf);}
-        nombreZip=j.id+'_fotos.zip';archivos.push({path:`jornadas/${fechaLocal(j.inicio)}/${nombreZip}`,b64:aB64(await z.generateAsync({type:'uint8array',compression:'STORE'}))});}
-      archivos.unshift({path:base+'.geojson',texto:JSON.stringify(geoJornada(j,regs,pts,ahora,nombreZip))});
-      const sha=await ghCommit(archivos,`Sanidad Vegetal · ${j.evaluador} · jornada ${fechaLocal(j.inicio)} · ${regs.length} diagnóstico(s)`);
+        nombreZip=j.id+'_fotos.zip';archivos.push({path:`${raiz}/${fechaLocal(j.inicio)}/${nombreZip}`,b64:aB64(await z.generateAsync({type:'uint8array',compression:'STORE'}))});}
+      archivos.unshift({path:base+'.geojson',texto:JSON.stringify(esC?geoCirugia(j,regs,pts,ahora,nombreZip):geoJornada(j,regs,pts,ahora,nombreZip))});
+      const sha=await ghCommit(archivos,esC?`Sanidad Vegetal · Cirugía · ${j.evaluador} · ${fechaLocal(j.inicio)} · ${regs.filter(r=>r.tipo==='cirugia').length} cirugía(s)`:`Sanidad Vegetal · ${j.evaluador} · jornada ${fechaLocal(j.inicio)} · ${regs.length} diagnóstico(s)`);
       regs.forEach(r=>{r.sync='sincronizado';r.sync_fecha=ahora;r.sync_commit=sha;});if(regs.length)await dbPutVarios('registros',regs);
       pts.forEach(p=>p.s=1);if(pts.length)await dbPutVarios('track',pts);
       j.sync='sincronizado';j.sync_fecha=ahora;j.sync_commit=sha;await dbPut('jornadas',j);
@@ -2544,7 +2546,7 @@ async function abrirSesion(u,dkRaw,guardar){
   const meta=JSON.parse(DEC.decode(await desObj(dk,e.meta)));
   const token=DEC.decode(await desObj(dk,ACCESO.token));
   const rolTxt={admin:'Administrador',supervisor:'Supervisor',operario:'Operario'}[meta.rol||'operario']||'Operario';
-  SES={u,nombre:meta.nombre,rol:meta.rol||'operario',cargo:meta.cargo||rolTxt,identificacion:meta.identificacion||'',dk};
+  SES={u,nombre:meta.nombre,rol:meta.rol||'operario',cargo:meta.cargo||rolTxt,identificacion:meta.identificacion||'',dk,labores:meta.labores||null,rol_cirugia:meta.rol_cirugia||null};
   S.cfg.gh={...ACCESO.repo,token};S.cfg.evaluador=meta.nombre;
   if(guardar){const k=await llaveDispositivo();const iv=crypto.getRandomValues(new Uint8Array(12));
     const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,ENC.encode(JSON.stringify({u,dk:aB64(dkRaw),paquete:ACCESO.id})));
@@ -2601,6 +2603,8 @@ async function asegurarCartografia(){
   await procesarCartografia(await z.file('lotes.geojson').async('string'),await z.file('palmas.zip').async('arraybuffer'),{origen:'Paquete cifrado de la app',paquete:c.version});
 }
 
+/*NUCLEO_JS*/
+/*CIRUGIA_APP_JS*/
 /* =====================================================================
    ARRANQUE
    ===================================================================== */
@@ -2638,13 +2642,14 @@ async function despuesDeIngresar(){
         if(confirm(`Hay una jornada en curso de ${j.evaluador}. Para trabajar como ${SES.nombre} debe finalizarse. ¿Finalizarla ahora?`)){
           j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';await dbPut('jornadas',j);S.cfg.jornadaActiva=null;await guardarCfg();}
         else{ocultarSplash();await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};await mostrarLogin('Ingrese con el usuario '+j.usuario+' para continuar su jornada.');return despuesDeIngresar();}
+      }else if(j.labor==='cirugia'){await restaurarCirugia(j);
       }else{S.jornada=j;const pts=await puntosTrack(j.id);TRACK.ultimo=pts[pts.length-1]||null;TRACK.n=pts.length;prepararTrack(pts.map(p=>[p.lat,p.lng]));
         VIS=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,false,j.seleccion);VIS.sel=null;TRACK.pts=pts;
         await cargarPalmasJornada();pantallaEncendida(true);toast('Jornada en curso recuperada. El recorrido continúa.',4000);}}
     else{S.cfg.jornadaActiva=null;await guardarCfg();}}
   actualizarJornadaUI();estadoSync();dibujarLotes();
   S.seguir=S.jornada?S.cfg.seguir!==false:!!S.cfg.seguir;pintarSeguir();if(S.seguir)S.pausaSeguir=Date.now()+8000;
-  if(S.jornada)encuadrar(S.jornada.seleccion.map(s=>s.lote));else encuadrar();
+  if(S.jornada&&S.jornada.labor!=='cirugia')encuadrar(S.jornada.seleccion.map(s=>s.lote));else if(S.jornada)dibujarRutaCir(true);else encuadrar();
   iniciarGPS();ocultarSplash();
   if(SES)toast(`Bienvenido, ${SES.nombre}.`);
   ofrecerInstalacion();
