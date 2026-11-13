@@ -448,7 +448,7 @@ if(EN_APK&&!NATIVO){try{if(navigator.onLine&&!sessionStorage.getItem('sv_puente'
 // registerPlugin solo existe si se carga @capacitor/core, por eso se usa como alternativa.
 const NAT=NATIVO?(()=>{const C=window.Capacitor;const r=n=>{try{const p=C.Plugins&&C.Plugins[n];if(p)return p;}catch(e){}
   try{return typeof C.registerPlugin==='function'?C.registerPlugin(n):null;}catch(e){return null;}};
-  return {get bg(){return r('BackgroundGeolocation');},get tts(){return r('TextToSpeech');},get ln(){return r('LocalNotifications');}};})():null;
+  return {get bg(){return r('BackgroundGeolocation');},get tts(){return r('TextToSpeech');},get ln(){return r('LocalNotifications');},get en(){return r('Energia');}};})():null;
 /* Si un service worker antiguo entregó la app en la dirección del visor o de administración, se actualiza y se recarga una vez. */
 if(/\/(visor|admin)\.html$/.test(location.pathname)){try{if(!sessionStorage.getItem('sv_redir')){sessionStorage.setItem('sv_redir','1');
   (navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.update()))):Promise.resolve()).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),1200));}}catch(e){}}
@@ -875,17 +875,48 @@ function alPosicion(g){
   S.gps=g;if(document.visibilityState==='visible'){pintarGPS();if(S.seguir)centrarOperario();}
   registrarPunto(S.gps);guiaGPS();
 }
+/* ---------- Registro con la pantalla bloqueada ----------
+   APK: servicio de ubicación en primer plano + bloqueo parcial de CPU durante la jornada + exención de ahorro de batería.
+   En Xiaomi (MIUI) además hay que permitir «Inicio automático» y poner el ahorro de batería en «Sin restricciones». */
+async function energiaActiva(on){if(!NATIVO||!NAT.en)return;try{await NAT.en.mantenerActivo({on:!!on});}catch(e){}}
+async function revisarSegundoPlano(forzar){
+  if(!NATIVO){if(forzar||!S.avisoNav){S.avisoNav=1;abrirHoja('Registro con la pantalla bloqueada',`<div class="aviso">En el navegador, Android detiene el GPS cuando se bloquea la pantalla y el recorrido queda con líneas rectas.</div>
+      <p>Para registrar el recorrido con el celular bloqueado use la <b>aplicación instalada (APK)</b>. Si trabaja desde el navegador, mantenga la pantalla encendida: la App la deja encendida mientras está abierta.</p>
+      <button class="btn prim ancho" id="sbApk">${IC.descarga} Descargar el APK</button><button class="btn ancho" id="sbOk">Entendido</button>`);
+    $('#sbApk').onclick=()=>window.open('https://github.com/jjbuila/Sanidad/releases/latest/download/SanidadVegetal.apk','_blank');$('#sbOk').onclick=cerrarHoja;}return;}
+  if(!NAT.en){if(forzar)toast('Actualice el APK para revisar la batería y el bloqueo de pantalla.',6000);return;}
+  let e={};try{e=await NAT.en.estado();}catch(x){}
+  const xiaomi=/xiaomi|redmi|poco/i.test((e.fabricante||'')+' '+(e.modelo||''));
+  if(!forzar&&e.sinRestriccion&&(!xiaomi||S.cfg.miuiOk))return;
+  abrirHoja('Registro con la pantalla bloqueada',`
+    <p>Para que el recorrido no se corte cuando el celular está bloqueado, Android debe dejar trabajar a Sanidad Vegetal en segundo plano.</p>
+    <div class="ficha"><b>1. Batería sin restricciones</b> ${e.sinRestriccion?'<span class="sello ok">✔ LISTO</span>':'<span class="sello pend">PENDIENTE</span>'}<div class="tenue">Toque el botón y elija «Permitir».</div>
+      ${e.sinRestriccion?'':'<button class="btn prim ancho" id="sbBat" style="margin-top:6px">Permitir sin restricciones</button>'}</div>
+    ${xiaomi?`<div class="ficha" style="margin-top:8px"><b>2. Xiaomi · Inicio automático</b><div class="tenue">Active el interruptor de «Sanidad Vegetal».</div><button class="btn ancho" id="sbAuto" style="margin-top:6px">Abrir Inicio automático</button></div>
+    <div class="ficha" style="margin-top:8px"><b>3. Xiaomi · Ahorro de batería</b><div class="tenue">Elija «Sin restricciones».</div><button class="btn ancho" id="sbAhorro" style="margin-top:6px">Abrir Ahorro de batería</button></div>
+    <div class="ficha" style="margin-top:8px"><b>4. Xiaomi · Bloquear la App en recientes</b><div class="tenue">Abra las apps recientes, mantenga presionada Sanidad Vegetal y toque el candado 🔒.</div></div>`:''}
+    <div class="ficha" style="margin-top:8px"><b>${xiaomi?'5':'2'}. Ubicación</b><div class="tenue">Permiso de ubicación «Permitir siempre» o «Mientras se usa la app» con ubicación precisa.</div><button class="btn ancho" id="sbApp" style="margin-top:6px">Abrir ajustes de la App</button></div>
+    <button class="btn prim ancho" id="sbListo" style="margin-top:10px">Listo</button>`);
+  const vuelve=()=>setTimeout(()=>{if(document.visibilityState==='visible'&&$('#sbListo'))revisarSegundoPlano(true);},1500);
+  if($('#sbBat'))$('#sbBat').onclick=async()=>{await NAT.en.solicitarSinRestriccion();document.addEventListener('visibilitychange',vuelve,{once:true});};
+  if($('#sbAuto'))$('#sbAuto').onclick=()=>NAT.en.abrirInicioAutomatico();
+  if($('#sbAhorro'))$('#sbAhorro').onclick=()=>NAT.en.abrirAhorroBateria();
+  $('#sbApp').onclick=()=>NAT.en.abrirAjustesApp();
+  $('#sbListo').onclick=()=>{if(xiaomi){S.cfg.miuiOk=1;guardarCfg();}cerrarHoja();};
+}
 async function gpsFondo(on){
   if(!NATIVO||!NAT.bg)return false;
   try{
     if(on&&!bgWatcher){
       try{if(NAT.ln){const p=await NAT.ln.checkPermissions();if(p.display!=='granted')await NAT.ln.requestPermissions();}}catch(e){}
+      energiaActiva(true);
       if(gpsWatch!==null&&gpsWatch!=='bg'){try{navigator.geolocation.clearWatch(gpsWatch);}catch(e){}}
       gpsWatch='bg';
       bgWatcher=await NAT.bg.addWatcher({backgroundTitle:'Sanidad Vegetal · Jornada en curso',backgroundMessage:'Registrando el recorrido. Toque para volver a la aplicación.',requestPermissions:true,stale:false,distanceFilter:0},
         (loc,err)=>{if(err){if(err.code==='NOT_AUTHORIZED'&&confirm('Sanidad Vegetal necesita permiso de ubicación para registrar el recorrido. ¿Abrir los ajustes?'))NAT.bg.openSettings();return;}
           if(loc&&loc.latitude!=null)alPosicion({lat:loc.latitude,lng:loc.longitude,acc:loc.accuracy||99,t:loc.time||Date.now()});});
       return true;}
+    if(!on){energiaActiva(false);}
     if(!on&&bgWatcher){const id=bgWatcher;bgWatcher=null;gpsWatch=null;await NAT.bg.removeWatcher({id});iniciarGPS();}
   }catch(e){gpsWatch=null;bgWatcher=null;toast('No se pudo iniciar el GPS de segundo plano: '+e.message,5000);}
   return false;
@@ -1060,6 +1091,7 @@ async function iniciarJornada(sel,evaluador){
   TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita);PAR.lista=[];capaParadas.clearLayers();
   await cargarPalmasJornada();iniciarGPS();pantallaEncendida(true);actualizarJornadaUI();dibujarLotes();encuadrar(sel.map(s=>s.lote));
   if(S.cfg.seguir!==false){S.seguir=true;pintarSeguir();S.pausaSeguir=Date.now()+12000;} // primero muestra los lotes; luego centra al operario
+  setTimeout(()=>revisarSegundoPlano(false),2500);
   toast(`▶ Jornada iniciada: ${sel.length} lote(s). Se está guardando el recorrido.`,4000);
   hablar(MSJ_INICIO,true);
   setTimeout(()=>ortoLotes(sel.map(s=>s.lote),true),3000); // detalle de la ortofoto de los lotes elegidos, en segundo plano
@@ -1319,7 +1351,8 @@ function marcarCalle(E,grids,sx,sy,cands){
 function enProgramacion(E,l){const s=E.sel||(E===VIS&&S.jornada?S.jornada.seleccion:null);return !s||!s.length||s.some(x=>String(x.lote)===String(l));}
 async function visitarTramo(E,p){
   prepK();
-  const a=E.ult&&dist(E.ult.lat,E.ult.lng,p.lat,p.lng)<=SALTO_MAX?E.ult:p;E.ult=p; // tramos con saltos grandes no barren área
+  const d0=E.ult?dist(E.ult.lat,E.ult.lng,p.lat,p.lng):0;
+  const a=E.ult&&d0<=SALTO_MAX&&(!(p.t&&E.ult.t)||p.t-E.ult.t<=90000||d0<=15)?E.ult:p;E.ult=p; // saltos grandes o huecos de señal (>90 s) no barren área
   const ax=a.lng*KX,ay=a.lat*KY,bx=p.lng*KX,by=p.lat*KY,nuevos=[];
   if(E.metodo==='calle'){
     const grids=[];for(const l of lotesCercanos(ax,ay,bx,by,14))if(CARTO.lotes[l]&&enProgramacion(E,l)){const g=await indiceVisita(l);grids.push([l,g]);E.grids.set(l,g);(E.tipos||(E.tipos=new Map())).set(l,g.tipo);}
@@ -2380,6 +2413,7 @@ function menu(){
       ${mos('mSync','sync','Sincronizar','Enviar a GitHub')}
       ${mos('mExp','descarga','Exportar','Respaldo local')}
       ${mos('mZona','mapa','Mapa sin conexión','Guardar la zona visible')}
+      ${mos('mBg','ubic','Pantalla bloqueada','Batería y segundo plano')}
       ${SES&&(SES.rol==='admin'||SES.rol==='supervisor')?mos('mVisor','mapa','Visor web','Todos los recorridos sincronizados'):''}
       ${mos('mAct','sync',VERSION_NUEVA?'¡Nueva versión!':'Actualizar versión',VERSION_NUEVA?'Instalar '+VERSION_NUEVA:'Actual: '+VERSION)}
       ${mos('mCfg','config','Configuración',SES&&SES.rol==='admin'?'Mapa, voz, cartografía':'Mapa y voz')}
@@ -2391,7 +2425,7 @@ function menu(){
   on('#mJor',()=>S.jornada?panelJornada():abrirPlanificador('nueva'));
   on('#mBD',()=>{cerrarHoja();abrirBD('diag');});on('#mRec',()=>{cerrarHoja();abrirBD('jor');});on('#mRes',()=>{cerrarHoja();abrirBD('res');});
   on('#mAct',()=>{cerrarHoja();buscarActualizacion(true);});
-  on('#mSync',panelSync);on('#mSalir',cerrarSesion);on('#mExp',menuExportar);on('#mZona',()=>{cerrarHoja();setTimeout(guardarZona,300);});on('#mCfg',abrirConfig);
+  on('#mSync',panelSync);on('#mSalir',cerrarSesion);on('#mExp',menuExportar);on('#mZona',()=>{cerrarHoja();setTimeout(guardarZona,300);});on('#mCfg',abrirConfig);on('#mBg',()=>{cerrarHoja();setTimeout(()=>revisarSegundoPlano(true),300);});
   on('#mVisor',()=>{cerrarHoja();window.open('visor.html','_blank');});
   on('#mInst',()=>{cerrarHoja();instalarApp();});
 }

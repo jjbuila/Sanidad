@@ -148,6 +148,12 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 - **DATOS → Jornadas y recorridos**: cada jornada con su duración, kilómetros, puntos y diagnósticos. El botón **▶ Reproducir recorrido** muestra el track animado con hora, distancia y diagnósticos que aparecen en el momento en que se registraron. Tiene velocidades de ×10 a ×300 y una barra para adelantar o retroceder.
 - **DATOS → Resumen por lote**: avance e incidencia, calculada como (enfermas + en tratamiento) / evaluadas.
 
+### Registro con la pantalla bloqueada (APK)
+- Durante la jornada el APK usa un **servicio de ubicación en primer plano** (notificación «Jornada en curso») y mantiene la CPU activa (bloqueo parcial) hasta finalizar, para que el recorrido no se corte con el celular bloqueado.
+- Al iniciar la jornada, si Android aún limita la App, aparece **«Registro con la pantalla bloqueada»** con botones para: batería **sin restricciones**; en Xiaomi/Redmi/POCO, **Inicio automático**, **Ahorro de batería: Sin restricciones** y **bloquear la App en recientes** (candado); y los permisos de ubicación. También está en *Menú › Pantalla bloqueada*.
+- Los huecos de señal de más de 90 s no barren palmas en línea recta.
+- En el **navegador** (sin APK), Android detiene el GPS con la pantalla bloqueada; la App lo advierte y ofrece descargar el APK.
+
 ## 7. Sincronización y bloqueo
 
 **Regla: una jornada, una sincronización.**
