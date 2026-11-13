@@ -61,6 +61,21 @@ adm = adm.replace('__LOGO__', 'data:image/png;base64,' + b64(os.path.join(MARCA,
 with open(os.path.join(RAIZ, 'admin.html'), 'w', encoding='utf-8') as f:
     f.write(adm)
 
+# Prueba final de la inducción (maratón por parejas)
+import io
+try:
+    import qrcode
+    _q = qrcode.QRCode(border=2, box_size=10, error_correction=qrcode.constants.ERROR_CORRECT_M)
+    _q.add_data('https://jjbuila.github.io/Sanidad/prueba.html'); _q.make(fit=True)
+    _buf = io.BytesIO(); _q.make_image(fill_color='#06140F', back_color='white').save(_buf, format='PNG')
+    QR_PRUEBA = 'data:image/png;base64,' + base64.b64encode(_buf.getvalue()).decode('ascii')
+except ImportError:
+    QR_PRUEBA = ''
+pru = leer(os.path.join(RAIZ, 'src', 'prueba.html'))
+pru = pru.replace('__APPLOGO__', 'data:image/svg+xml;base64,' + b64(os.path.join(MARCA, 'sv_icono.svg'))).replace('__QR_PRUEBA__', QR_PRUEBA)
+with open(os.path.join(RAIZ, 'prueba.html'), 'w', encoding='utf-8') as f:
+    f.write(pru)
+
 os.makedirs(os.path.join(RAIZ, 'icons'), exist_ok=True)
 for f in ('icon-192.png', 'icon-512.png', 'icon-maskable-192.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'sv_icono.svg'):
     shutil.copy(os.path.join(MARCA, f), os.path.join(RAIZ, 'icons', f))

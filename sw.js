@@ -1,6 +1,6 @@
 /* Service worker de Sanidad Vegetal 2.0: permite abrir la aplicación y ver mapas sin conexión.
    Las llamadas a la API de GitHub no se guardan en caché. */
-const APP='sanidad-vegetal-20261112-2206';
+const APP='sanidad-vegetal-20261112-2244';
 const TESELAS='teselas-v1';
 const ARCHIVOS=['./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-192.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png','./icons/sv_icono.svg'];
 /* La página principal se pide como documento HTML (Accept: text/html). En la APK de Android, Capacitor intercepta esa
@@ -47,7 +47,7 @@ self.addEventListener('fetch',e=>{
     return;
   }
   // Visor web y página de administración: siempre de la red (la copia guardada solo sin conexión), nunca la app.
-  if(u.origin===self.location.origin&&/\/(visor|admin)\.html$/.test(u.pathname)){
+  if(u.origin===self.location.origin&&/\/(visor|admin|prueba)\.html$/.test(u.pathname)){
     e.respondWith(caches.open(APP).then(async c=>{
       try{const r=await fetch(req,{cache:'no-store'});if(r.ok)c.put(req,r.clone());return r;}
       catch(err){return (await c.match(req,{ignoreSearch:true}))||new Response('Sin conexión',{status:503});}
@@ -80,6 +80,6 @@ self.addEventListener('fetch',e=>{
 self.addEventListener('notificationclick',e=>{
   e.notification.close();
   e.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(cs=>{
-    for(const c of cs){if(!/\/(visor|admin)\.html/.test(c.url)&&'focus' in c)return c.focus();}
+    for(const c of cs){if(!/\/(visor|admin|prueba)\.html/.test(c.url)&&'focus' in c)return c.focus();}
     return self.clients.openWindow('./');}));
 });
