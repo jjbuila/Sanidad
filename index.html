@@ -1021,7 +1021,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261114:1534</div>
+  <div id="splashVer">VERSIÓN 20261114:1544</div>
 </div>
 
 <div id="login" hidden>
@@ -1036,7 +1036,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261114:1534</div>
+  <div id="lgVer2">VERSIÓN 20261114:1544</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1153,7 +1153,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261114:1534';
+const VERSION='20261114:1544';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -1202,7 +1202,26 @@ function ramaDe(c,n2,palmaId,regId){
   const rama=fil.find(x=>/SEGUIMIENTO/.test(x.n3||''))&&previo?fil.find(x=>/SEGUIMIENTO/.test(x.n3)):fil.find(x=>!/SEGUIMIENTO/.test(x.n3||''))||fil[0];
   return {rama,motivo:previo?'la palma ya tiene registros de '+c+' en este dispositivo':'la palma no tiene registros previos de '+c+' en este dispositivo'};
 }
+/* Formulario de diagnóstico editable: la administración publica config/ramas.json en el repositorio de datos.
+   Se aplica sobre la tabla incorporada (RAMAS, N1S, PROBLEMAS y colores) y se guarda para uso sin conexión. */
+const TIPO_N1={}; // código → 'enferma' | 'novedad' | 'faltante' | 'sana'
+function aplicarRamas(cfg){
+  if(!cfg||!Array.isArray(cfg.ramas)||!cfg.ramas.length)return false;
+  RAMAS.splice(0,RAMAS.length,...cfg.ramas);
+  N1S.splice(0,N1S.length,...RAMAS.filter((x,i,a)=>a.findIndex(y=>y.c===x.c)===i).map(x=>({c:x.c,n1:x.n1})));
+  PROBLEMAS.splice(0,PROBLEMAS.length,...N1S.filter(x=>x.c!=='SN').map(x=>({id:x.c,n:x.n1.charAt(0)+x.n1.slice(1).toLowerCase().replace(/\(([a-z]+)\)/,(m,g)=>'('+g.toUpperCase()+')')})));
+  for(const [c,e] of Object.entries(cfg.enfermedades||{})){if(e&&e.color)COLOR_N1[c]=e.color;if(e&&e.tipo)TIPO_N1[c]=e.tipo;}
+  S.ramasVersion=cfg.version||'';try{pintarLeyenda();}catch(e){}return true;
+}
+async function cargarRamas(){
+  let cfg=null;
+  if(S.cfg.gh&&S.cfg.gh.token&&navigator.onLine)try{cfg=JSON.parse(await (await ghRaw('config/ramas.json')).text());}catch(e){cfg=null;}
+  if(cfg&&Array.isArray(cfg.ramas)){try{await dbPut('config',{clave:'ramas',v:cfg});}catch(e){}}
+  else{try{const c=await dbGet('config','ramas');if(c&&c.v)cfg=c.v;}catch(e){}}
+  return aplicarRamas(cfg);
+}
 function estadoDeRama(c,rama){
+  {const tp=TIPO_N1[c];if(tp==='faltante'||tp==='novedad'||tp==='sana')return tp;}
   if(c==='SN')return 'sana';if(c==='EV')return 'faltante';if(!rama)return 'enferma';
   if(rama.n2==='ERRADICADA')return 'erradicada';
   if(c==='ESP'||c==='YAR'||c==='RAYO')return 'novedad';
@@ -4582,6 +4601,7 @@ async function despuesDeIngresar(){
   VIAS.visible=S.cfg.vias!==false;
   try{await cargarPlantacion();}catch(e){}
   try{await cargarAuditoria();}catch(e){}
+  try{await cargarRamas();}catch(e){}
   try{await cargarVias(v=>dbPut('config',{clave:'vias',v}),async()=>{const r=await dbGet('config','vias');return r&&r.v;});}catch(e){}
   if(S.cfg.jornadaActiva){const j=await dbGet('jornadas',S.cfg.jornadaActiva);
     if(j&&j.estado==='activa'){

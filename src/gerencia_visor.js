@@ -271,6 +271,14 @@ ENLACES_GER.calidad=()=>{enlazarRango();const C=GER.cal;
   $$('#gerPanel [data-rev]').forEach(c=>c.onchange=()=>{c.checked?GER.revisados.add(c.dataset.rev):GER.revisados.delete(c.dataset.rev);dput('kv','ger_revisados',[...GER.revisados]).catch(()=>{});if(C.solo)pintarGer();});
   $$('#gerPanel [data-ver]').forEach(b=>b.onclick=()=>{const [jid,did]=b.dataset.ver.split('|');const j=JOR.find(x=>x.id===jid);const d=j&&j.diags.find(x=>String(x.id)===did);if(!d)return;
     alternarGerencia(false);mapa.setView([d.lat,d.lng],19);setTimeout(()=>popupDiag({...d,_j:j},[d.lat,d.lng]),350);});};
+/* Nombres y colores del formulario editable (config/ramas.json del repositorio de datos). */
+async function cargarRamasVisor(){
+  try{const cfg=JSON.parse(await (await gh(`/contents/config/ramas.json?ref=${encodeURIComponent(SES.repo.rama)}`,'application/vnd.github.raw+json')).text());
+    const vistos=new Set();for(const r of cfg.ramas||[]){if(vistos.has(r.c))continue;vistos.add(r.c);
+      PROBLEMAS[r.c]=r.n1.charAt(0)+r.n1.slice(1).toLowerCase().replace(/\(([a-z]+)\)/,(m,g)=>'('+g.toUpperCase()+')');}
+    for(const [c,e] of Object.entries(cfg.enfermedades||{}))if(e&&e.color)COLOR_N1[c]=e.color;
+    try{pintarLeyenda();}catch(e){}}catch(e){}
+}
 dget('kv','ger_revisados').then(v=>{if(Array.isArray(v))GER.revisados=new Set(v);}).catch(()=>{});
 
 /* ---------------- AUDITORÍA POR MUESTREO ----------------

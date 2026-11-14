@@ -75,6 +75,16 @@ pru = pru.replace('__APPLOGO__', 'data:image/svg+xml;base64,' + b64(os.path.join
 with open(os.path.join(RAIZ, 'prueba.html'), 'w', encoding='utf-8') as f:
     f.write(pru)
 
+# Formulario de diagnóstico incorporado (punto de partida del editor de admin.html)
+import json as _json
+_app = leer(os.path.join(RAIZ, 'src', 'app.html'))
+_i = _app.index('const RAMAS=') + len('const RAMAS='); _ramas = _json.loads(_app[_i:_app.index(';\n', _i)])
+_col = dict(re.findall(r"(\w+):'(#[0-9a-fA-F]{6})'", _app[_app.index('const COLOR_N1={'):_app.index('};', _app.index('const COLOR_N1={'))]))
+_tipo = lambda c: 'sana' if c == 'SN' else 'faltante' if c == 'EV' else 'novedad' if c in ('ESP', 'YAR', 'RAYO') else 'enferma'
+_enf = {c: {'color': _col.get(c, '#9e9e9e'), 'tipo': _tipo(c)} for c in dict.fromkeys(x['c'] for x in _ramas)}
+with open(os.path.join(RAIZ, 'ramas_base.json'), 'w', encoding='utf-8') as f:
+    _json.dump({'formato': 'sanidad-ramas-1', 'version': 'incorporado', 'ramas': _ramas, 'enfermedades': _enf}, f, ensure_ascii=False, indent=1)
+
 os.makedirs(os.path.join(RAIZ, 'icons'), exist_ok=True)
 for f in ('icon-192.png', 'icon-512.png', 'icon-maskable-192.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'sv_icono.svg'):
     shutil.copy(os.path.join(MARCA, f), os.path.join(RAIZ, 'icons', f))

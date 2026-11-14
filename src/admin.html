@@ -47,6 +47,18 @@ td input,td select{padding:8px 10px}
 .err{color:var(--rojo);font-size:13.5px;min-height:18px;margin-top:6px}
 .paso{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--naranja);color:#fff;font-family:var(--t);font-weight:700;margin-right:8px}
 code{background:rgba(255,255,255,.08);padding:1px 6px;border-radius:6px}
+.rEnf{border:1px solid var(--borde);border-radius:14px;padding:10px;margin:10px 0;background:rgba(255,255,255,.03)}
+.rEnf .cab{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rEnf .cab input[type=text]{flex:1;min-width:160px}
+.rEnf .cab input.cod{flex:0 0 90px;min-width:0;text-transform:uppercase}
+.rEnf input[type=color]{width:42px;height:36px;padding:2px;border-radius:8px;border:1px solid var(--borde2);background:none}
+.rOp{display:grid;grid-template-columns:1.2fr 1fr 1.6fr 1fr auto;gap:6px;align-items:start;border-top:1px dashed rgba(255,255,255,.12);padding-top:8px;margin-top:8px}
+.rOp textarea{width:100%;min-height:62px;padding:8px;border:1px solid var(--borde2);border-radius:10px;background:rgba(255,255,255,.06);color:inherit;font:inherit;font-size:13px}
+.rOp .flags{grid-column:1/-1;display:flex;gap:12px;flex-wrap:wrap;font-size:13px;align-items:center}
+.rOp .flags label{display:inline-flex;gap:5px;margin:0;font-weight:500}
+.rOp .flags input[type=text]{flex:1;min-width:200px;padding:6px 10px}
+.rOp small{display:block;color:var(--tenue);font-size:11.5px;margin-bottom:2px}
+@media (max-width:760px){.rOp{grid-template-columns:1fr}}
 [hidden]{display:none!important}
 .chips-res{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 .chips-res span{border:1px solid var(--borde2);border-radius:999px;padding:4px 10px;font-size:13px;color:var(--tenue)}
@@ -149,6 +161,13 @@ table.usuarios td{font-size:13.5px}
         <h2>Límite de la plantación</h2>
         <p class="tenue">Versión actual: <b id="ePlantVer">—</b>. Polígono de toda la plantación (<code>.geojson</code> en WGS84, por ejemplo <code>plantacion.geojson</code>). La app no deja iniciar jornada por fuera de él. Se publica cifrado como <code>plantacion.enc</code>. Si no lo va a cambiar, deje vacío.</p>
         <input type="file" id="ePlant" accept=".geojson,.json">
+      </div>
+      <div class="tarjeta">
+        <h2>Formulario de diagnóstico</h2>
+        <p class="tenue">Enfermedades principales, sus opciones, síntomas, estados del hongo y campos que aplican. Se guarda en el repositorio de datos (<code>config/ramas.json</code>); la App lo toma al ingresar con internet. Versión publicada: <b id="rVer">—</b></p>
+        <button class="btn" id="rAbrir">Abrir el editor del formulario</button>
+        <div id="rEditor" hidden></div>
+        <div class="err" id="rMsg"></div>
       </div>
       <div class="tarjeta">
         <button class="btn nar" id="eGuardar">GENERAR ARCHIVOS ACTUALIZADOS</button>
@@ -309,7 +328,8 @@ $('#eAbrir').onclick=async()=>{
     ED.acceso=a;ED.dk=dk;ED.dkRaw=dkRaw;ED.eliminar.clear();ED.claves.clear();ED.cambios.clear();ED.nuevos=[];$('#eForm').hidden=true;
     ED.lista=[];for(const x of a.usuarios){const m=JSON.parse(dec.decode(await descifrar(dk,x.meta)));ED.lista.push({u:x.u,...m});}
     $('#eOwner').value=a.repo.owner;$('#eRepo').value=a.repo.repo;$('#eRama').value=a.repo.rama;$('#eCartoVer').textContent=a.carto.version;$('#ePlantVer').textContent=a.plantacion?a.plantacion.version:'sin cargar';
-    pintarLista();$('#ePanel').hidden=false;
+    pintarLista();$('#ePanel').hidden=false;EDR.cfg=null;EDR.abierto=false;$('#rEditor').hidden=true;$('#rAbrir').textContent='Abrir el editor del formulario';
+    cargarFormulario().catch(()=>{$('#rVer').textContent='—';});
   }catch(e){msg.textContent='❌ '+e.message;}
   finally{$('#eAbrir').disabled=false;$('#eAbrir').textContent='ABRIR';}
 };
@@ -376,6 +396,96 @@ function formUsuario(x){
       f.hidden=true;pintarLista();}catch(e){$('#fMsg').textContent='❌ '+e.message;}};
   f.scrollIntoView({behavior:'smooth',block:'center'});
 }
+/* ---------- Editor del formulario de diagnóstico (config/ramas.json en el repositorio de datos) ---------- */
+const EDR={cfg:null,sha:null,abierto:false};
+const TIPOS_N1={enferma:'Enfermedad / problema sanitario',novedad:'Otra novedad (no fitosanitaria)',faltante:'Sitio vacío / faltante',sana:'Palma sana'};
+async function ghAdmin(ruta,opt={}){const a=ED.acceso;const token=dec.decode(await descifrar(ED.dk,a.token));
+  const r=await fetch(`https://api.github.com/repos/${encodeURIComponent(a.repo.owner)}/${encodeURIComponent(a.repo.repo)}${ruta}`,{cache:'no-store',...opt,
+    headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',...(opt.body?{'Content-Type':'application/json'}:{})}});
+  if(!r.ok){let m='';try{m=(await r.json()).message||'';}catch(e){}const e=new Error(`GitHub (${r.status}) ${m}`);e.status=r.status;throw e;}return r.json();}
+const b64u=s=>{const b=enc.encode(s);let t='';for(let i=0;i<b.length;i+=32768)t+=String.fromCharCode.apply(null,b.subarray(i,i+32768));return btoa(t);};
+const deB64u=s=>dec.decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
+async function cargarFormulario(){
+  const rama=encodeURIComponent(ED.acceso.repo.rama||'main');
+  try{const f=await ghAdmin(`/contents/config/ramas.json?ref=${rama}`);EDR.cfg=JSON.parse(deB64u(f.content));EDR.sha=f.sha;}
+  catch(e){if(e.status!==404)throw e;const r=await fetch('ramas_base.json',{cache:'no-store'});if(!r.ok)throw new Error('No se encontró el formulario base.');EDR.cfg=await r.json();EDR.sha=null;}
+  $('#rVer').textContent=EDR.sha?(EDR.cfg.version||'publicada'):'formulario incorporado (aún no publicado)';
+}
+function gruposRamas(){const g=[];for(const x of EDR.cfg.ramas){let e=g.find(y=>y.c===x.c);if(!e)g.push(e={c:x.c,n1:x.n1,ops:[]});e.ops.push(x);}return g;}
+function pintarEditor(){
+  const G=gruposRamas(),E=EDR.cfg.enfermedades||(EDR.cfg.enfermedades={});
+  const ta=(k,v,ph)=>`<textarea data-k="${k}" placeholder="${ph}">${esc((v||[]).join('\n'))}</textarea>`;
+  $('#rEditor').innerHTML=`<p class="tenue" style="margin-top:12px">Una línea por síntoma o estado del hongo. «Opción» vacía = la enfermedad no tiene opciones. Si dos opciones tienen el mismo nombre con distinto seguimiento, la App elige el seguimiento según el historial de la palma.</p>
+    ${G.map((g,gi)=>`<div class="rEnf" data-g="${gi}"><div class="cab">
+        <input type="text" class="cod" data-e="c" value="${esc(g.c)}" title="Código (2 a 6 letras)" ${EDR.cfg._nuevos&&EDR.cfg._nuevos.includes(g.c)?'':'disabled'}>
+        <input type="text" data-e="n1" value="${esc(g.n1)}" placeholder="Nombre de la enfermedad principal">
+        <input type="color" data-e="color" value="${esc((E[g.c]||{}).color||'#9e9e9e')}" title="Color en el mapa">
+        <select data-e="tipo" style="flex:0 0 230px">${Object.entries(TIPOS_N1).map(([k,t])=>`<option value="${k}" ${((E[g.c]||{}).tipo||'enferma')===k?'selected':''}>${t}</option>`).join('')}</select>
+        <button class="btn chico" data-mov="-1" title="Subir">↑</button><button class="btn chico" data-mov="1" title="Bajar">↓</button><button class="btn chico peligro" data-delg title="Eliminar la enfermedad">✕</button></div>
+      ${g.ops.map(o=>`<div class="rOp" data-r="${o.r}">
+        <div><small>Opción de la enfermedad</small><input type="text" data-k="n2" value="${esc(o.n2||'')}" placeholder="(sin opción)"></div>
+        <div><small>Tipo de seguimiento (automático)</small><input type="text" data-k="n3" value="${esc(o.n3||'')}" placeholder="(ninguno)"></div>
+        <div><small>Síntomas (uno por línea)</small>${ta('s',o.s,'Síntoma 1')}</div>
+        <div><small>Estados del hongo (vacío = no aplica)</small>${ta('h',o.h,'')}</div>
+        <div><small>&nbsp;</small><button class="btn chico peligro" data-delo title="Eliminar esta opción">✕</button></div>
+        <div class="flags"><span class="tenue">Pedir:</span>${[['cir','Cirugía'],['prod','Producción'],['rai','Raíces buenas'],['tra','Transitabilidad']].map(([k,t])=>`<label><input type="checkbox" data-k="${k}" ${o[k]?'checked':''}> ${t}</label>`).join('')}
+          <input type="text" data-k="f" value="${esc(o.f||'')}" placeholder="Fuente técnica"></div></div>`).join('')}
+      <button class="btn chico" data-addo style="margin-top:8px">＋ Opción</button></div>`).join('')}
+    <div class="fila" style="margin-top:10px"><button class="btn" id="rAddE">＋ Enfermedad principal</button><button class="btn" id="rJson">⬇ Descargar JSON</button><button class="btn prim" id="rGuardar">GUARDAR EN GITHUB</button></div>`;
+  enlazarEditor();
+}
+/* Pasa lo escrito en la pantalla al modelo (antes de cualquier cambio de estructura o al guardar). */
+function leerEditor(){
+  const E=EDR.cfg.enfermedades||(EDR.cfg.enfermedades={});const nuevas=[];
+  for(const box of $$('#rEditor .rEnf')){const c0=gruposRamas()[+box.dataset.g].c;
+    const c=box.querySelector('[data-e=c]').value.trim().toUpperCase(),n1=box.querySelector('[data-e=n1]').value.trim().toUpperCase();
+    E[c]={...(E[c0]||{}),color:box.querySelector('[data-e=color]').value,tipo:box.querySelector('[data-e=tipo]').value};if(c!==c0)delete E[c0];
+    for(const op of box.querySelectorAll('.rOp')){const o=EDR.cfg.ramas.find(x=>String(x.r)===op.dataset.r);if(!o)continue;
+      const lin=k=>op.querySelector(`[data-k=${k}]`).value.split('\n').map(x=>x.trim()).filter(Boolean);
+      Object.assign(o,{c,n1,n2:op.querySelector('[data-k=n2]').value.trim().toUpperCase()||null,n3:op.querySelector('[data-k=n3]').value.trim().toUpperCase()||null,s:lin('s'),h:lin('h').length?lin('h'):null,
+        cir:op.querySelector('[data-k=cir]').checked,prod:op.querySelector('[data-k=prod]').checked,rai:op.querySelector('[data-k=rai]').checked,tra:op.querySelector('[data-k=tra]').checked,obs:true,f:op.querySelector('[data-k=f]').value.trim()});}
+    if(c!==c0&&EDR.cfg._nuevos){EDR.cfg._nuevos=EDR.cfg._nuevos.map(x=>x===c0?c:x);}nuevas.push(c);}
+}
+const sigR=()=>Math.max(0,...EDR.cfg.ramas.map(x=>Number(x.r)||0))+1;
+function enlazarEditor(){
+  $$('#rEditor [data-addo]').forEach(b=>b.onclick=()=>{leerEditor();const g=gruposRamas()[+b.closest('.rEnf').dataset.g];const ult=g.ops[g.ops.length-1];
+    const i=EDR.cfg.ramas.indexOf(ult);EDR.cfg.ramas.splice(i+1,0,{r:sigR(),c:g.c,n1:g.n1,n2:'NUEVA OPCIÓN',n3:null,s:[],h:null,cir:false,prod:true,rai:true,tra:true,obs:true,f:''});pintarEditor();});
+  $$('#rEditor [data-delo]').forEach(b=>b.onclick=()=>{leerEditor();const r=b.closest('.rOp').dataset.r;const o=EDR.cfg.ramas.find(x=>String(x.r)===r);
+    if(EDR.cfg.ramas.filter(x=>x.c===o.c).length===1){alert('Es la única opción de la enfermedad: elimine la enfermedad completa con ✕.');return;}
+    EDR.cfg.ramas=EDR.cfg.ramas.filter(x=>x!==o);pintarEditor();});
+  $$('#rEditor [data-delg]').forEach(b=>b.onclick=()=>{leerEditor();const g=gruposRamas()[+b.closest('.rEnf').dataset.g];
+    if(!confirm(`¿Eliminar «${g.n1}» del formulario?\n\nLos diagnósticos ya registrados con ella se conservan.`))return;EDR.cfg.ramas=EDR.cfg.ramas.filter(x=>x.c!==g.c);pintarEditor();});
+  $$('#rEditor [data-mov]').forEach(b=>b.onclick=()=>{leerEditor();const G=gruposRamas(),i=+b.closest('.rEnf').dataset.g,j=i+Number(b.dataset.mov);if(j<0||j>=G.length)return;
+    [G[i],G[j]]=[G[j],G[i]];EDR.cfg.ramas=G.flatMap(g=>g.ops);pintarEditor();});
+  $('#rAddE').onclick=()=>{leerEditor();let c='NUEVA',k=1;while(EDR.cfg.ramas.some(x=>x.c===c))c='NUEVA'+(++k);
+    EDR.cfg._nuevos=[...(EDR.cfg._nuevos||[]),c];EDR.cfg.ramas.push({r:sigR(),c,n1:'NUEVA ENFERMEDAD',n2:null,n3:null,s:[],h:null,cir:false,prod:true,rai:true,tra:true,obs:true,f:''});
+    (EDR.cfg.enfermedades||(EDR.cfg.enfermedades={}))[c]={color:'#9e9e9e',tipo:'enferma'};pintarEditor();$$('#rEditor .rEnf').pop().scrollIntoView({behavior:'smooth',block:'center'});};
+  $('#rJson').onclick=()=>{leerEditor();descargar(JSON.stringify(limpioRamas(),null,1),'ramas.json','application/json');};
+  $('#rGuardar').onclick=guardarFormulario;
+}
+function validarRamas(){
+  const G=gruposRamas();const cods=new Set();
+  for(const g of G){if(!/^[A-Z0-9]{2,6}$/.test(g.c))throw new Error(`Código «${g.c}» no válido: use de 2 a 6 letras o números.`);if(cods.has(g.c))throw new Error(`El código «${g.c}» está repetido.`);cods.add(g.c);
+    if(!g.n1)throw new Error(`Falta el nombre de la enfermedad con código ${g.c}.`);
+    if(g.ops.length>1&&g.ops.some(o=>!o.n2))throw new Error(`«${g.n1}» tiene varias opciones: todas deben tener nombre.`);
+    const k=new Set();for(const o of g.ops){const x=(o.n2||'')+'|'+(o.n3||'');if(k.has(x))throw new Error(`«${g.n1}»: la opción «${o.n2||'(sin opción)'}» está repetida con el mismo seguimiento.`);k.add(x);}}
+  if(!G.length)throw new Error('El formulario no puede quedar vacío.');
+}
+function limpioRamas(){const c={...EDR.cfg};delete c._nuevos;const usados=new Set(c.ramas.map(x=>x.c));c.enfermedades=Object.fromEntries(Object.entries(c.enfermedades||{}).filter(([k])=>usados.has(k)));
+  const z=new Date(),p=v=>String(v).padStart(2,'0');return {...c,formato:'sanidad-ramas-1',version:`${z.getFullYear()}${p(z.getMonth()+1)}${p(z.getDate())}-${p(z.getHours())}${p(z.getMinutes())}`,modificado:z.toISOString(),por:ED.lista.find(x=>x.u===$('#eUser').value.trim().toLowerCase())?.nombre||''};}
+async function guardarFormulario(){
+  const m=$('#rMsg'),b=$('#rGuardar');m.style.color='';m.textContent='';
+  try{leerEditor();validarRamas();const cfg=limpioRamas();b.disabled=true;b.textContent='Guardando…';
+    const r=await ghAdmin('/contents/config/ramas.json',{method:'PUT',body:JSON.stringify({message:`Formulario de diagnóstico ${cfg.version}`,content:b64u(JSON.stringify(cfg,null,1)),branch:ED.acceso.repo.rama||'main',...(EDR.sha?{sha:EDR.sha}:{})})});
+    EDR.sha=r.content.sha;EDR.cfg=cfg;delete EDR.cfg._nuevos;$('#rVer').textContent=cfg.version;m.style.color='var(--acento)';
+    m.textContent=`✅ Formulario ${cfg.version} guardado. Los celulares lo toman al abrir la App con internet (no hay que generar ni subir archivos).`;pintarEditor();}
+  catch(e){m.style.color='var(--rojo)';m.textContent='❌ '+e.message;}
+  finally{const bb=$('#rGuardar');if(bb){bb.disabled=false;bb.textContent='GUARDAR EN GITHUB';}}
+}
+$('#rAbrir').onclick=async()=>{const m=$('#rMsg');m.textContent='';const b=$('#rAbrir');
+  if(EDR.abierto){$('#rEditor').hidden=true;EDR.abierto=false;b.textContent='Abrir el editor del formulario';return;}
+  b.disabled=true;b.textContent='Cargando…';try{await cargarFormulario();pintarEditor();$('#rEditor').hidden=false;EDR.abierto=true;b.textContent='Cerrar el editor';}
+  catch(e){m.style.color='var(--rojo)';m.textContent='❌ '+e.message;b.textContent='Abrir el editor del formulario';}finally{b.disabled=false;}};
 $('#eAgregar').onclick=()=>formUsuario(null);
 ['#eBuscar','#eFRol','#eFLab'].forEach(s=>$(s).addEventListener('input',pintarLista));
 $('#eCsv').onclick=()=>{const T=todos().filter(x=>!ED.eliminar.has(x.u));

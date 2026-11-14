@@ -1078,7 +1078,7 @@ $('#btCargar').onclick=cargar;
 
 /* ---------- Arranque ---------- */
 async function entrar(){
-  $('#login').hidden=true;$('#app').hidden=false;mapa.invalidateSize();
+  $('#login').hidden=true;$('#app').hidden=false;mapa.invalidateSize();cargarRamasVisor();
   $('#hdrUsuario').textContent=`${SES.nombre} · ${SES.rol==='admin'?'Administrador':'Supervisor'}`;
   try{await cargarCartografia();}catch(e){toast('No se pudo cargar la cartografía: '+e.message,6000);}
   try{await cargarVias();}catch(e){}
