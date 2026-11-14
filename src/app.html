@@ -935,20 +935,30 @@ async function revisarSegundoPlano(forzar){
   let e={};try{e=await NAT.en.estado();}catch(x){}
   const xiaomi=/xiaomi|redmi|poco/i.test((e.fabricante||'')+' '+(e.modelo||''));
   if(!forzar&&e.sinRestriccion&&(!xiaomi||S.cfg.miuiOk))return;
+  /* Todas las opciones siempre visibles (aunque ya estén listas), para poder revisarlas o volver a activarlas. */
+  const item=(n,tit,estado,txt,bt)=>`<div class="ficha" style="margin-top:8px"><b>${n}. ${tit}</b> ${estado===true?'<span class="sello ok">✔ LISTO</span>':estado===false?'<span class="sello pend">PENDIENTE</span>':''}
+    <div class="tenue">${txt}</div>${bt}</div>`;
+  const bt=(id,t,prim)=>`<button class="btn ${prim?'prim':''} ancho" id="${id}" style="margin-top:6px">${t}</button>`;
+  let n=0;
   abrirHoja('Registro con la pantalla bloqueada',`
-    <p>Para que el recorrido no se corte cuando el celular está bloqueado, Android debe dejar trabajar a Sanidad Vegetal en segundo plano.</p>
-    <div class="ficha"><b>1. Batería sin restricciones</b> ${e.sinRestriccion?'<span class="sello ok">✔ LISTO</span>':'<span class="sello pend">PENDIENTE</span>'}<div class="tenue">Toque el botón y elija «Permitir».</div>
-      ${e.sinRestriccion?'':'<button class="btn prim ancho" id="sbBat" style="margin-top:6px">Permitir sin restricciones</button>'}</div>
-    ${xiaomi?`<div class="ficha" style="margin-top:8px"><b>2. Xiaomi · Inicio automático</b><div class="tenue">Active el interruptor de «Sanidad Vegetal».</div><button class="btn ancho" id="sbAuto" style="margin-top:6px">Abrir Inicio automático</button></div>
-    <div class="ficha" style="margin-top:8px"><b>3. Xiaomi · Ahorro de batería</b><div class="tenue">Elija «Sin restricciones».</div><button class="btn ancho" id="sbAhorro" style="margin-top:6px">Abrir Ahorro de batería</button></div>
-    <div class="ficha" style="margin-top:8px"><b>4. Xiaomi · Bloquear la App en recientes</b><div class="tenue">Abra las apps recientes, mantenga presionada Sanidad Vegetal y toque el candado 🔒.</div></div>`:''}
-    <div class="ficha" style="margin-top:8px"><b>${xiaomi?'5':'2'}. Ubicación</b><div class="tenue">Permiso de ubicación «Permitir siempre» o «Mientras se usa la app» con ubicación precisa.</div><button class="btn ancho" id="sbApp" style="margin-top:6px">Abrir ajustes de la App</button></div>
-    <button class="btn prim ancho" id="sbListo" style="margin-top:10px">Listo</button>`);
+    <p>Para que el recorrido no se corte cuando el celular está bloqueado, Android debe dejar trabajar a Sanidad Vegetal en <b>segundo plano</b>. Revise cada punto:</p>
+    ${item(++n,'Batería sin restricciones',!!e.sinRestriccion,'Android no debe dormir la app para ahorrar batería. Toque el botón y elija «Permitir» o «Sin restricciones».',bt('sbBat',e.sinRestriccion?'Revisar batería sin restricciones':'Permitir sin restricciones',!e.sinRestriccion))}
+    ${item(++n,'Segundo plano e inicio automático',null,xiaomi?'Active el interruptor de «Sanidad Vegetal» en Inicio automático.':'Permita que la app siga funcionando en segundo plano (en algunas marcas: «Inicio automático» o «Actividad en segundo plano»).',bt('sbAuto','Abrir segundo plano / inicio automático'))}
+    ${item(++n,'Ahorro de batería',null,xiaomi?'Elija «Sin restricciones».':'En «Batería» de la app elija «Sin restricciones» o «No optimizar».',bt('sbAhorro','Abrir ahorro de batería'))}
+    ${item(++n,'Ubicación en segundo plano',null,'Permisos → Ubicación → «Permitir siempre» (o «Mientras se usa la app») y active «Usar ubicación precisa».',bt('sbUbic','Abrir permiso de ubicación'))}
+    ${item(++n,'Notificaciones',null,'Permita las notificaciones: el aviso «Jornada en curso» mantiene vivo el registro del recorrido.',bt('sbNotif','Permitir notificaciones'))}
+    ${item(++n,'Todos los permisos',null,'Cámara (fotos), micrófono (diagnóstico por voz), ubicación y notificaciones deben estar en «Permitir».',bt('sbApp','Abrir todos los permisos de la app'))}
+    ${xiaomi?item(++n,'Xiaomi · Bloquear la app en recientes',null,'Abra las apps recientes, mantenga presionada Sanidad Vegetal y toque el candado 🔒.',''):''}
+    <p class="tenue" style="margin-top:10px">${esc([e.fabricante,e.modelo].filter(Boolean).join(' '))}${e.android?' · Android API '+esc(e.android):''} · APK ${esc(textoApkInst())}${e.activo?' · registro activo':''}</p>
+    <button class="btn prim ancho" id="sbListo" style="margin-top:6px">Listo</button>`);
   const vuelve=()=>setTimeout(()=>{if(document.visibilityState==='visible'&&$('#sbListo'))revisarSegundoPlano(true);},1500);
-  if($('#sbBat'))$('#sbBat').onclick=async()=>{await NAT.en.solicitarSinRestriccion();document.addEventListener('visibilitychange',vuelve,{once:true});};
-  if($('#sbAuto'))$('#sbAuto').onclick=()=>NAT.en.abrirInicioAutomatico();
-  if($('#sbAhorro'))$('#sbAhorro').onclick=()=>NAT.en.abrirAhorroBateria();
-  $('#sbApp').onclick=()=>NAT.en.abrirAjustesApp();
+  const alVolver=()=>document.addEventListener('visibilitychange',vuelve,{once:true});
+  $('#sbBat').onclick=async()=>{await NAT.en.solicitarSinRestriccion();alVolver();};
+  $('#sbAuto').onclick=async()=>{await NAT.en.abrirInicioAutomatico();alVolver();};
+  $('#sbAhorro').onclick=async()=>{await NAT.en.abrirAhorroBateria();alVolver();};
+  $('#sbUbic').onclick=async()=>{try{if(NAT.bg&&NAT.bg.openSettings){await NAT.bg.openSettings();}else await NAT.en.abrirAjustesApp();}catch(x){await NAT.en.abrirAjustesApp();}alVolver();};
+  $('#sbNotif').onclick=async()=>{try{const ln=NAT.ln;if(ln&&ln.requestPermissions){const r=await ln.requestPermissions();toast(r&&r.display==='granted'?'✅ Notificaciones permitidas.':'Active las notificaciones en los ajustes de la app.',4000);if(!r||r.display!=='granted')await NAT.en.abrirAjustesApp();}else await NAT.en.abrirAjustesApp();}catch(x){await NAT.en.abrirAjustesApp();}alVolver();};
+  $('#sbApp').onclick=async()=>{await NAT.en.abrirAjustesApp();alVolver();};
   $('#sbListo').onclick=()=>{if(xiaomi){S.cfg.miuiOk=1;guardarCfg();}cerrarHoja();};
 }
 async function gpsFondo(on){
