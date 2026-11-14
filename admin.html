@@ -543,10 +543,12 @@ function pintarAlertasCfg(){
     <div class="fila"><div><label>Plantilla del reporte</label><input type="text" id="aW1" value="${esc(W.plantilla_reporte)}"></div><div><label>Plantilla de alerta</label><input type="text" id="aW2" value="${esc(W.plantilla_alerta)}"></div><div><label>Idioma</label><input type="text" id="aW3" value="${esc(W.idioma)}"></div></div>
     <div class="fila" style="margin-top:12px"><button class="btn prim" id="aGuardar">GUARDAR EN GITHUB</button>
       <a class="btn" target="_blank" rel="noopener" href="https://github.com/${esc(repo.owner)}/${esc(repo.repo)}/actions/workflows/reporte-diario.yml">▶ Probar: generar y enviar el reporte de hoy</a></div>
+    <p class="tenue">Envío manual en cualquier momento: visor → 📊 GERENCIA → Reportes → <b>📤 Generar y enviar ahora</b> (a todos, a correos puntuales o sin envío), o en la App: Menú → Panel del día.</p><div></div>
     <details style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">Configuración única de los envíos (claves y plantillas)</summary>
       <div class="tenue" style="margin-top:8px;line-height:1.6">
       <b>1. Claves en GitHub</b> (repositorio <code>${esc(repo.owner)}/${esc(repo.repo)}</code> → Settings → Secrets and variables → Actions → New repository secret):<br>
-      · <code>SMTP_USER</code> y <code>SMTP_PASS</code>: cuenta de Microsoft 365 que envía (por ejemplo reportes@…). El administrador de Microsoft 365 debe habilitar «SMTP autenticado» para esa cuenta. Opcional <code>SMTP_FROM</code>.<br>
+      · <b>Correo (recomendado, funciona con verificación en dos pasos):</b> aplicación registrada en Microsoft Entra ID con permiso de aplicación <i>Mail.Send</i> de Microsoft Graph (con consentimiento de administrador) y limitada al buzón que envía. Claves: <code>MS_TENANT_ID</code>, <code>MS_CLIENT_ID</code>, <code>MS_CLIENT_SECRET</code> y <code>SMTP_FROM</code> (el buzón, por ejemplo did@palmares.com.co).<br>
+      · Alternativa sin verificación en dos pasos: <code>SMTP_USER</code> y <code>SMTP_PASS</code> con «SMTP autenticado» habilitado.<br>
       · <code>WA_TOKEN</code> (token permanente de un usuario del sistema de Meta Business) y <code>WA_PHONE_ID</code> (identificador del número de WhatsApp Business).<br>
       <b>2. Plantillas en WhatsApp Manager</b> (categoría Utilidad, idioma Español):<br>
       · <code>sanidad_reporte_diario</code>: encabezado <i>Documento</i>; cuerpo: «Reporte de sanidad vegetal del {{1}}: {{2}} jornadas, {{3}} hectáreas recorridas, {{4}} diagnósticos y {{5}} casos de PC. Alertas: {{6}}. El detalle va en el PDF adjunto.»<br>

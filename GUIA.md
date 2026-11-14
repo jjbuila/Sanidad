@@ -237,9 +237,16 @@ Entran las jornadas finalizadas y sincronizadas hasta el corte. Para generarlo a
 **Alertas automáticas** (van en el reporte diario y se envían aparte): operarios sin sincronizar más de N días, casos de PC vencidos sin cirugía, lotes con incidencia de PC por encima del umbral, palmas en recuperación sin revisión en N días y calidad del censo (diagnósticos lejos de la palma, GPS impreciso, sin foto, muy rápidos).
 
 **Envíos por correo (Microsoft 365) y WhatsApp (Cloud API de Meta).** En `admin.html` → *Alertas y reportes automáticos*: destinatarios (correo y/o WhatsApp, y qué recibe cada uno), umbrales y nombres de las plantillas; se guarda en `config/alertas.json`. Configuración única (la hace el administrador; las claves nunca se escriben en la App ni en el código):
-1. Repositorio de datos → Settings → Secrets and variables → Actions: `SMTP_USER`, `SMTP_PASS` (cuenta de Microsoft 365 con *SMTP autenticado* habilitado), opcional `SMTP_FROM`; `WA_TOKEN` y `WA_PHONE_ID` de Meta Business.
+1. Repositorio de datos → Settings → Secrets and variables → Actions:
+   - **Correo** (cuenta de envío `did@palmares.com.co`, que tiene verificación en dos pasos): el administrador de Microsoft 365 registra en Microsoft Entra ID una aplicación con el permiso de aplicación **Mail.Send** de Microsoft Graph (consentimiento de administrador) y la limita a ese buzón con una *Application Access Policy*. Claves: `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET` y `SMTP_FROM` = `did@palmares.com.co`. No se usa la contraseña del buzón. (Alternativa solo para cuentas sin verificación en dos pasos: `SMTP_USER` y `SMTP_PASS`).
+   - **WhatsApp:** `WA_TOKEN` y `WA_PHONE_ID` de Meta Business.
 2. En WhatsApp Manager, plantillas de categoría *Utilidad* en español: `sanidad_reporte_diario` (encabezado *Documento*, 6 variables) y `sanidad_alerta` (2 variables). El texto exacto está en la guía dentro de la tarjeta de administración.
-3. Botón *Probar: generar y enviar el reporte de hoy*.
+3. Pruebe con el envío manual (abajo).
+
+**Envío manual.** Además de los automáticos, en cualquier momento:
+- **Visor → 📊 GERENCIA → Reportes → 📤 Generar y enviar ahora:** reporte diario o semanal de la fecha elegida, enviado a todos los destinatarios configurados, solo a los correos que escriba, o sin envío (solo generar).
+- **App → Menú → Panel del día → 📤 Generar y enviar el reporte de hoy ahora** (supervisores y administradores).
+Llega en 3 a 5 minutos y queda en la lista de reportes. Por dentro, la solicitud se guarda en `solicitudes/reporte.json` y la atiende el flujo `reporte-manual.yml`.
 
 **Índice diario.** Cada hora (6 a. m. a 8 p. m., lunes a sábado) el flujo `indice.yml` resume las jornadas de cada día en `indice/AAAA-MM-DD.json`. El visor descarga un archivo por día en lugar de una jornada a la vez, por lo que con muchos operarios carga mucho más rápido; si el índice no está al día, lee las jornadas una por una como antes.
 

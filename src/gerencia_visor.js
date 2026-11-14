@@ -454,12 +454,35 @@ function pintarReportes(){
   const R=GER.reportes,repo=SES.repo;
   const t=(lista,col)=>tablaGer([{t:col,f:x=>`<b>${esc(x.nombre)}</b>`},{t:'Archivos',f:x=>x.archivos.map(f=>{const [et,cl]=tipoRep(f.path);return `<button class="btn mini ${cl}" data-rep="${esc(f.sha)}|${esc(f.path)}">${et}</button>`;}).join(' ')}],lista);
   return `<p class="tenue">El <b>reporte diario</b> se genera de lunes a sábado a las <b>3:00 p. m.</b> (sin festivos) con las jornadas finalizadas y sincronizadas hasta esa hora; el <b>semanal</b>, los lunes a las 6:00 a. m. Cada uno trae <b>PDF con mapa</b>, <b>reporte interactivo</b> (mapa satelital con capas y filtros) y <b>Excel</b>, y se envía por correo y WhatsApp a los destinatarios configurados en la administración.</p>
-    <div class="ger-par"><a class="btn mini" href="https://github.com/${esc(repo.owner)}/${esc(repo.repo)}/actions/workflows/reporte-diario.yml" target="_blank" rel="noopener">▶ Generar el diario ahora</a>
-      <a class="btn mini" href="https://github.com/${esc(repo.owner)}/${esc(repo.repo)}/actions/workflows/reporte-semanal.yml" target="_blank" rel="noopener">▶ Generar el semanal ahora</a><button class="btn mini" id="repRecargar">↻ Actualizar lista</button></div>
+    <div class="ger-sec"><h3>📤 Generar y enviar ahora (manual)</h3>
+      <div class="ger-par">Reporte <select id="rmTipo"><option value="diario">Diario</option><option value="semanal">Semanal (semana de la fecha)</option></select>
+        Fecha <input type="date" id="rmFecha" value="${esc(hoyISO())}">
+        Enviar a <select id="rmEnvio"><option value="todos">Todos los destinatarios configurados</option><option value="correos">Solo a estos correos…</option><option value="ninguno">No enviar (solo generar)</option></select>
+        <input type="text" id="rmPara" placeholder="correo1@palmares.com.co, correo2@…" style="min-width:260px" hidden>
+        <button class="btn mini nar" id="rmIr">📤 Generar y enviar</button></div>
+      <p class="tenue" id="rmMsg">Tarda de 3 a 5 minutos: queda en la lista de abajo y llega por correo (y WhatsApp si es a todos los destinatarios). <a href="https://github.com/${esc(repo.owner)}/${esc(repo.repo)}/actions/workflows/reporte-manual.yml" target="_blank" rel="noopener">Ver ejecución en GitHub</a></p></div>
+    <div class="ger-par"><button class="btn mini" id="repRecargar">↻ Actualizar lista</button></div>
     ${R==null?'<p class="tenue">Consultando reportes…</p>':`<div class="ger-sec"><h3>Reportes diarios</h3>${R.diarios.length?t(R.diarios,'Fecha'):'<p class="tenue">Aún no hay reportes diarios.</p>'}</div>
       <div class="ger-sec"><h3>Reportes semanales</h3>${R.semanales.length?t(R.semanales,'Semana'):'<p class="tenue">Aún no hay reportes semanales.</p>'}</div>`}`;
 }
+async function solicitarReporte(sol){
+  const ruta='solicitudes/reporte.json';let sha=null;
+  try{sha=(await (await gh(`/contents/${ruta}?ref=${encodeURIComponent(SES.repo.rama)}`)).json()).sha;}catch(e){}
+  await ghPut(ruta,JSON.stringify({formato:'sanidad-solicitud-1',...sol,solicitado_por:SES.nombre||SES.u,creado:new Date().toISOString()},null,1),
+    `Reporte ${sol.tipo} a pedido (${SES.nombre||SES.u})`,sha);
+}
 ENLACES_GER.reportes=()=>{const r=$('#repRecargar');if(r)r.onclick=()=>{GER.reportes=null;pintarGer();};
+  const ev=$('#rmEnvio');if(ev)ev.onchange=()=>{$('#rmPara').hidden=ev.value!=='correos';};
+  const ir=$('#rmIr');if(ir)ir.onclick=async()=>{const m=$('#rmMsg');const tipo=$('#rmTipo').value,fecha=$('#rmFecha').value,envio=ev.value;
+    const para=$('#rmPara').value.split(/[,;\s]+/).map(x=>x.trim().toLowerCase()).filter(Boolean);
+    if(envio==='correos'&&(!para.length||para.some(x=>!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)))){m.textContent='❌ Escriba uno o más correos válidos, separados por coma.';return;}
+    const dest=envio==='todos'?'todos los destinatarios':envio==='correos'?para.join(', '):'nadie (solo se genera)';
+    if(!confirm(`¿Generar el reporte ${tipo} del ${fecha} y enviarlo a ${dest}?`))return;
+    ir.disabled=true;ir.textContent='Solicitando…';
+    try{await solicitarReporte({tipo,fecha,envio,para:envio==='correos'?para:[]});
+      m.innerHTML=`✅ Solicitado a las ${esc(new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}))}. En 3 a 5 minutos aparece en la lista y llega a ${esc(dest)}.`;
+      setTimeout(()=>{if(GER.tab==='reportes'){GER.reportes=null;pintarGer();}},300000);}
+    catch(e){m.textContent='❌ '+e.message;}finally{ir.disabled=false;ir.textContent='📤 Generar y enviar';}};
   $$('#gerPanel [data-rep]').forEach(b=>b.onclick=async()=>{const [sha,path]=b.dataset.rep.split('|');const tipo=tipoRep(path)[2];b.disabled=true;
     const w=tipo==='text/html'?window.open('','_blank'):null;
     try{const buf=await (await gh(`/git/blobs/${sha}`,'application/vnd.github.raw+json')).arrayBuffer();const u=URL.createObjectURL(new Blob([buf],{type:tipo}));

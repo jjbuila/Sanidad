@@ -25,6 +25,12 @@ def gh(route):
     if f'/contents/reportes/diario/{HOY}/resumen.json' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps(RESUMEN))
     if f'/contents/censo/plan/{HOY}.json' in u and m == 'GET': return route.fulfill(status=200, content_type='application/json', body=json.dumps(PLAN))
     if '/contents/config/servicios.json' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps({'ia': {'activo': True, 'url': 'https://ia.prueba.dev/', 'usuarios': []}}))
+    if '/contents/solicitudes/reporte.json' in u:
+        if m == 'PUT':
+            b = json.loads(req.post_data); EST.setdefault('sol', []).append(json.loads(base64.b64decode(b['content']).decode('utf-8')))
+            return route.fulfill(status=201, content_type='application/json', body=json.dumps({'content': {'sha': 'solsha'}}))
+        return route.fulfill(status=200, content_type='application/json', body=json.dumps({'sha': 'solsha'}))
+    if '/contents/reportes?' in u: return route.fulfill(status=200, content_type='application/json', body='[]')
     if '/contents/censo/plan/' in u and m == 'PUT':
         b = json.loads(req.post_data); EST['plan'] = json.loads(base64.b64decode(b['content']).decode('utf-8'))
         return route.fulfill(status=201, content_type='application/json', body=json.dumps({'content': {'sha': 'plansha'}}))
@@ -49,6 +55,9 @@ with sync_playwright() as p:
     T = r['txt']
     check('App: menú «Panel del día» para supervisor', r['tile'])
     check('App: panel con jornadas de hoy, ha, PC y alertas del reporte', '4' in T and '12,5' in T and 'vencido sin cirugía' in T and 'PEDRO PEREZ' in T and 'IT01' in T and 'corte 3:00' in T, re.sub(r'\s+', ' ', T)[:300])
+    pg.evaluate("window.confirm=()=>true"); pg.click('#pdEnviar'); pg.wait_for_timeout(800)
+    sol = (EST.get('sol') or [{}])[-1]
+    check('App: «Generar y enviar el reporte de hoy» deja la solicitud', sol.get('tipo') == 'diario' and sol.get('envio') == 'todos' and sol.get('fecha') == HOY and sol.get('solicitado_por') == 'Sara', sol)
     op = pg.evaluate("()=>{SES={u:'op1',nombre:'PEDRO PEREZ',rol:'operario'};menu();return !!document.querySelector('#mDia')}")
     check('App: un operario no ve el panel del día', not op)
     r = pg.evaluate("""async()=>{await cargarPlanCenso();const ls=misLotesPlan().map(x=>x.lote);
@@ -115,6 +124,15 @@ with sync_playwright() as p:
     P = EST['plan'] or {}
     a2 = next((a for a in P.get('asignaciones', []) if a['usuario'] == 'op2'), {})
     check('Visor: guarda el plan editado en censo/plan', P.get('formato') == 'sanidad-plan-censo-1' and [x['lote'] for x in a2.get('lotes', [])] == ['IT12', 'IT05'] and a2['lotes'][0]['ha'] > 7, P)
+    vz.click('[data-gt=reportes]'); vz.wait_for_selector('#rmIr', timeout=8000)
+    vz.select_option('#rmTipo', 'semanal'); vz.select_option('#rmEnvio', 'correos')
+    check('Visor: «Solo a estos correos» muestra el campo', vz.is_visible('#rmPara'))
+    vz.fill('#rmPara', 'gerente@ejemplo.com; Jefe@Ejemplo.com'); vz.once('dialog', lambda d: d.accept()); vz.click('#rmIr')
+    vz.wait_for_function("document.querySelector('#rmMsg').textContent.includes('Solicitado')", timeout=8000)
+    sol = EST['sol'][-1]
+    check('Visor: solicitud manual con tipo, fecha y correos puntuales', sol['tipo'] == 'semanal' and sol['envio'] == 'correos' and sol['para'] == ['gerente@ejemplo.com', 'jefe@ejemplo.com'] and sol['solicitado_por'] == 'Admin', sol)
+    vz.select_option('#rmEnvio', 'correos'); vz.fill('#rmPara', 'no-es-correo'); vz.click('#rmIr'); vz.wait_for_timeout(300)
+    check('Visor: valida los correos antes de solicitar', 'correos válidos' in vz.inner_text('#rmMsg') and len(EST['sol']) == 2)
     vz.click('#gerX'); vz.wait_for_timeout(200)
     h = vz.evaluate("()=>{const d=JOR[1].diags[0];verHistoriaPalma(d);return document.querySelector('.leaflet-popup-content').innerText}")
     check('Visor: historia de la palma con sus censos en orden', h.count('Censo') == 2 and h.index('PC INICIAL') < h.index('EN RECUPERACI'), h[:200])
