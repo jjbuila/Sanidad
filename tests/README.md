@@ -10,7 +10,7 @@ Se ejecutan solas en GitHub Actions (`.github/workflows/pruebas.yml`) con cada c
 ## Ejecutarlas en el computador
 
 ```bash
-pip install playwright pillow && python -m playwright install chromium
+pip install playwright pillow openpyxl && python -m playwright install chromium
 python src/build.py RUTA/node_modules src/marca
 python -m http.server 8765 --bind 127.0.0.1
 python tests/run_all.py            # todas

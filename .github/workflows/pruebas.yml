@@ -35,7 +35,7 @@ jobs:
       - name: Dependencias
         run: |
           npm install --no-save --prefix "$RUNNER_TEMP/deps" leaflet@1.9.4 jszip@3.10.1 @fontsource/rajdhani
-          pip install --quiet playwright pillow
+          pip install --quiet playwright pillow openpyxl
           python -m playwright install --with-deps chromium
 
       - name: Compilar la app (solo en esta máquina; no se publica)
