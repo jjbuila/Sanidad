@@ -144,6 +144,10 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .x{background:none;border:1px solid var(--borde);border-radius:9px;width:30px;height:30px;cursor:pointer}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:13px;margin:8px 0}
 .play{display:grid;gap:6px;margin:8px 0;padding:8px;border:1px solid var(--borde);border-radius:12px;background:rgba(0,0,0,.2)}
+.play-res{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:11.5px;color:var(--tenue);text-align:center}
+.play-res b{display:block;color:var(--texto);font-family:var(--t);font-size:17px}
+.pulso-diag{animation:pulsoDiag 1s ease-out infinite}
+@keyframes pulsoDiag{0%{stroke-opacity:1;stroke-width:5}100%{stroke-opacity:.15;stroke-width:1}}
 .play .fila{display:flex;gap:6px;align-items:center}
 .play input[type=range]{flex:1;accent-color:var(--acento)}
 .play .reloj{font-family:var(--t);font-size:20px;min-width:70px;text-align:center}
@@ -744,9 +748,10 @@ function abrirDetalle(j){
       <div><b>Despl. inicial:</b> ${minHM(j.tiempos.min_desplazamiento_inicial)}</div><div><b>Despl. entre lotes:</b> ${minHM(j.tiempos.min_desplazamiento_entre_lotes)}</div>
       <div><b>Despl. final:</b> ${minHM(j.tiempos.min_desplazamiento_final)}</div><div><b>Efectivo en lotes:</b> ${minHM(j.tiempos.min_efectivo_labor)}</div>`:''}
       <div><b>Método:</b> ${j.metodo==='calle_entre_lineas'?'Por calle':'Buffer'}</div><div>${j.comp?`<b>Buffer ${esc(j.comp.buffer_m)} m:</b> ${num(j.comp.palmas_visitadas)} palmas`:''}</div></div>
-    ${conT?`<div class="play"><div class="fila"><button class="btn mini prim" id="pBt">▶</button><input type="range" id="pRg" min="0" max="1000" value="0"><span class="reloj" id="pRel">${esc(hhmm(tr.t[0]))}</span></div>
+    ${conT?`<div class="play"><div class="play-res"><span>Inicio <b>${esc(j.hora_inicio||hhmm(j.inicio))}</b></span><span>Fin <b>${esc(j.hora_fin||hhmm(j.fin))}</b></span><span>Ha <b>${num(j.ha,2)}</b></span><span>T. efectivo <b>${efecJ(j,sq)}</b></span></div>
+      <div class="fila"><button class="btn mini prim" id="pBt">▶</button><input type="range" id="pRg" min="0" max="1000" value="0"><span class="reloj" id="pRel">${esc(hhmm(tr.t[0]))}</span></div>
       <div class="fila"><span class="tenue" style="font-size:12px">Velocidad</span><select id="pVel" style="padding:3px 6px;font-size:12.5px"><option value="30">×30</option><option value="60" selected>×60</option><option value="180">×180</option><option value="600">×600</option></select>
-      <label style="display:flex;gap:5px;align-items:center;font-size:12.5px"><input type="checkbox" id="pSeg" checked> Seguir al operario</label>
+      <label style="display:flex;gap:5px;align-items:center;font-size:12.5px"><input type="checkbox" id="pSeg" checked> Seguir al operario</label><label style="display:flex;gap:5px;align-items:center;font-size:12.5px"><input type="checkbox" id="pDiagAuto" checked> Mostrar diagnósticos</label>
       <span class="tenue" style="font-size:12px;margin-left:auto">${num(tr.c.length)} puntos</span></div>
       <div class="fila" style="font-size:13px"><span class="punto" style="background:#4dd0e1"></span>Palmas visitadas: <b id="pVis" style="font-family:var(--t);font-size:18px">0</b><span class="tenue" id="pVisTot" style="margin-left:4px"></span></div></div>`:'<div class="tenue" style="margin:6px 0">Recorrido sin tiempos: no se puede reproducir.</div>'}
     <h3 style="margin-top:6px">Secuencias por lote</h3>
@@ -762,6 +767,7 @@ function abrirDetalle(j){
   $('#detalle').hidden=false;$('#dX').onclick=cerrarDetalle;
   $('#dGeo').onclick=()=>descargar(`jornada_${j.id}.geojson`,JSON.stringify(geoDeJornadas([j])),'application/geo+json');
   PLAY.vis=[];PLAY.visN=0;PLAY.capaVis=L.layerGroup().addTo(capaSel);
+  PLAY.diags=j.diags.map(d=>({d,t:Date.parse(d.creado)})).filter(x=>!isNaN(x.t)).sort((a,b)=>a.t-b.t);PLAY.dN=0;PLAY.espera=0;
   palmasVisitadasJ(j).then(v=>{if(SEL!==j)return;PLAY.vis=v;PLAY.visN=0;const e=$('#pVisTot');if(e)e.textContent=`de ${num(v.length)}`;if(conT)ponerT(PLAY.t);}).catch(()=>{});
   if(conT){PLAY.t=tr.t[0];ponerT(tr.t[0]);
     $('#pBt').onclick=()=>PLAY.on?pararPlay():iniciarPlay();
@@ -792,6 +798,8 @@ function ponerT(t){const tr=SEL&&SEL.track;if(!tr)return;PLAY.t=t;
     while(k>0&&PLAY.vis[k-1].t>t){k--;const q=PLAY.vis[k];if(q.m){PLAY.capaVis.removeLayer(q.m);q.m=null;}}
     if(k>PLAY.visN)diagAlFrente(); // los diagnósticos siempre por encima de las palmas visitadas
     PLAY.visN=k;const e=$('#pVis');if(e)e.textContent=num(k);}
+  if(PLAY.diags){let k=PLAY.dN;const nuevos=[];while(k<PLAY.diags.length&&PLAY.diags[k].t<=t){nuevos.push(PLAY.diags[k]);k++;}while(k>0&&PLAY.diags[k-1].t>t)k--;PLAY.dN=k;
+    const au=$('#pDiagAuto');if(PLAY.on&&nuevos.length&&(!au||au.checked))mostrarDiagPlay(nuevos[nuevos.length-1]);}
   const r=$('#pRel');if(r)r.textContent=hhmm(t);const rg=$('#pRg');if(rg&&!PLAY.arrastre)rg.value=Math.round(1000*(t-tr.t[0])/Math.max(1,tr.t[tr.t.length-1]-tr.t[0]));
 }
 /* Seguir al operario en la reproducción: lo mantiene centrado en la parte visible del mapa (a la derecha del panel de detalle). */
@@ -801,8 +809,16 @@ function seguirOperario(pos){if(mapa.getZoom()<18){mapa.setView(pos,18,{animate:
   const obj=L.point((x0+s.x)/2,s.y/2),c=mapa.latLngToContainerPoint(pos);
   if(c.distanceTo(obj)>Math.min(s.x-x0,s.y)*.15)mapa.panBy(c.subtract(obj),{animate:true,duration:.4});}
 function iniciarPlay(){const tr=SEL&&SEL.track;if(!tr)return;if(PLAY.t>=tr.t[tr.t.length-1])PLAY.t=tr.t[0];PLAY.on=true;$('#pBt').textContent='❚❚';
-  let prev=performance.now();const paso=ahora=>{if(!PLAY.on)return;const dt=ahora-prev;prev=ahora;const t=Math.min(tr.t[tr.t.length-1],PLAY.t+dt*PLAY.vel);ponerT(t);
+  let prev=performance.now();const paso=ahora=>{if(!PLAY.on)return;const dt=ahora-prev;prev=ahora;if(Date.now()<PLAY.espera){PLAY.raf=requestAnimationFrame(paso);return;}const t=Math.min(tr.t[tr.t.length-1],PLAY.t+dt*PLAY.vel);ponerT(t);
     if(t>=tr.t[tr.t.length-1]){pararPlay();return;}PLAY.raf=requestAnimationFrame(paso);};PLAY.raf=requestAnimationFrame(paso);}
+/* Al pasar por un diagnóstico: pausa 3 s, centra la palma y abre su ficha. */
+function mostrarDiagPlay(x){const d=x.d;PLAY.espera=Date.now()+3000;
+  if(mapa.getZoom()<19)mapa.setView([d.lat,d.lng],19,{animate:true});else mapa.panTo([d.lat,d.lng],{animate:true});
+  const anillo=L.circleMarker([d.lat,d.lng],{renderer:rend,radius:16,color:'#ffd54f',weight:3,fill:false,interactive:false,className:'pulso-diag'}).addTo(capaSel);
+  setTimeout(()=>{try{capaSel.removeLayer(anillo);}catch(e){}},3200);
+  popupDiag(d,[d.lat,d.lng]);}
+/* Tiempo efectivo de la jornada (labor en lotes, sin paradas). */
+function efecJ(j,sq){const m=j.tiempos&&j.tiempos.min_efectivo_labor!=null?Number(j.tiempos.min_efectivo_labor):(sq||[]).filter(x=>x.tipo==='lote').reduce((a,x)=>a+(Number(x.min_efectivo)||0),0);return m?minHM(m):'—';}
 function pararPlay(){PLAY.on=false;cancelAnimationFrame(PLAY.raf);const b=$('#pBt');if(b)b.textContent='▶';}
 
 /* ---------- Agregados ---------- */

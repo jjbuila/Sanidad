@@ -991,6 +991,18 @@ table.res th{font-family:var(--t);text-transform:uppercase;letter-spacing:.6px;c
 input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 .play-pie{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--tenue);margin-top:4px;flex-wrap:wrap}
 .play-pie b{color:var(--texto);font-family:var(--t);font-size:14px}
+.play-res{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:8px 0 2px;text-align:center;font-size:11px;color:var(--tenue);letter-spacing:.5px}
+.play-res b{display:block;color:var(--texto);font-family:var(--t);font-size:18px;letter-spacing:.5px}
+#plCard{position:fixed;left:10px;right:10px;top:calc(var(--sup) + var(--hud) + 8px);z-index:1250;border-radius:18px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;max-width:560px;margin:0 auto;animation:plEntra .25s ease-out}
+#plCard[hidden]{display:none}
+#plCard .foto{width:84px;height:84px;border-radius:12px;object-fit:cover;flex:none;background:rgba(255,255,255,.06)}
+#plCard .txt{flex:1;min-width:0;font-size:13px;line-height:1.35}
+#plCard .txt b.et{display:block;font-family:var(--t);font-size:19px;letter-spacing:.8px}
+#plCard .diag{display:flex;align-items:center;gap:6px;font-weight:700;font-size:14.5px;margin:2px 0}
+#plCard .dot{width:12px;height:12px;border-radius:50%;flex:none;box-shadow:0 0 0 2px #fff}
+@keyframes plEntra{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+.pulso-diag{animation:pulsoDiag 1s ease-out infinite}
+@keyframes pulsoDiag{0%{stroke-opacity:1;stroke-width:5}100%{stroke-opacity:.15;stroke-width:1}}
 #plVel{width:auto;padding:6px 8px;font-size:13px}
 
 /* ---------- Mensajes ---------- */
@@ -1008,7 +1020,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261114:0042</div>
+  <div id="splashVer">VERSIÓN 20261114:0056</div>
 </div>
 
 <div id="login" hidden>
@@ -1023,7 +1035,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261114:0042</div>
+  <div id="lgVer2">VERSIÓN 20261114:0056</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1090,13 +1102,15 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <div class="reloj" id="plReloj">00:00:00</div>
     <button class="icono" id="plCerrar" aria-label="Cerrar">✕</button>
   </div>
+  <div class="play-res" id="plRes"></div>
   <div class="play-ctl">
     <button id="plBtn" aria-label="Reproducir"></button>
     <input type="range" id="plRango" min="0" max="1000" value="0">
     <select id="plVel"><option value="10">×10</option><option value="30">×30</option><option value="60" selected>×60</option><option value="120">×120</option><option value="300">×300</option></select>
   </div>
-  <div class="play-pie"><span>Transcurrido <b id="plTrans">00:00:00</b></span><span>Distancia <b id="plDist">0.00 km</b></span><span>Palmas visitadas <b id="plVis">0</b></span><span>Diagnósticos <b id="plDiag">0</b></span><label><input type="checkbox" id="plSeguir" checked> Seguir</label></div>
+  <div class="play-pie"><span>Transcurrido <b id="plTrans">00:00:00</b></span><span>Distancia <b id="plDist">0.00 km</b></span><span>Palmas visitadas <b id="plVis">0</b></span><span>Ha <b id="plHa">0.00</b></span><span>Diagnósticos <b id="plDiag">0</b></span><label><input type="checkbox" id="plSeguir" checked> Seguir</label><label><input type="checkbox" id="plDiagAuto" checked> Ver diagnósticos</label></div>
 </section>
+<div id="plCard" class="glass" hidden role="status" aria-live="polite"></div>
 
 <div id="bannerInst" class="glass" hidden><span style="font-size:26px">📲</span><div class="txt"><b>Instale Sanidad Vegetal</b>Quedará como una aplicación en este celular y funcionará sin internet.</div>
   <button class="btn nar" id="biOk" style="padding:10px 12px;font-size:14px">INSTALAR</button><button class="icono" id="biNo" aria-label="Cerrar">✕</button></div>
@@ -1137,7 +1151,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261114:0042';
+const VERSION='20261114:0056';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -2834,10 +2848,15 @@ async function abrirPlay(jid){
   L.polyline(pts.map(p=>[p.lat,p.lng]),{color:'#90cdf1',weight:3,opacity:.35,dashArray:'6 7',interactive:false}).addTo(PLAY.capa);
   PLAY.brillo=L.polyline([],{color:'#22d39a',weight:12,opacity:.2,interactive:false}).addTo(PLAY.capa);
   PLAY.estela=L.polyline([],{color:'#22d39a',weight:4.5,opacity:1,interactive:false}).addTo(PLAY.capa);
-  PLAY.regs=S.registros.filter(r=>r.jornada_id===jid&&r.lat!=null).map(r=>({t:Date.parse(r.creado),m:L.circleMarker([r.lat,r.lng],{radius:7,color:'#fff',weight:2,fillColor:colorReg(r),fillOpacity:1}).bindTooltip(`${etiquetaReg(r)} · ${esc(textoDiag(r)||(estadoDe(r.estado)||{}).n||'')} · ${fmtHora(Date.parse(r.creado))}`),on:false})).sort((a,b)=>a.t-b.t);
+  PLAY.regs=S.registros.filter(r=>r.jornada_id===jid&&r.lat!=null).map(r=>({r,t:Date.parse(r.creado),m:L.circleMarker([r.lat,r.lng],{radius:7,color:'#fff',weight:2,fillColor:colorReg(r),fillOpacity:1}).bindTooltip(`${etiquetaReg(r)} · ${esc(textoDiag(r)||(estadoDe(r.estado)||{}).n||'')} · ${fmtHora(Date.parse(r.creado))}`),on:false})).sort((a,b)=>a.t-b.t);
   PLAY.paradas=(j.paradas||detectarParadas(pts,j.paradaRadio,j.paradaMin,S.registros.filter(r=>r.jornada_id===jid))).map(p=>({t:p.inicio,p,m:null}));
   PLAY.capaVis=L.layerGroup().addTo(PLAY.capa);PLAY.vis=[];PLAY.visN=0;
   try{PLAY.vis=await palmasVisitadasPlay(j,pts);}catch(e){PLAY.vis=[];}
+  PLAY.regs.sort((a,b)=>a.t-b.t);PLAY.regs.forEach(x=>x.m.on('click',()=>mostrarDiagPlay(x,false)));PLAY.espera=0;PLAY.dens=j.densidad||Number(S.cfg.densidad)||115;$('#plCard').hidden=true;
+  {const tp=j.tiempos||{};const ef=tp.min_efectivo_labor!=null&&Number(tp.min_efectivo_labor)>0?Number(tp.min_efectivo_labor)
+      :(j.secuencias||[]).filter(x=>x.tipo==='lote').reduce((a,x)=>a+(Number(x.min_efectivo)||0),0);
+    const ha=j.visita&&j.visita.ha_recorridas!=null?Number(j.visita.ha_recorridas):(PLAY.vis.length?PLAY.vis.length/PLAY.dens:null);
+    $('#plRes').innerHTML=`<span>Inicio<b>${hhmm(j.inicio)}</b></span><span>Fin<b>${j.fin?hhmm(j.fin):'en curso'}</b></span><span>Hectáreas<b>${ha!=null?ha.toFixed(2):'—'}</b></span><span>T. efectivo<b>${ef?durHM(Math.round(ef)):'—'}</b></span>`;}
   PLAY.marca=L.marker([pts[0].lat,pts[0].lng],{icon:iconoFlecha('#ee7633'),interactive:false,keyboard:false,zIndexOffset:1000}).addTo(PLAY.capa);
   $('#plTit').textContent='Recorrido · '+fmtFecha(j.inicio).slice(0,10);
   $('#plSub').textContent=`${j.evaluador} · ${fmtHora(PLAY.t0)} – ${fmtHora(PLAY.t1)} · ${(PLAY.acum[PLAY.acum.length-1]/1000).toFixed(2)} km · ${PLAY.regs.length} diagnósticos · ${(PLAY.paradas||[]).length} paradas`;
@@ -2871,15 +2890,34 @@ function pintarPlay(){
     while(k<PLAY.vis.length&&PLAY.vis[k].t<=PLAY.t){const q=PLAY.vis[k];q.m=L.circleMarker(q.ll,{renderer:rend,radius:rv,color:'#0b3d44',weight:1,fillColor:'#4dd0e1',fillOpacity:.95,interactive:false}).addTo(PLAY.capaVis);k++;}
     while(k>0&&PLAY.vis[k-1].t>PLAY.t){k--;const q=PLAY.vis[k];if(q.m){PLAY.capaVis.removeLayer(q.m);q.m=null;}}
     if(k>PLAY.visN){for(const r of PLAY.regs)if(r.on)r.m.bringToFront();} // diagnósticos por encima de las palmas visitadas
-    PLAY.visN=k;$('#plVis').textContent=num(k);}
-  let n=0;for(const r of PLAY.regs){const v=r.t<=PLAY.t;if(v)n++;if(v&&!r.on){r.m.addTo(PLAY.capa);r.on=true;}else if(!v&&r.on){PLAY.capa.removeLayer(r.m);r.on=false;}}
+    PLAY.visN=k;$('#plVis').textContent=num(k);$('#plHa').textContent=(k/(PLAY.dens||115)).toFixed(2);}
+  let n=0,nuevo=null;for(const r of PLAY.regs){const v=r.t<=PLAY.t;if(v)n++;if(v&&!r.on){r.m.addTo(PLAY.capa);r.on=true;nuevo=r;}else if(!v&&r.on){PLAY.capa.removeLayer(r.m);r.on=false;}}
   const dkm=(PLAY.acum[i]+(i+1<P.length?dist(a.lat,a.lng,lat,lng):0))/1000;
   $('#plReloj').textContent=fmtHora(PLAY.t);$('#plTrans').textContent=fmtDur(PLAY.t-PLAY.t0);$('#plDist').textContent=dkm.toFixed(2)+' km';$('#plDiag').textContent=n;
   $('#plRango').value=Math.round((PLAY.t-PLAY.t0)/Math.max(1,PLAY.t1-PLAY.t0)*1000);
   if($('#plSeguir').checked&&PLAY.run&&!mapa.getBounds().pad(-.2).contains([lat,lng]))mapa.panTo([lat,lng],{animate:true});
+  if(nuevo&&PLAY.run&&$('#plDiagAuto').checked)mostrarDiagPlay(nuevo,true);
 }
+/* Al pasar por un diagnóstico en la reproducción: pausa 3 s, centra la palma, la resalta y muestra la ficha del diagnóstico. */
+async function mostrarDiagPlay(x,auto){
+  const r=x.r;if(!r)return;if(auto)PLAY.espera=Date.now()+3000;
+  if(mapa.getZoom()<19)mapa.setView([r.lat,r.lng],19,{animate:true});else mapa.panTo([r.lat,r.lng],{animate:true});
+  if(PLAY.capa){const an=L.circleMarker([r.lat,r.lng],{radius:16,color:'#ffd54f',weight:3,fill:false,interactive:false,className:'pulso-diag'}).addTo(PLAY.capa);
+    setTimeout(()=>{try{PLAY.capa&&PLAY.capa.removeLayer(an);}catch(e){}},3200);x.m.bringToFront();}
+  const e=estadoDe(r.estado)||{n:r.estado||''};const sint=(r.sintomas||[]).join(' / ');
+  const c=$('#plCard');c.dataset.id=r.id;
+  c.innerHTML=`<img class="foto" alt="" hidden><div class="txt"><b class="et">${esc(etiquetaReg(r))}</b>
+    <div class="diag"><span class="dot" style="background:${colorReg(r)}"></span>${esc(textoDiag(r)||e.n||'Diagnóstico')}</div>
+    ${sint?`<div><b>Síntomas:</b> ${esc(sint)}</div>`:''}${r.observaciones?`<div class="tenue">${esc(r.observaciones)}</div>`:''}
+    <div class="tenue">${esc(fmtHora(x.t).slice(0,5))} · ${esc(r.evaluador||'')}${(r.fotos||[]).length?` · 📷 ${r.fotos.length}`:''}</div></div>`;
+  c.hidden=false;clearTimeout(c._t);c._t=setTimeout(()=>{if(c.dataset.id===r.id)c.hidden=true;},auto?4500:7000);
+  const fid=(r.fotos||[])[0];if(fid){try{const fo=await dbGet('fotos',fid);const im=c.querySelector('img.foto');
+    if(fo&&im&&c.dataset.id===r.id){if(c._url)URL.revokeObjectURL(c._url);c._url=URL.createObjectURL(new Blob([fo.buf],{type:fo.type||'image/jpeg'}));im.src=c._url;im.hidden=false;}}catch(e){}}
+}
+$('#plCard').onclick=()=>{$('#plCard').hidden=true;};
 function bucle(ts){
   if(!PLAY.run)return;const dt=PLAY.ult?ts-PLAY.ult:0;PLAY.ult=ts;
+  if(Date.now()<PLAY.espera){PLAY.raf=requestAnimationFrame(bucle);return;} // pausa mientras se muestra un diagnóstico
   PLAY.t=Math.min(PLAY.t1,PLAY.t+dt*Number($('#plVel').value||60));pintarPlay();
   if(PLAY.t>=PLAY.t1){PLAY.run=false;$('#plBtn').innerHTML=IC.play;return;}
   PLAY.raf=requestAnimationFrame(bucle);
@@ -2890,7 +2928,7 @@ $('#plBtn').onclick=()=>{if(!PLAY.on)return;
 $('#plRango').oninput=()=>{if(!PLAY.on)return;PLAY.t=PLAY.t0+(PLAY.t1-PLAY.t0)*Number($('#plRango').value)/1000;pintarPlay();};
 $('#plCerrar').onclick=()=>cerrarCapa('play');
 function detenerPlay(){
-  PLAY.run=false;cancelAnimationFrame(PLAY.raf);if(PLAY.capa)mapa.removeLayer(PLAY.capa);PLAY.capa=null;PLAY.on=false;dibujarPalmas();
+  PLAY.run=false;cancelAnimationFrame(PLAY.raf);if(PLAY.capa)mapa.removeLayer(PLAY.capa);PLAY.capa=null;PLAY.on=false;PLAY.espera=0;$('#plCard').hidden=true;dibujarPalmas();
   $('#play').hidden=true;$('#dock').hidden=false;$('#superior').hidden=false;$('#flot').hidden=false;$('#btLeyenda').hidden=false;
 }
 
