@@ -1020,7 +1020,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261114:0056</div>
+  <div id="splashVer">VERSIÓN 20261114:0117</div>
 </div>
 
 <div id="login" hidden>
@@ -1035,7 +1035,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261114:0056</div>
+  <div id="lgVer2">VERSIÓN 20261114:0117</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1065,6 +1065,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 
 <div id="flot">
   <button id="btVoz" class="glass" aria-label="Guía por voz" data-ic="vozOff"></button>
+  <button id="btDxVoz" class="glass" aria-label="Diagnóstico por voz" title="Diagnóstico por voz" hidden><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <button id="btSeguir" class="glass" aria-label="Pantalla fija"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="13.5" cy="3.6" r="2.3" fill="currentColor"/><path d="M12.6 7.2 9.4 9.3 8 13.2M12.6 7.2l-1.4 6 3.3 3.1 1.1 5.2M11.2 13.2l-2.6 3.2-3 4.6M12.6 7.2l2.3 3.3 3.2 1.1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><small>FIJA</small></button>
 </div>
 <button id="btLeyenda" class="glass">LEYENDA</button>
@@ -1151,7 +1152,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261114:0056';
+const VERSION='20261114:0117';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -2644,7 +2645,8 @@ if('speechSynthesis' in window){elegirVoz();speechSynthesis.onvoiceschanged=eleg
 function paraVoz(t){return String(t??'').trim().replace(/([A-Za-zÑñ])(?=\d)/g,'$1 ').replace(/(\d)(?=[A-Za-zÑñ])/g,'$1 ').replace(/\b[A-ZÑ]{2,3}\b/g,m=>m.split('').join(' '));}
 /* prio: mensajes de inicio y fin de jornada; mientras suenan, los avisos de la guía no los interrumpen. */
 const HAY_VOZ=()=>(NATIVO&&NAT.tts)||('speechSynthesis' in window);
-function hablar(txt,prio){if(!prio&&Date.now()<(VOZ.bloq||0))return;VOZ.ultimaFrase=txt;
+function hablar(txt,prio){if(!prio&&(VOZ.flujo||Date.now()<(VOZ.bloq||0)))return; // durante el diagnóstico por voz la guía no interrumpe
+  VOZ.ultimaFrase=txt;
   if(NATIVO&&NAT.tts){const rate=Number(S.cfg.velocidadVoz)||1;if(prio)VOZ.bloq=Date.now()+txt.length*90/rate+2000;else VOZ.bloq=0;
     const dec=async()=>{for(const lang of [VOZ.langNat,'es-US','es-MX','es-ES','es'].filter(Boolean)){
         try{await NAT.tts.speak({text:txt,lang,rate,pitch:1,volume:1,category:'playback'});VOZ.langNat=lang;return;}
@@ -2712,6 +2714,188 @@ function alternarVoz(){
 }
 $('#btVoz').onclick=alternarVoz;
 $('#btSeguir').onclick=()=>modoSeguir(!S.seguir);
+/* =====================================================================
+   DIAGNÓSTICO POR VOZ (manos libres; el formulario sigue funcionando con el dedo)
+   APK: Vosk (plugin nativo; el modelo de español se descarga una sola vez, ~40 MB). Navegador: reconocimiento de voz del navegador.
+   Flujo: «realizar diagnóstico» → la app pregunta cada campo del formulario en orden (según la ramificación) y marca la opción dicha →
+   observación → cámara: «tomar foto», «guardar foto» → «registrar diagnóstico» → confirma por voz lo registrado.
+   Comandos en cualquier momento: repetir, atrás / corregir, cancelar, registrar diagnóstico.
+   ===================================================================== */
+const frmAbierto=()=>!!$('#frm')&&!$('#hoja').classList.contains('oculto');
+const VOSK_URL='https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip';
+const RV={motor:null,on:false,cb:null,web:null,hablando:false,lis:null};
+const VD={on:false,estado:'off',pila:[],obs:false,paso:null,g:null};
+const CMD_INICIO=['realizar diagnóstico','diagnosticar','nuevo diagnóstico','hacer diagnóstico'];
+const CMD_GEN=['repetir','atrás','corregir','cancelar','cancelar diagnóstico','registrar diagnóstico','guardar diagnóstico','siguiente','listo','ninguno','ninguna','omitir','mantener'];
+const CMD_FOTO=['tomar foto','guardar foto','repetir foto','borrar foto','otra foto',...CMD_GEN];
+const NUMV=['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince'];
+function voskDisponible(){try{return !!(NATIVO&&window.Capacitor&&typeof Capacitor.isPluginAvailable==='function'&&Capacitor.isPluginAvailable('Vosk'));}catch(e){return false;}}
+function motorVoz(){if(voskDisponible())return 'vosk';if(!EN_APK&&(window.SpeechRecognition||window.webkitSpeechRecognition))return 'web';return null;}
+const NAT_V=()=>window.Capacitor.Plugins.Vosk;
+const normV=s=>String(s??'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\(.*?\)/g,' ').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+const gramTxt=s=>String(s??'').toLowerCase().replace(/\(.*?\)/g,' ').replace(/[^a-záéíóúüñ ]+/g,' ').replace(/\s+/g,' ').trim();
+function numDe(t){t=normV(t).replace(/^(la |el )?(opcion|numero) /,'');if(/^\d+$/.test(t))return +t;if(t==='una')return 1;const i=NUMV.indexOf(t);return i>=0?i:null;}
+function bigr(s){const a=[];for(let i=0;i<s.length-1;i++)a.push(s.slice(i,i+2));return a;}
+/* Índice de la opción que mejor coincide con lo dicho (o su número); -1 si ninguna se parece lo suficiente. */
+function elegirOpcion(texto,ops,umbral=.6,conNumero=true){
+  if(conNumero){const n=numDe(texto);if(n!=null&&n>=1&&n<=ops.length)return n-1;}
+  const tt=normV(texto);if(!tt)return -1;let mejor=-1,ms=0;
+  ops.forEach((o,i)=>{const on=normV(o.t);if(!on)return;let sc;
+    if(tt===on)sc=1;else if((' '+tt+' ').includes(' '+on+' '))sc=.9+on.length/1000;
+    else{const A=bigr(tt),B=bigr(on),m=new Map();B.forEach(x=>m.set(x,(m.get(x)||0)+1));let c=0;A.forEach(x=>{const k=m.get(x);if(k){c++;m.set(x,k-1);}});sc=A.length+B.length?2*c/(A.length+B.length):0;}
+    if(sc>ms){ms=sc;mejor=i;}});
+  return ms>=umbral?mejor:-1;}
+/* Comandos: igual, parecido (≥ 85 %) o contenido en la frase si el comando tiene dos palabras o más («por favor tomar foto»). */
+function coincide(t,lista){const tt=normV(t);if(!tt)return false;
+  return lista.some(c=>{const cn=normV(c);if(!cn)return false;if(tt===cn)return true;
+    if(cn.includes(' ')&&(' '+tt+' ').includes(' '+cn+' '))return true;
+    const A=bigr(tt),B=bigr(cn),m=new Map();B.forEach(x=>m.set(x,(m.get(x)||0)+1));let k=0;A.forEach(x=>{const v=m.get(x);if(v){k++;m.set(x,v-1);}});
+    return A.length+B.length>0&&2*k/(A.length+B.length)>=.85;});}
+const gramDe=lista=>[...new Set([...lista.map(gramTxt),...NUMV.slice(1),...CMD_GEN.map(gramTxt)].filter(Boolean))];
+
+/* ---------- Motor de reconocimiento ---------- */
+function alTexto(t){if(RV.hablando||!t)return;t=String(t).trim();if(!t)return;
+  if(VD.estado!=='espera'&&VD.estado!=='off'&&!frmAbierto()){modoEspera(false);return;} // el formulario se cerró con el dedo
+  toast('🎙 '+t,1800);const cb=RV.cb;if(cb)cb(t);}
+function iniciarWeb(){if(RV.web||!RV.on)return;const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;const r=new SR();
+  r.lang='es-CO';r.continuous=true;r.interimResults=false;r.maxAlternatives=1;
+  r.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)alTexto(e.results[i][0].transcript);};
+  r.onend=()=>{if(RV.web===r)RV.web=null;if(RV.on&&!RV.hablando)setTimeout(()=>{if(RV.on&&!RV.hablando&&!RV.web)iniciarWeb();},300);};
+  r.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){apagarDxVoz();toast('Permita el uso del micrófono para el diagnóstico por voz.',5000);}};
+  RV.web=r;try{r.start();}catch(e){}}
+async function escucharV(frases,cb){RV.cb=cb;RV.on=true;
+  if(RV.motor==='vosk')await NAT_V().iniciar({gramatica:frases||[]});else iniciarWeb();}
+async function pausarRec(on){
+  if(RV.motor==='vosk'){try{await NAT_V().pausar({on});}catch(e){}}
+  else if(on){const r=RV.web;RV.web=null;try{r&&r.abort();}catch(e){}}else iniciarWeb();}
+function hablarEsperar(txt){return new Promise(res=>{VOZ.ultimaFrase=txt;let ok=false;const fin=()=>{if(!ok){ok=true;res();}};
+  if(NATIVO&&NAT.tts){const rate=Number(S.cfg.velocidadVoz)||1;(async()=>{for(const lang of [VOZ.langNat,'es-US','es-MX','es-ES','es'].filter(Boolean)){
+      try{await NAT.tts.speak({text:txt,lang,rate,pitch:1,volume:1,category:'playback'});VOZ.langNat=lang;break;}catch(e){if(!/language|idioma|not supported/i.test(String(e&&e.message||e)))break;}}fin();})();return;}
+  if(!('speechSynthesis' in window))return fin();
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);u.lang=VOZ.voz?VOZ.voz.lang:'es-CO';if(VOZ.voz)u.voice=VOZ.voz;u.rate=Number(S.cfg.velocidadVoz)||1;
+    u.onend=u.onerror=fin;speechSynthesis.speak(u);setTimeout(fin,txt.length*110+3000);}catch(e){fin();}});}
+/* Habla sin escucharse: el micrófono se pausa mientras la app habla. */
+const paraHabla=t=>String(t).replace(/[A-ZÁÉÍÓÚÜÑ]{4,}/g,w=>w.toLowerCase()); // MAYÚSCULAS → minúsculas para que no las deletree
+async function decir(txt){txt=paraHabla(txt);RV.hablando=true;await pausarRec(true);try{await hablarEsperar(txt);}finally{await esperar(250);RV.hablando=false;if(RV.on)await pausarRec(false);}}
+
+/* ---------- Activar / desactivar ---------- */
+async function alternarDxVoz(){
+  if(VD.on){apagarDxVoz();toast('Diagnóstico por voz desactivado.');return;}
+  RV.motor=motorVoz();
+  if(!RV.motor){toast(EN_APK?'Actualice la APK para usar el diagnóstico por voz.':'Este navegador no reconoce la voz. Use Google Chrome.',5000);return;}
+  if(RV.motor==='vosk'){const V=NAT_V();
+    try{const e=await V.estado();
+      if(!e.modelo){if(!confirm('El diagnóstico por voz necesita descargar una sola vez el modelo de voz en español (unos 40 MB). ¿Descargarlo ahora?'))return;
+        toast('Descargando el modelo de voz…',120000);
+        const h=await V.addListener('progresoModelo',p=>{if(p.fase==='descarga'&&p.pct>=0)toast(`Descargando el modelo de voz… ${p.pct} %`,120000);else if(p.fase==='descomprimir')toast('Instalando el modelo de voz…',120000);});
+        try{await V.prepararModelo({url:VOSK_URL});}finally{try{h.remove();}catch(_){}}
+        toast('✅ Modelo de voz instalado.');}
+      if(!RV.lis)RV.lis=[await V.addListener('resultado',x=>alTexto(x.texto)),await V.addListener('error',x=>console.warn('Vosk',x&&x.mensaje))];}
+    catch(err){toast(String(err&&err.message||err),6000);return;}}
+  try{if(!VOZ.ctx)VOZ.ctx=new (window.AudioContext||window.webkitAudioContext)();else VOZ.ctx.resume();}catch(e){}
+  VD.on=true;$('#btDxVoz').classList.add('on');pantallaEncendida(true);
+  try{await modoEspera(true);}catch(e){apagarDxVoz();toast(String(e&&e.message||e),6000);}
+}
+function apagarDxVoz(){VD.on=false;VD.estado='off';VOZ.flujo=false;RV.on=false;RV.cb=null;$('#btDxVoz').classList.remove('on');
+  if(RV.motor==='vosk'){try{NAT_V().detener();}catch(e){}}else{const r=RV.web;RV.web=null;try{r&&r.abort();}catch(e){}}
+  if(!S.jornada&&!VOZ.activa)pantallaEncendida(false);}
+async function modoEspera(saludar){if(!VD.on)return;VD.estado='espera';VOZ.flujo=false;VD.g=null;
+  if(saludar)await decir('Diagnóstico por voz activado. Frente a la palma, diga: realizar diagnóstico.');
+  await escucharV(CMD_INICIO.map(gramTxt),t=>{if(VD.estado==='espera'&&coincide(t,CMD_INICIO))iniciarDxVoz();});}
+
+/* ---------- Flujo del diagnóstico ---------- */
+function palmaParaVoz(){if(!S.gps)return null;const R=Number(S.cfg.radioSel)||20;
+  const u=VOZ.ultimaPalma&&S.idx.get(VOZ.ultimaPalma);
+  if(u){const [x,y]=u.geometry.coordinates;if(dist(S.gps.lat,S.gps.lng,y,x)<=R)return u;}
+  const c=S.palmas?palmaMasCercana(S.gps.lat,S.gps.lng):null;return c&&c.d<=R?c.f:null;}
+function frasePalmaCorta(p){return [p._lote?'lote '+paraVoz(p._lote):'',p._linea?'línea '+paraVoz(p._linea):'',p._num?'palma '+paraVoz(p._num):'palma '+paraVoz(p._id)].filter(Boolean).join(', ');}
+async function iniciarDxVoz(){
+  if(!S.jornada){await decir('Inicie una jornada para registrar diagnósticos.');return;}
+  if(!S.gps){await decir('Esperando señal G P S.');return;}
+  const f=palmaParaVoz();if(!f){await decir(`No hay ninguna palma a ${Number(S.cfg.radioSel)||20} metros o menos. Acérquese a la palma.`);return;}
+  const id=f.properties._id,hoy=S.hechos.get(id);
+  VD.estado='form';VOZ.flujo=true;VD.pila=[];VD.obs=false;
+  await abrirFormulario(hoy||{palma_id:id});
+  if(!F||$('#frm fieldset[disabled]')){await decir('Ese diagnóstico no se puede modificar.');return modoEspera(false);}
+  await decir(`${hoy?'Corrección del diagnóstico de':'Diagnóstico de'} ${frasePalmaCorta(f.properties)}.`);
+  return siguientePaso();}
+function gruposForm(){const frm=$('#frm');if(!frm)return [];const out=[];
+  frm.querySelectorAll('label.campo').forEach(l=>{const ch=l.nextElementSibling;if(!ch||!ch.classList.contains('chips'))return;
+    const ins=[...ch.querySelectorAll('input')];if(!ins.length)return;
+    out.push({titulo:l.textContent.replace('*','').replace(/\(.*?\)/g,'').trim(),name:ins[0].name,tipo:ins[0].type,req:!!l.querySelector('i'),
+      ops:ins.map(i=>({v:i.value,t:((i.nextElementSibling||{}).textContent||i.value).trim()})),resp:ins.some(i=>i.checked)});});
+  return out;}
+const nFotosF=()=>F?(F.r.fotos||[]).filter(x=>!F.fotosQuitar.includes(x)).length+F.fotosNuevas.length:0;
+async function siguientePaso(){
+  if(!F||!frmAbierto())return modoEspera(false);
+  const g=gruposForm().find(x=>!VD.pila.includes(x.name));
+  if(g)return preguntar(g);
+  if(!VD.obs)return pedirObs();
+  return pasoFoto();}
+async function preguntar(g){VD.estado='pregunta';VD.g=g;VD.paso=()=>preguntar(gruposForm().find(x=>x.name===g.name)||g);
+  const lista=g.ops.map((o,k)=>`${k+1}, ${o.t}`).join('. ');
+  await decir(`${g.titulo}. ${g.tipo==='checkbox'?'Puede decir varios; al terminar diga listo. ':''}${g.resp&&g.tipo==='radio'?'Para dejar la respuesta actual diga mantener. ':''}Opciones: ${lista}.`);
+  await escucharV(gramDe(g.ops.map(o=>o.t)),t=>responder(g,t));}
+function marcarHecho(name){const i=VD.pila.indexOf(name);if(i>=0)VD.pila=VD.pila.slice(0,i);VD.pila.push(name);}
+async function responder(g,t){
+  if(VD.g!==g)return;
+  if(await comandoGeneral(t))return;
+  const frm=$('#frm');if(!frm)return modoEspera(false);
+  if(g.tipo==='checkbox'&&coincide(t,['listo','siguiente','ninguno','ninguna','omitir'])){marcarHecho(g.name);return siguientePaso();}
+  if(coincide(t,['mantener','siguiente','omitir'])&&(g.resp||!g.req)){marcarHecho(g.name);return siguientePaso();}
+  const k=elegirOpcion(t,g.ops);
+  if(k<0){await decir('No entendí. Repita la opción o diga su número.');return;}
+  const o=g.ops[k];const inp=[...frm.querySelectorAll(`input[name="${g.name}"]`)].find(i=>i.value===o.v);if(!inp)return siguientePaso();
+  if(g.tipo==='checkbox')inp.checked=!inp.checked;else inp.checked=true;
+  inp.dispatchEvent(new Event('change',{bubbles:true}));
+  if(g.tipo==='checkbox'){await decir(`${inp.checked?'Marcado':'Desmarcado'}: ${o.t}. Diga otro, o listo.`);return;}
+  marcarHecho(g.name);await decir('Marcado: '+o.t+'.');return siguientePaso();}
+async function comandoGeneral(t){
+  if(coincide(t,['repetir','repite'])){if(VD.paso)await VD.paso();return true;}
+  if(coincide(t,['atrás','corregir','anterior','volver'])){
+    if(VD.estado==='foto'){VD.obs=false;VD.pila=VD.pila.filter(n=>n!=='__obs');}else VD.pila.pop();
+    if(!$('#camara').hidden)cerrarCamara();
+    await siguientePaso();return true;}
+  if(coincide(t,['cancelar','cancelar diagnóstico'])){if(!$('#camara').hidden)cerrarCamara();cerrarHoja();F=null;await decir('Diagnóstico cancelado. No se guardó nada.');await modoEspera(false);return true;}
+  if(coincide(t,['registrar diagnóstico','guardar diagnóstico','registrar'])){await registrarVoz();return true;}
+  return false;}
+async function pedirObs(){VD.estado='obs';VD.g=null;VD.paso=pedirObs;
+  await decir('Observación. Dígala ahora, o diga ninguna.');
+  const tok={};VD.tokObs=tok;
+  await escucharV(null,async t=>{if(VD.tokObs!==tok||VD.estado!=='obs')return;
+    if(await comandoGeneral(t))return;
+    if(!coincide(t,['ninguna','ninguno','sin observación','no'])){const ta=$('#frm textarea[name=observaciones]');if(ta)ta.value=t;await decir('Observación: '+t+'.');}
+    VD.obs=true;marcarHecho('__obs');return pasoFoto();});}
+function quitarUltimaFoto(){if(!F||!F.fotosNuevas.length)return false;F.fotosNuevas.pop();const c=$('#fotos');if(c&&c.lastElementChild)c.lastElementChild.remove();
+  CAM.n=Math.max(0,CAM.n-1);$('#camN').textContent=CAM.n+(CAM.n===1?' foto':' fotos');return true;}
+async function abrirCamaraVoz(){if($('#camara').hidden){await abrirCamara();await esperar(900);}}
+async function pasoFoto(){VD.estado='foto';VD.g=null;VD.paso=pasoFoto;
+  const n=nFotosF();await abrirCamaraVoz();
+  await decir(n?`Tiene ${n} foto${n>1?'s':''}. Diga tomar foto para otra, o registrar diagnóstico.`:'Cámara lista. Diga tomar foto.');
+  await escucharV(CMD_FOTO.map(gramTxt),async t=>{if(VD.estado!=='foto')return;
+    if(coincide(t,['repetir foto','borrar foto'])){if(quitarUltimaFoto()){await abrirCamaraVoz();await decir('Foto borrada. Diga tomar foto.');}else await decir('No hay foto para borrar. Diga tomar foto.');return;}
+    if(coincide(t,['guardar foto','listo'])){if(!nFotosF()){await decir('Aún no hay foto. Diga tomar foto.');return;}
+      if(!$('#camara').hidden)cerrarCamara();await decir('Foto guardada. Diga registrar diagnóstico, u otra foto.');return;}
+    if(coincide(t,['tomar foto','otra foto','foto'])){await abrirCamaraVoz();const a=nFotosF();$('#camDisparo').click();
+      for(let i=0;i<20&&nFotosF()===a;i++)await esperar(100);
+      await decir(nFotosF()>a?'Foto tomada. Diga guardar foto, o repetir foto.':'No se pudo tomar la foto. Intente de nuevo.');return;}
+    if(await comandoGeneral(t))return;
+    await decir('No entendí. Diga tomar foto, guardar foto o registrar diagnóstico.');});}
+function fraseRegistro(r){const e=estadoDe(r.estado)||{n:r.estado||''};const sint=(r.sintomas||[]).join(', ');
+  return `Se registró la palma ${paraVoz(r.numero||r.palma_id)}${r.linea?', línea '+paraVoz(r.linea):''}${r.lote?', del lote '+paraVoz(r.lote):''}. `+
+    `Enfermedad: ${r.n1||e.n}${r.n2?', '+r.n2:''}. Diagnóstico: ${r.n3||e.n}.${sint?' Síntomas: '+sint+'.':''}`;}
+async function registrarVoz(){
+  if(!F||!frmAbierto())return modoEspera(false);
+  const falta=gruposForm().find(g=>g.req&&!g.resp);
+  if(falta){VD.pila=VD.pila.filter(n=>n!==falta.name);if(!$('#camara').hidden)cerrarCamara();await decir('Falta: '+falta.titulo+'.');return preguntar(falta);}
+  if(!nFotosF()){await decir('Falta la foto de la palma.');return pasoFoto();}
+  if(!$('#camara').hidden)cerrarCamara();
+  const id=F.r.id;await guardarRegistro($('#frm'));
+  if(F&&F.r&&F.r.id===id){await decir('No se pudo registrar el diagnóstico. Revise la pantalla.');return;}
+  const r=S.registros.find(x=>x.id===id);if(!r){await decir('No se pudo registrar el diagnóstico.');return modoEspera(false);}
+  const m=fraseRegistro(r);toast('✅ '+m,7000);await decir(m);return modoEspera(false);}
+$('#btDxVoz').onclick=alternarDxVoz;
+if(motorVoz()||EN_APK)$('#btDxVoz').hidden=false;
 $('#guia').onclick=e=>{
   if(e.target.closest('#guiaRepetir')){e.stopPropagation();const id=$('#guia').dataset.id;const f=id&&S.idx.get(id);hablar(f?frasePalma(f):(VOZ.ultimaFrase||'Sin palma cercana.'));return;}
   const id=$('#guia').dataset.id;if(id)abrirPalma(id);

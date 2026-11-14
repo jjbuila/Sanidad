@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(EnergiaPlugin.class); // batería y bloqueo de pantalla (registro del recorrido en segundo plano)
+        registerPlugin(VoskPlugin.class);    // reconocimiento de voz sin conexión (diagnóstico por voz)
         super.onCreate(savedInstanceState);
     }
 }

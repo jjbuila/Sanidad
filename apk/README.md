@@ -5,6 +5,7 @@ Aplicación Android (Capacitor 8) que abre la app publicada en https://jjbuila.g
 - GPS en segundo plano con servicio nativo y notificación permanente durante la jornada (`@capacitor-community/background-geolocation`).
 - Voz nativa de Android (`@capacitor-community/text-to-speech`).
 - Permiso de notificaciones (`@capacitor/local-notifications`).
+- Reconocimiento de voz sin conexión con **Vosk** (`VoskPlugin.java`, `com.alphacephei:vosk-android`) para el diagnóstico por voz. El modelo de español (`vosk-model-small-es-0.42`, ~40 MB) se descarga la primera vez que se activa.
 
 Descarga (última versión): https://github.com/jjbuila/Sanidad/releases/latest/download/SanidadVegetal.apk
 
