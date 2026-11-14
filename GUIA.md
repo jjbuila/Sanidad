@@ -229,8 +229,8 @@ SanidadData/
 ## 7.4 Reportes diarios, alertas y administración a escala
 
 **Reporte diario (corte 3:00 p. m.).** De lunes a sábado (sin festivos de Colombia), a las 3:00 p. m., el flujo `reporte-diario.yml` del repositorio de datos genera en `reportes/diario/AAAA-MM-DD/`:
-- **PDF** con mapa (lotes, recorridos por operario, casos de PC, escala y norte), resumen, operarios, lotes y alertas.
-- **Reporte interactivo** (`_interactivo.html`): mapa sobre imagen satelital con capas, recorridos y diagnósticos con ficha; se abre en cualquier navegador.
+- **PDF** con mapa (lotes, recorridos por operario, casos de PC, escala y norte), resumen, operarios, lotes, alertas y **registro fotográfico** (hasta 48 fotos de palmas enfermas, primero los casos de PC, con lote, línea, palma, hora y operario).
+- **Reporte interactivo** (`_interactivo.html`): mapa sobre imagen satelital con capas, recorridos y diagnósticos; cada ficha muestra la **foto** (se amplía al tocarla). Tiene **reproducción** como en el visor: *Todos a la vez* (cada operario con su nombre y estela, por hora del día) y *Uno a uno* (cada jornada en orden, se detiene 5 s en cada diagnóstico mostrando foto y diagnóstico; ⏮ ⏭, velocidad ×60 a ×3600 y barra de tiempo). Se abre en cualquier navegador con internet. Si las fotos superan unos 16 MB, se incluyen primero las de PC y enfermas y el resto se ve en el visor.
 - **Excel** con las tablas y `resumen.json` (lo usa el *Panel del día* de la App).
 Entran las jornadas finalizadas y sincronizadas hasta el corte. Para generarlo a otra hora o de otra fecha: repositorio de datos → Actions → *Reporte diario* → *Run workflow* (fecha opcional). El **semanal** sigue cada lunes a las 6:00 a. m. en `reportes/AAAA-Snn/`, también con reporte interactivo.
 

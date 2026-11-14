@@ -874,7 +874,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261114:1823</div>
+    <div id="lgVer">VERSIÓN 20261114:1846</div>
   </div>
 </div>
 
@@ -969,7 +969,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261114:1823';
+const VERSION='20261114:1846';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -2773,7 +2773,7 @@ function pintarReportes(){
   if(GER.reportes==null&&!GER.cargandoRep){GER.cargandoRep=true;listarReportes().finally(()=>{GER.cargandoRep=false;pintarGer();});}
   const R=GER.reportes,repo=SES.repo;const RM=GER.rm||(GER.rm={tipo:'diario',fecha:hoyISO(),envio:'todos',para:'',msg:''});
   const t=(lista,col)=>tablaGer([{t:col,f:x=>`<b>${esc(x.nombre)}</b>`},{t:'Archivos',f:x=>x.archivos.map(f=>{const [et,cl]=tipoRep(f.path);return `<button class="btn mini ${cl}" data-rep="${esc(f.sha)}|${esc(f.path)}">${et}</button>`;}).join(' ')+` <button class="btn mini" data-repzip="${esc(x.nombre)}">⬇ Todo (ZIP)</button>`}],lista);
-  return `<p class="tenue">El <b>reporte diario</b> se genera de lunes a sábado a las <b>3:00 p. m.</b> (sin festivos) con las jornadas finalizadas y sincronizadas hasta esa hora; el <b>semanal</b>, los lunes a las 6:00 a. m. Cada uno trae <b>PDF con mapa</b>, <b>reporte interactivo</b> (mapa satelital con capas y filtros) y <b>Excel</b>, y se envía por correo y WhatsApp a los destinatarios configurados en la administración.</p>
+  return `<p class="tenue">El <b>reporte diario</b> se genera de lunes a sábado a las <b>3:00 p. m.</b> (sin festivos) con las jornadas finalizadas y sincronizadas hasta esa hora; el <b>semanal</b>, los lunes a las 6:00 a. m. Cada uno trae <b>PDF con mapa y registro fotográfico</b>, <b>reporte interactivo</b> (mapa satelital con fotos y reproducción de recorridos, todos a la vez o uno a uno) y <b>Excel</b>, y se envía por correo y WhatsApp a los destinatarios configurados en la administración.</p>
     <div class="ger-sec"><h3>📤 Generar y enviar ahora (manual)</h3>
       <div class="ger-par">Reporte <select id="rmTipo">${[['diario','Diario'],['semanal','Semanal (semana de la fecha)']].map(([v,t])=>`<option value="${v}" ${RM.tipo===v?'selected':''}>${t}</option>`).join('')}</select>
         Fecha <input type="date" id="rmFecha" value="${esc(RM.fecha)}">
