@@ -349,14 +349,14 @@ function panelCirugia(){
     <h3>Ruta del día (${os.filter(o=>o.estado!=='pendiente').length}/${os.length})</h3>
     ${os.length?os.map(o=>`<button class="fila-palma btn ancho" data-pid="${esc(o.palma_id)}" style="justify-content:space-between;text-align:left"><span><b>${o.orden}.</b> ${esc(etqOrden(o))}<br><span class="tenue" style="font-size:12px">${esc(nomBonito(o.diagnostico))}</span></span><span class="venceChip ${o.estado==='pendiente'?claseVence(o.vence):'ok'}">${o.estado==='pendiente'?esc(textoVence(o.vence)):o.estado==='operada'?'Operada':'Corregida'}</span></button>`).join(''):'<p class="tenue">Sin programación para hoy.</p>'}
     <button class="btn ancho" id="cVer">${IC.play} Ver recorrido hasta ahora</button>
-    <button class="btn peligro ancho" id="cFin" style="margin-top:14px">${IC.stop} FINALIZAR JORNADA DE CIRUGÍA</button>`);
+    <button class="btn peligro ancho mantener" id="cFin" style="margin-top:14px;flex-direction:column">${IC.stop} FINALIZAR JORNADA DE CIRUGÍA<small class="subMant">Mantenga presionado 2 segundos</small></button>`);
   [...document.querySelectorAll('#hojaCuerpo .fila-palma')].forEach(b=>b.onclick=()=>{const o=ordenDe(b.dataset.pid);if(o&&o.lat!=null)mapa.setView([o.lat,o.lng],19);abrirPalmaCir(b.dataset.pid);});
-  $('#cVer').onclick=()=>abrirPlay(j.id);$('#cFin').onclick=finalizarCirugia;
+  $('#cVer').onclick=()=>abrirPlay(j.id);botonMantener($('#cFin'),finalizarCirugia);
 }
 async function finalizarCirugia(){
   const j=S.jornada;if(!esCir())return;const pend=ordenesCir().filter(o=>o.estado==='pendiente').length;
   if(!confirm(`¿Finalizar la jornada de cirugía?${pend?`\n\nQuedan ${pend} palma(s) programadas sin atender: pasarán a la programación del siguiente día hábil.`:''}\nSe detendrá el registro del recorrido.`))return;
-  j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';
+  j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';j.cierre={modo:'boton',usuario:SES?SES.u:'',fecha:j.fin};
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
   j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);
   j.visita={};j.secuencias=[];j.tiempos={};

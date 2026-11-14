@@ -76,12 +76,13 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
    - Solo se cargan las palmas elegidas. En amarillo aparecen las pendientes por censar.
 
 ### Censar
-- **CERCANA**: muestra un **círculo de 50 m** en el mapa y la **lista de palmas de la jornada dentro de ese radio**, ordenadas por distancia, con filtro por línea y opción «solo pendientes». Toque la palma que va a diagnosticar. El radio lo ajusta el administrador.
+- **CERCANA**: muestra un **círculo de 20 m** en el mapa y la **lista de palmas de la jornada dentro de ese radio**, ordenadas por distancia, con filtro por línea y opción «solo pendientes». Toque la palma que va a diagnosticar. El radio lo ajusta el administrador.
 - **Elegir la palma a diagnosticar (tres formas):**
   1. **Tocar el punto de la palma** en el mapa.
-  2. **Tocar la etiqueta** que aparece sobre cada palma al acercar el mapa (zoom 20: «L3 · P14»; zoom 21: «IT43 · L3 · P14»). Las etiquetas con borde naranja están a 50 m o menos de usted; las tenues, más lejos.
-  3. Botón **CERCANA**: lista de palmas a 50 m o menos, con filtro por línea y «solo pendientes».
-  - **Regla:** solo se puede **registrar un diagnóstico nuevo** en palmas a **50 m o menos** del operario (radio configurable por el administrador) y con GPS activo. Si la palma está más lejos, la ficha muestra la distancia y el botón «Ver palmas a 50 m o menos». Los diagnósticos ya registrados en la jornada pueden consultarse y corregirse (si no se han sincronizado) desde cualquier distancia.
+  2. **Tocar la etiqueta** que aparece sobre cada palma al acercar el mapa (zoom 20: «L3 · P14»; zoom 21: «IT43 · L3 · P14»). Las etiquetas con borde naranja están a 20 m o menos de usted; las tenues, más lejos.
+  3. Botón **CERCANA**: lista de palmas a 20 m o menos, con filtro por línea y «solo pendientes».
+  - **Regla:** solo se puede **registrar un diagnóstico nuevo** en palmas a **20 m o menos** del operario (radio configurable por el administrador) y con GPS activo. Si la palma está más lejos, la ficha muestra la distancia y el botón «Ver palmas a 20 m o menos».
+  - **Editar:** un diagnóstico ya registrado (y no sincronizado) solo se puede **corregir estando a 20 m o menos** de la palma y con GPS. Desde más lejos se abre en **solo lectura** con el aviso «Para editar este diagnóstico debe estar a 20 m o menos de la palma», y la ficha muestra «Ver diagnóstico de hoy · para editar acérquese a 20 m».
 - **Secuencias por lote y desplazamientos:** la **labor** empieza con la primera calle trabajada (o el primer diagnóstico) y termina con la última palma. Se distinguen tres desplazamientos:
   - **Desplazamiento inicial:** del inicio de la jornada al inicio de la labor. Se informa aparte; no es tiempo efectivo de un lote.
   - **Desplazamiento entre lotes:** de la última palma de un lote a la primera del siguiente. Se **suma a la secuencia del lote al que llega** (su hora de inicio es el final del lote anterior), se muestra en la columna *Despl. entre lotes* y **cuenta como tiempo efectivo**.
@@ -103,6 +104,8 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
   - En cada jornada hay un diagnóstico por palma, que puede corregirse mientras no se haya sincronizado. Los diagnósticos hechos con el formulario anterior se conservan y se muestran como tales.
 - La aplicación **no permite crear palmas ni lotes**: solo se trabaja sobre la cartografía oficial.
 - Desde el botón **JORNADA** puede ver el avance por lote, **agregar lotes**, ver el recorrido hasta el momento o **FINALIZAR JORNADA**.
+- **FINALIZAR JORNADA** (censo y cirugía) se debe **mantener presionado 2 segundos**: una barra se llena sobre el botón y el celular vibra; un toque corto no finaliza y muestra un aviso. Después se pide la confirmación.
+- **Una jornada en curso solo la continúa o la finaliza su dueño.** Si otro usuario ingresa en ese celular, la app le avisa y vuelve a pedir el ingreso con el usuario de la jornada. Solo un **administrador** puede cerrarla, escribiendo **FINALIZAR** (queda registrado como cierre por administrador).
 
 ### Palmas visitadas y hectáreas recorridas (automático)
 - **Qué cuenta (método por calle, predeterminado):** la aplicación identifica en qué **calle** está el operario, es decir, entre qué **par de líneas** camina, y cuenta como **visitadas** las palmas de **esas dos líneas** a la altura por donde pasa (media distancia entre palmas hacia adelante y hacia atrás). No hace falta que el operario las marque; el diagnóstico se registra solo para la sanidad.
@@ -158,7 +161,7 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 ## 7. Sincronización y bloqueo
 
 **Regla: una jornada, una sincronización.**
-- **Durante la jornada no se envía nada.** Los diagnósticos se pueden corregir mientras la jornada no se haya sincronizado.
+- **La jornada en curso nunca se envía.** Solo se sincronizan jornadas **finalizadas** (con hora de fin) que no sean la jornada activa; justo antes de enviar cada una se vuelve a verificar. Los diagnósticos se pueden corregir mientras la jornada no se haya sincronizado.
 - **Al finalizar la jornada**, en cuanto el celular tenga **internet (WiFi o datos móviles)**, se envía la **jornada completa** en un solo envío. Si no hay conexión, se reintenta sola al recuperarla, al abrir la app y cada 5 minutos. El administrador puede limitarlo a WiFi en *Configuración*.
 - **Escalonamiento:** para que los 120 celulares no envíen al mismo tiempo, cada uno espera un **turno aleatorio de 0 a 10 minutos**. El botón *Sincronizar ahora* envía de inmediato.
 - **Pausas de GitHub:** si GitHub pide esperar por exceso de solicitudes, la aplicación respeta la pausa y **reintenta sola**. El indicador de la cabecera muestra «Espera».

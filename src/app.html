@@ -211,6 +211,11 @@ h3{font-size:14px;margin:18px 0 8px;color:var(--acento);text-transform:uppercase
 .btn.prim{background:linear-gradient(145deg,#26d9a0,var(--acento2));border-color:transparent;color:#032a1d;box-shadow:0 6px 20px rgba(34,211,154,.3)}
 .btn.nar{background:linear-gradient(145deg,#ff9a5c,var(--naranja));border-color:transparent;color:#fff;box-shadow:0 6px 20px rgba(238,118,51,.35)}
 .btn.peligro{color:#ffb3b3;border-color:rgba(255,93,93,.45);background:rgba(255,93,93,.08)}
+.btn.mantener{position:relative;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.btn.mantener>*{position:relative;z-index:1}
+.btn.mantener::before{content:'';position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(255,93,93,.38);pointer-events:none}
+.btn.mantener.presionando::before{width:100%;transition:width var(--ms,2000ms) linear}
+.btn.mantener .subMant{display:block;font-size:11px;font-weight:600;letter-spacing:.3px;opacity:.75}
 .btn.ancho{width:100%;margin:6px 0}
 .btn.grande{padding:16px;font-size:19px;letter-spacing:2px}
 .fila{display:flex;gap:8px;flex-wrap:wrap}
@@ -549,6 +554,19 @@ const pad=n=>String(n).padStart(2,'0');
 const num=x=>Number(x||0).toLocaleString('es-CO');
 const esperar=ms=>new Promise(r=>setTimeout(r,ms));
 function toast(m,ms=2800){const t=$('#toast');t.textContent=m;t.classList.add('ver');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('ver'),ms);}
+/* Botón que se debe mantener presionado ms milisegundos para ejecutar fn (evita finalizar por un toque accidental). */
+function botonMantener(boton,fn,ms=2000){
+  if(!boton)return;let t=null,ini=0;boton.style.setProperty('--ms',ms+'ms');
+  const vib=p=>{try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}};
+  const soltar=()=>{if(!t)return;clearTimeout(t);t=null;boton.classList.remove('presionando');
+    if(Date.now()-ini<ms)toast('Mantenga presionado el botón 2 segundos para finalizar.',3000);};
+  boton.addEventListener('pointerdown',e=>{if(e.button>0||t)return;ini=Date.now();boton.classList.remove('presionando');void boton.offsetWidth;boton.classList.add('presionando');vib(30);
+    try{boton.setPointerCapture&&boton.setPointerCapture(e.pointerId);}catch(_){}
+    t=setTimeout(()=>{t=null;boton.classList.remove('presionando');vib([60,40,120]);fn();},ms);});
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>boton.addEventListener(ev,soltar));
+  boton.addEventListener('contextmenu',e=>e.preventDefault());
+  boton.onclick=null;
+}
 function fmtDur(ms){ms=Math.max(0,ms||0);const s=Math.floor(ms/1000);return pad(Math.floor(s/3600))+':'+pad(Math.floor(s%3600/60))+':'+pad(s%60);}
 function fmtHora(t){const d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
 function fmtFecha(t){if(!t)return'';const d=new Date(t);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;}
@@ -594,7 +612,7 @@ const S={
   lotes:null,palmas:null,idx:new Map(),registros:[],ultimo:new Map(),hechos:new Map(),marcadores:new Map(),
   gps:null,seguir:false,jornada:null,plan:[],planAbierto:false,planModo:'nueva',
   cfg:{evaluador:'',dispositivo:'',base:'dron',urlPropia:'teselas/{z}/{x}/{y}.png',zmaxPropia:20,
-    umbralVoz:2,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:5,bufferTerraza:8,radioSel:50,metodoVisita:'calle',paramVer:6,paradaRadio:20,paradaMin:5,soloWifi:false,esperaSync:2,jornadaActiva:null,
+    umbralVoz:2,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:5,bufferTerraza:8,radioSel:20,metodoVisita:'calle',paramVer:7,paradaRadio:20,paradaMin:5,soloWifi:false,esperaSync:2,jornadaActiva:null,
     gh:{owner:'jjbuila',repo:'Sanidad-datos',rama:'main',token:''}}
 };
 let CARTO={version:'',lotes:{}};
@@ -791,16 +809,16 @@ function dibujarEtiquetasPalmas(grupos){
   const b=mapa.getBounds();const vis=[];
   for(const arr of grupos)for(const f of arr){const [lng,lat]=f.geometry.coordinates;if(b.contains([lat,lng]))vis.push(f);}
   if(vis.length>250)return;
-  const R=Number(S.cfg.radioSel)||50,off=radioPalma()+3;
+  const R=Number(S.cfg.radioSel)||20,off=radioPalma()+3;
   for(const f of vis){const p=f.properties;const [lng,lat]=f.geometry.coordinates;
     const d=S.gps?dist(S.gps.lat,S.gps.lng,lat,lng):null;
     const cls='etq-palma'+(S.hechos.has(p._id)?' hecha':'')+(S.jornada&&d!=null?(d<=R?' cerca':' lejos'):'');
     const mk=L.marker([lat,lng],{icon:L.divIcon({className:'etq-palma-ic',iconSize:[0,0],iconAnchor:[0,off],html:`<div class="${cls}">${esc(textoEtqPalma(p))}</div>`}),keyboard:false,zIndexOffset:500});
     mk.on('click',e=>{if(e.originalEvent)L.DomEvent.stopPropagation(e.originalEvent);if(!PLAY.on)abrirPalma(p._id);});mk.addTo(capaEtqPalmas);}
 }
-/* Regla para diagnosticar: jornada activa, GPS disponible y palma a radioSel (50 m) o menos del operario. */
+/* Regla para diagnosticar: jornada activa, GPS disponible y palma a radioSel (20 m) o menos del operario. */
 function reglaDiagnostico(f){
-  const R=Number(S.cfg.radioSel)||50;
+  const R=Number(S.cfg.radioSel)||20;
   if(!S.jornada)return {ok:false,R,motivo:'Inicie una jornada para registrar diagnósticos.'};
   if(!S.gps)return {ok:false,R,motivo:'Esperando señal GPS. Para diagnosticar, la palma debe estar a '+R+' m o menos de usted.'};
   const [x,y]=f.geometry.coordinates;const d=dist(S.gps.lat,S.gps.lng,y,x);
@@ -985,7 +1003,7 @@ $('#btCercana').onclick=()=>{
   if(!S.jornada){toast('Inicie una jornada para trabajar con palmas.');return;}
   if(!S.palmas||!S.palmas.features.length){toast('La jornada no tiene palmas cargadas.');return;}
   if(!S.gps){iniciarGPS();toast('Esperando señal GPS…');return;}
-  const R=Number(S.cfg.radioSel)||50;const lista=palmasEnRadio(R);
+  const R=Number(S.cfg.radioSel)||20;const lista=palmasEnRadio(R);
   capaRadio.clearLayers();
   const circ=L.circle([S.gps.lat,S.gps.lng],{radius:R,color:'#ee7633',weight:2,dashArray:'6 6',fillColor:'#ee7633',fillOpacity:.06,interactive:false}).addTo(capaRadio);
   S.pausaSeguir=Date.now()+30000;mapa.fitBounds(circ.getBounds(),{padding:[10,10]});
@@ -1165,16 +1183,16 @@ function panelJornada(){
     <h3>Avance del censo (diagnósticos)</h3>${filas}
     <button class="btn ancho" id="jAgregar">${IC.mas} Agregar lotes</button>
     <button class="btn ancho" id="jVer">${IC.play} Ver recorrido hasta ahora</button>
-    <button class="btn peligro ancho" id="jFin" style="margin-top:14px">${IC.stop} FINALIZAR JORNADA</button>`);
+    <button class="btn peligro ancho mantener" id="jFin" style="margin-top:14px;flex-direction:column">${IC.stop} FINALIZAR JORNADA<small class="subMant">Mantenga presionado 2 segundos</small></button>`);
   $('#jAgregar').onclick=()=>abrirPlanificador('agregar');
   $('#jVer').onclick=()=>abrirPlay(j.id);
-  $('#jFin').onclick=finalizarJornada;
+  botonMantener($('#jFin'),finalizarJornada);
 }
 async function finalizarJornada(){
   const j=S.jornada;if(!j)return;
   const c=censoTotal();
   if(!confirm(`¿Finalizar la jornada?\n\nCensadas: ${c.hec} de ${c.tot} palmas.\nSe detendrá el registro del recorrido.`))return;
-  j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';
+  j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';j.cierre={modo:'boton',usuario:SES?SES.u:'',fecha:j.fin};
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
   const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion,j.bufferTerraza);const par=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);
   j.paradas=par;j.resumen_paradas=resumenParadas(par,j);j.visita=paradasEnLotes(resumenVisita(E,regs,true),par);
@@ -1622,7 +1640,9 @@ function abrirPalma(id,dm){
       <div class="coord">${lat.toFixed(7)}, ${lng.toFixed(7)}</div>
       ${p._existe===false?'<div style="color:var(--ambar)"><b>Sitio sin palma según la cartografía</b></div>':''}
     </div>
-    ${S.jornada?(hoy?`<button class="btn ancho ${hoy.sync==='sincronizado'?'':'prim'}" id="btDiag">${hoy.sync==='sincronizado'?IC.candado+' Ver diagnóstico de hoy':'✎ Editar diagnóstico de hoy'}</button>`
+    ${S.jornada?(hoy?(hoy.sync==='sincronizado'?`<button class="btn ancho" id="btDiag">${IC.candado} Ver diagnóstico de hoy</button>`
+        :(dGps!=null&&dGps<=regla.R?`<button class="btn ancho prim" id="btDiag">✎ Editar diagnóstico de hoy</button>`
+        :`<button class="btn ancho" id="btDiag">Ver diagnóstico de hoy · para editar acérquese a ${regla.R} m</button>`))
       :(regla.ok?`<button class="btn prim ancho grande" id="btDiag">${IC.mas} REGISTRAR DIAGNÓSTICO</button>`
         :`<div class="aviso">${regla.motivo}</div>${S.gps?`<button class="btn ancho" id="btVerRadio">Ver palmas a ${regla.R} m o menos</button>`:''}`))
       :'<div class="aviso">Inicie una jornada para registrar diagnósticos.</div>'}
@@ -1643,13 +1663,16 @@ async function abrirFormulario(base){
   if(!edit){const rg=reglaDiagnostico(f0);if(!rg.ok){toast(rg.motivo.replace(/<[^>]+>/g,''),5000);return;}}
   const r=edit?JSON.parse(JSON.stringify(base)):{id:uid(),palma_id:base.palma_id,jornada_id:S.jornada.id,evaluador:S.jornada.evaluador,
     estado:'',n1_codigo:'',n1:'',n2:'',n3:'',rama:null,problemas:[],sintomas:[],hongo:'',cirugia:'',produccion:'',raices:'',transitabilidad:'',observaciones:'',fotos:[],sync:'pendiente'};
-  const bloq=r.sync==='sincronizado';
+  const sinc=r.sync==='sincronizado';
   let lat,lng,lote,linea,numero;
   if(f0){[lng,lat]=f0.geometry.coordinates;const p=f0.properties;lote=p._lote;linea=p._linea;numero=p._num;}
   else{lat=r.lat;lng=r.lng;lote=r.lote;linea=r.linea;numero=r.numero;}
-  F={r,edit,lat,lng,lote,linea,numero,fotosNuevas:[],fotosQuitar:[],urls:[]};
   if(lat!=null)resaltar(lat,lng);
   const dGps=S.gps&&lat!=null?dist(S.gps.lat,S.gps.lng,lat,lng):null;
+  /* Editar un diagnóstico no sincronizado exige estar a radioSel (20 m) o menos de la palma, con GPS. */
+  const R=Number(S.cfg.radioSel)||20;const lejos=edit&&!sinc&&(dGps==null||dGps>R);
+  const bloq=sinc||lejos;
+  F={r,edit,lat,lng,lote,linea,numero,fotosNuevas:[],fotosQuitar:[],urls:[],lejos};
   const chip=(tipo,name,val,txt,on)=>`<label class="chip-op"><input type="${tipo}" name="${name}" value="${esc(val)}" ${on?'checked':''}><span>${esc(txt)}</span></label>`;
   abrirHoja(bloq?'Diagnóstico (solo lectura)':edit?'Editar diagnóstico':'Nuevo diagnóstico',`
     <form id="frm" autocomplete="off">
@@ -1658,8 +1681,9 @@ async function abrirFormulario(base){
         <div><b>Evaluador:</b> ${esc(r.evaluador)} · <b>Fecha:</b> ${esc(edit?fmtFecha(r.creado):fmtFecha(Date.now()))}</div>
         <div class="tenue">${S.gps&&dGps!=null?`GPS ±${Math.round(S.gps.acc)} m · a ${dGps.toFixed(1)} m de la palma`:'Sin lectura GPS en este momento'}</div>
       </div>
-      ${bloq?`<div class="candado">🔒 Sincronizado el ${esc(fmtFecha(r.sync_fecha))}. Este diagnóstico ya no se puede modificar ni eliminar.</div>`:''}
-      ${!bloq&&S.gps&&dGps>(Number(S.cfg.radioSel)||50)?`<div class="aviso">⚠️ Usted está a más de ${Number(S.cfg.radioSel)||50} m de esta palma. Verifique que sea la palma correcta.</div>`:''}
+      ${sinc?`<div class="candado">🔒 Sincronizado el ${esc(fmtFecha(r.sync_fecha))}. Este diagnóstico ya no se puede modificar ni eliminar.</div>`:''}
+      ${lejos?`<div class="aviso">📍 Para editar este diagnóstico debe estar a ${R} m o menos de la palma (${dGps!=null?`está a ${Math.round(dGps)} m`:'sin señal GPS'}).</div>`:''}
+      ${!bloq&&S.gps&&dGps>(Number(S.cfg.radioSel)||20)?`<div class="aviso">⚠️ Usted está a más de ${Number(S.cfg.radioSel)||20} m de esta palma. Verifique que sea la palma correcta.</div>`:''}
       <fieldset ${bloq?'disabled':''}>
       ${!r.n1&&(r.problemas||[]).length?`<div class="aviso">Diagnóstico registrado con el formulario anterior: ${esc(textoDiag(r))}${r.grado_pc?' · Grado PC '+esc(r.grado_pc):''}. Al guardar se reemplaza por el formulario actual.</div>`:''}
       <div class="banda-form" style="--bf:#1b6e52"><span>1</span><b>DIAGNÓSTICO</b></div>
@@ -1768,6 +1792,8 @@ async function marcarJornadaPendiente(jid){
 async function guardarRegistro(frm){
   if(SYNC.activo){alert('Se está sincronizando con GitHub. Intente de nuevo en unos segundos.');return;}
   const r=F.r;if(r.sync==='sincronizado'){alert('Este diagnóstico ya fue sincronizado y no se puede modificar.');return;}
+  if(F.edit){const R=Number(S.cfg.radioSel)||20;const d=S.gps&&F.lat!=null?dist(S.gps.lat,S.gps.lng,F.lat,F.lng):null;F.lejos=d==null||d>R;
+    if(F.lejos){alert(`Para editar este diagnóstico debe estar a ${R} m o menos de la palma (${d!=null?`está a ${Math.round(d)} m`:'sin señal GPS'}).`);return;}}
   const fd=new FormData(frm);const c=fd.get('n1')||'';
   if(!c){alert('Seleccione la enfermedad principal.');return;}
   const rama=c==='SN'?null:F.rama;
@@ -2164,7 +2190,9 @@ const SYNC={activo:false,ultimo:0,ultimoCommit:0,error:null,t:null,turno:0,pausa
 function tipoRed(){if(!navigator.onLine)return 'sin';const c=navigator.connection;return c&&c.type?c.type:'desconocida';}
 function redPermitida(){const t=tipoRed();if(t==='sin'||t==='none')return false;if(!S.cfg.soloWifi)return true;return t==='wifi'||t==='ethernet'||t==='desconocida';}
 function programarSync(ms){clearTimeout(SYNC.t);SYNC.t=setTimeout(()=>sincronizar(false),ms||3000);}
-async function jornadasPorSincronizar(){return (await dbAll('jornadas')).filter(j=>j.estado==='finalizada'&&j.sync!=='sincronizado').sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));}
+/* Solo se envía una jornada FINALIZADA con hora de fin, no sincronizada y que no sea la jornada en curso. */
+function jornadaLista(j){return !!j&&j.estado==='finalizada'&&!!j.fin&&j.sync!=='sincronizado'&&j.id!==S.cfg.jornadaActiva&&!(S.jornada&&j.id===S.jornada.id);}
+async function jornadasPorSincronizar(){return (await dbAll('jornadas')).filter(jornadaLista).sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));}
 /* Un solo archivo GeoJSON por jornada: diagnósticos (puntos) + recorrido (línea) + datos de la jornada. */
 /* Descarga de recorridos del usuario: GeoJSON (recorrido + paradas + diagnósticos + resumen de la jornada), KML o puntos GPS en CSV. */
 async function descargarRecorridos(ids,fmt){
@@ -2212,7 +2240,8 @@ async function sincronizar(manual){
   }
   SYNC.activo=true;estadoSync();let n=0,nd=0;
   try{
-    for(const j of lista){
+    for(const j0 of lista){
+      const j=await dbGet('jornadas',j0.id);if(!jornadaLista(j))continue; // se vuelve a leer: pudo reabrirse o enviarse mientras tanto
       const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
       if(!j.paradas){j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);}
       if(!j.visita||!j.secuencias||!j.tiempos){const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion,j.bufferTerraza);if(!j.visita||!j.tiempos)j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);
@@ -2518,7 +2547,7 @@ async function abrirConfig(){
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#cSalir',cerrarSesion);
   $('#cOk').onclick=async()=>{
-    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||5;S.cfg.bufferTerraza=Number($('#cBufT').value)||8;S.cfg.metodoVisita=$('#cMet').value;S.cfg.radioSel=Number($('#cRad').value)||50;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
+    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||5;S.cfg.bufferTerraza=Number($('#cBufT').value)||8;S.cfg.metodoVisita=$('#cMet').value;S.cfg.radioSel=Number($('#cRad').value)||20;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
     S.cfg.base='dron';S.cfg.vias=$('#cVias').checked;mostrarVias(S.cfg.vias);
     S.cfg.umbralVoz=Number($('#cUmbral').value)||2;S.cfg.precisionVoz=Number($('#cPrec').value)||15;S.cfg.velocidadVoz=Number($('#cVel').value)||1;S.cfg.precisionTrack=Number($('#cPTrack').value)||30;
     await guardarCfg();ponerBase();estadoSync();cerrarHoja();toast('Configuración guardada.');programarSync(1500);};
@@ -2638,7 +2667,8 @@ async function asegurarCartografia(){
     if((c.v.paramVer||1)<3){S.cfg.metodoVisita='calle';}
     if((c.v.paramVer||1)<4){if(!c.v.base||c.v.base==='esri')S.cfg.base='dron';}
     if((c.v.paramVer||1)<5){S.cfg.soloWifi=false;S.cfg.paramVer=pv;}
-    if((c.v.paramVer||1)<6){S.cfg.bufferTerraza=8;S.cfg.paramVer=pv;}}
+    if((c.v.paramVer||1)<6){S.cfg.bufferTerraza=8;S.cfg.paramVer=pv;}
+    if((c.v.paramVer||1)<7){S.cfg.radioSel=20;S.cfg.paramVer=pv;}}
   if(!S.cfg.dispositivo)S.cfg.dispositivo='DISP-'+uid().slice(0,8).toUpperCase();
   await guardarCfg();
   avance('Verificando acceso…');await cargarAcceso();
@@ -2661,9 +2691,14 @@ async function despuesDeIngresar(){
   if(S.cfg.jornadaActiva){const j=await dbGet('jornadas',S.cfg.jornadaActiva);
     if(j&&j.estado==='activa'){
       if(j.usuario&&SES&&j.usuario!==SES.u){
-        if(confirm(`Hay una jornada en curso de ${j.evaluador}. Para trabajar como ${SES.nombre} debe finalizarse. ¿Finalizarla ahora?`)){
-          j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';await dbPut('jornadas',j);S.cfg.jornadaActiva=null;await guardarCfg();}
-        else{ocultarSplash();await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};await mostrarLogin('Ingrese con el usuario '+j.usuario+' para continuar su jornada.');return despuesDeIngresar();}
+        /* Una jornada en curso solo la continúa o la finaliza su dueño. Excepción: un administrador puede cerrarla escribiendo FINALIZAR. */
+        ocultarSplash();let cerrar=false;
+        if(SES.rol==='admin'){const t=prompt(`Hay una jornada en curso de ${j.evaluador} (usuario ${j.usuario}). Solo su dueño puede continuarla o finalizarla.\n\nComo administrador puede cerrarla: escriba FINALIZAR para cerrarla. Cancele para ingresar con el usuario ${j.usuario}.`,'');
+          cerrar=String(t||'').trim().toUpperCase()==='FINALIZAR';}
+        else alert(`Hay una jornada en curso de ${j.evaluador} (usuario ${j.usuario}).\n\nSolo su dueño puede continuarla o finalizarla. Ingrese con el usuario ${j.usuario}.`);
+        if(cerrar){const ahora=new Date().toISOString();j.fin=ahora;j.estado='finalizada';j.sync='pendiente';j.cierre={modo:'administrador',usuario:SES.u,fecha:ahora};
+          await dbPut('jornadas',j);S.cfg.jornadaActiva=null;await guardarCfg();toast(`Jornada de ${j.evaluador} cerrada por el administrador.`,4000);mostrarSplash();}
+        else{await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};await mostrarLogin('Ingrese con el usuario '+j.usuario+' para continuar o finalizar su jornada.');return despuesDeIngresar();}
       }else if(j.labor==='cirugia'){await restaurarCirugia(j);
       }else{S.jornada=j;const pts=await puntosTrack(j.id);TRACK.ultimo=pts[pts.length-1]||null;TRACK.n=pts.length;prepararTrack(pts.map(p=>[p.lat,p.lng]));
         VIS=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,false,j.seleccion,j.bufferTerraza);VIS.sel=null;TRACK.pts=pts;
