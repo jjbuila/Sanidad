@@ -376,7 +376,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 <div id="mapa"></div>
 
 <div id="superior">
-    <button id="pjMini" class="glass" hidden aria-label="Mostrar el panel de la jornada"><span class="rec"></span><span id="pjMiniT">00:00:00</span><span class="sep"></span><small>AVANCE</small><span id="pjMiniA">0 %</span><span class="ver">VER<svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+    <button id="pjMini" class="glass" hidden aria-label="Mostrar el panel de la jornada"><span class="rec"></span><span id="pjMiniT">00:00:00</span><span class="sep"></span><small>AVANCE</small><span id="pjMiniA">0 %</span><span class="sep"></span><small>HA</small><span id="pjMiniHa">0.00</span><span class="ver">VER<svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
   <div id="pj" class="glass" hidden>
     <button id="pjOcultar" aria-label="Ocultar el panel de la jornada"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <div class="pj-fila"><span class="rec"></span><span id="pjTiempo">00:00:00</span><span class="sep"></span><span><small>KM</small><span id="pjKm">0.00</span></span><span class="sep"></span><span><small>AVANCE</small><span id="pjCenso">0 / 0</span></span></div>
@@ -1453,7 +1453,7 @@ function resumenVisita(E,regs,conIds){
 let VIS=null;
 function actualizarVisitaUI(){
   if(!S.jornada||!VIS)return;let v=0;for(const r of VIS.lotes.values())v+=r.v;
-  $('#pjVis').textContent=num(v);$('#pjHa').textContent=(v/VIS.densidad).toFixed(2);actualizarCenso();
+  $('#pjVis').textContent=num(v);$('#pjHa').textContent=$('#pjMiniHa').textContent=(v/VIS.densidad).toFixed(2);actualizarCenso();
 }
 const hhmm=t=>t?fmtHora(t).slice(0,5):'—';
 function tablaLotes(res,j){
@@ -2001,12 +2001,12 @@ async function pintarJornadas(){
     const regs=S.registros.filter(r=>r.jornada_id===j.id);const n=await dbContar('track','j',j.id);
     const dur=(j.fin?Date.parse(j.fin):Date.now())-Date.parse(j.inicio);
     const est=j.estado==='activa'?'<span class="sello pend" style="color:#bff5df;border-color:var(--acento)">● EN CURSO</span>':(j.sync==='sincronizado'?'<span class="sello ok">🔒 SINCRONIZADA</span>':'<span class="sello pend">⏳ PENDIENTE</span>');
-    const res=j.visita||(S.jornada&&S.jornada.id===j.id&&VIS?resumenVisita(VIS,regs):null);
-    cards.push(`<div class="jor-card"><div class="cab"><b>${esc(fmtFecha(j.inicio).slice(0,10))} · ${hhmm(j.inicio)} – ${j.fin?hhmm(j.fin):'en curso'}</b>${est}</div>
+    const res0=j.visita&&j.visita.ha_recorridas!=null?j.visita:(S.jornada&&S.jornada.id===j.id&&VIS?resumenVisita(VIS,regs):null);const res=res0?{...res0,ha_recorridas:Number(res0.ha_recorridas)||0,por_lote:res0.por_lote||[]}:null;const rp=j.resumen_paradas&&j.resumen_paradas.n_paradas!=null?j.resumen_paradas:null;
+    cards.push(`<div class="jor-card"><div class="cab"><b>${j.labor==='cirugia'?'Cirugía · ':''}${esc(fmtFecha(j.inicio).slice(0,10))} · ${hhmm(j.inicio)} – ${j.fin?hhmm(j.fin):'en curso'}</b>${est}</div>
       <div class="met"><span>Evaluador <b>${esc(j.evaluador)}</b></span><span>Duración <b>${fmtDur(dur).slice(0,5)}</b></span><span>Recorrido <b>${(j.km||0).toFixed(2)} km</b></span>
       ${res?`<span>Ha recorridas <b>${res.ha_recorridas.toFixed(2)}</b></span><span>Palmas visitadas <b>${num(res.palmas_visitadas)}</b></span>`:''}
       <span>Diagnósticos <b>${num(regs.length)}</b></span><span>Puntos GPS <b>${num(n)}</b></span>
-      ${j.resumen_paradas?`<span>Paradas <b>${j.resumen_paradas.n_paradas} (${durHM(j.resumen_paradas.minutos_paradas)})</b></span><span>En movimiento <b>${durHM(j.resumen_paradas.minutos_movimiento)}</b></span>`:(S.jornada&&S.jornada.id===j.id?`<span>Paradas <b>${PAR.lista.length}</b></span>`:'')}</div>
+      ${rp?`<span>Paradas <b>${rp.n_paradas} (${durHM(rp.minutos_paradas||0)})</b></span><span>En movimiento <b>${durHM(rp.minutos_movimiento||0)}</b></span>`:(S.jornada&&S.jornada.id===j.id?`<span>Paradas <b>${PAR.lista.length}</b></span>`:'')}</div>
       ${res&&res.por_lote.length?`<div class="met">${res.por_lote.map(x=>`<span><b>${esc(x.lote)}</b>: ${num(x.palmas_visitadas)} palmas · ${(Number(x.ha)||0).toFixed(2)} ha · ${num(x.diagnosticos||0)} diag.</span>`).join('')}</div>`:''}
       <div class="fila"><button class="btn prim" data-play="${esc(j.id)}">${IC.play} Reproducir recorrido</button><button class="btn" data-ver="${esc(j.id)}">Ver diagnósticos</button></div>
       <div class="fila"><button class="btn" data-dl="${esc(j.id)}">${IC.descarga} Descargar recorrido (GeoJSON)</button><button class="btn" data-kml="${esc(j.id)}">${IC.descarga} KML (Google Earth)</button></div></div>`);
@@ -2416,7 +2416,7 @@ async function importarJornadaGeo(g,zip){
   if(zip)for(const r of regs)for(const fid of r.fotos||[]){const zf=zip.file(fid+'.jpg');if(!zf)continue;
     await dbPut('fotos',{id:fid,registro_id:r.id,buf:await zf.async('arraybuffer'),type:'image/jpeg'});nf++;}
   const j={...h,id,estado:'finalizada',sync:'sincronizado',sync_fecha:h.sincronizado||null,importada:true,km:Number(h.km)||0,
-    seleccion:h.lotes_seleccionados||[],paradas,resumen_paradas:{...h},visita:{...h},secuencias:h.secuencias||[],tiempos:h.tiempos||{}};
+    seleccion:h.lotes_seleccionados||[],paradas,resumen_paradas:h.n_paradas!=null?{...h}:null,visita:h.ha_recorridas!=null?{...h}:null,secuencias:h.secuencias||[],tiempos:h.tiempos||{}};
   if(esC){j.labor='cirugia';j.ordenes=j.ordenes||[];j.ruta=j.ruta||[];}else delete j.labor;
   if(regs.length)await dbPutVarios('registros',regs);if(pts.length)await dbPutVarios('track',pts);await dbPut('jornadas',j);
   return {regs:regs.length,fotos:nf};
