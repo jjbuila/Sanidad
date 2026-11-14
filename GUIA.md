@@ -55,6 +55,9 @@ Los celulares toman los cambios la próxima vez que abran la aplicación con int
 
 > **Revocación completa:** si se pierde un celular o una contraseña queda expuesta, haga tres cosas. Primero, **revoque el token** en GitHub y cree uno nuevo. Segundo, en **Crear paquete nuevo**, genere un paquete completo con el token nuevo y contraseñas nuevas; así se crea una llave de datos nueva. Tercero, súbalo a `datos/`. Todas las sesiones anteriores quedarán invalidadas.
 
+
+**Módulo de usuarios** (`admin.html` → *Modificar paquete existente* → abrir con un usuario administrador): lista de todos los usuarios con resumen por rol y labor, búsqueda (usuario, nombre, cargo, identificación) y filtros. Por usuario: **Editar** (nombre, cargo, identificación, rol, labores censo/cirugía y rol en cirugía), **Contraseña** nueva, **Suspender / Reactivar** (no puede ingresar a la app ni al visor; sus datos se conservan) y **Eliminar**. **＋ Nuevo usuario** con todos los datos y contraseña generada. **Exportar lista (CSV)** sin contraseñas. Los cambios se aplican con **Generar archivos actualizados**: se descarga `acceso.json` (súbalo a `datos/`); las contraseñas que no se cambiaron siguen funcionando.
+
 ## 5. Publicar la aplicación y preparar cada celular
 
 1. **Publicar:** suba al repositorio `Sanidad` el contenido de `sanidad-palma-v2-app.zip`: `index.html`, `admin.html`, `sw.js`, `manifest.webmanifest`, `GUIA.md`, `icons` y `src`. Además debe estar la carpeta `datos/` del paso 4.

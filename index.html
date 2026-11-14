@@ -1020,7 +1020,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261114:0351</div>
+  <div id="splashVer">VERSIÓN 20261114:0726</div>
 </div>
 
 <div id="login" hidden>
@@ -1035,7 +1035,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261114:0351</div>
+  <div id="lgVer2">VERSIÓN 20261114:0726</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1152,7 +1152,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261114:0351';
+const VERSION='20261114:0726';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -3795,6 +3795,7 @@ async function abrirSesion(u,dkRaw,guardar){
   const e=ACCESO.usuarios.find(x=>x.u===u);if(!e)throw new Error('El usuario ya no está autorizado.');
   const dk=await crypto.subtle.importKey('raw',dkRaw,{name:'AES-GCM'},false,['decrypt']);
   const meta=JSON.parse(DEC.decode(await desObj(dk,e.meta)));
+  if(meta.inactivo)throw new Error('Su usuario está suspendido. Comuníquese con el administrador.');
   const token=DEC.decode(await desObj(dk,ACCESO.token));
   const rolTxt={admin:'Administrador',supervisor:'Supervisor',operario:'Operario'}[meta.rol||'operario']||'Operario';
   SES={u,nombre:meta.nombre,rol:meta.rol||'operario',cargo:meta.cargo||rolTxt,identificacion:meta.identificacion||'',dk,labores:meta.labores||null,rol_cirugia:meta.rol_cirugia||null};

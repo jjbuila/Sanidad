@@ -3026,6 +3026,7 @@ async function abrirSesion(u,dkRaw,guardar){
   const e=ACCESO.usuarios.find(x=>x.u===u);if(!e)throw new Error('El usuario ya no está autorizado.');
   const dk=await crypto.subtle.importKey('raw',dkRaw,{name:'AES-GCM'},false,['decrypt']);
   const meta=JSON.parse(DEC.decode(await desObj(dk,e.meta)));
+  if(meta.inactivo)throw new Error('Su usuario está suspendido. Comuníquese con el administrador.');
   const token=DEC.decode(await desObj(dk,ACCESO.token));
   const rolTxt={admin:'Administrador',supervisor:'Supervisor',operario:'Operario'}[meta.rol||'operario']||'Operario';
   SES={u,nombre:meta.nombre,rol:meta.rol||'operario',cargo:meta.cargo||rolTxt,identificacion:meta.identificacion||'',dk,labores:meta.labores||null,rol_cirugia:meta.rol_cirugia||null};
