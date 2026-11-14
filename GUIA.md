@@ -111,6 +111,7 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
   - **«Tomar foto»**, **«guardar foto»**, **«repetir foto»** manejan la cámara sin tocarla.
   - Con **«registrar diagnóstico»** la app **pregunta solo lo que falte** (y la foto si no hay) y, al guardar, dice como validación: «Se registró la palma 14, línea 3, del lote IT01. Enfermedad: …. Diagnóstico: …».
   - El formulario se puede seguir llenando con el dedo en cualquier momento.
+- **Solo se inicia jornada dentro de la plantación.** Al tocar **Iniciar** (censo o cirugía) la app verifica con el GPS que el operario esté dentro del límite de la plantación (línea amarilla discontinua en el mapa). Por fuera, muestra y dice: «No se puede iniciar la jornada porque usted está por fuera de la plantación (a X m del límite)». Sin señal GPS pide esperarla. En el borde se tolera la precisión del GPS (entre 5 y 25 m). Si aún no se ha publicado el límite, no hay restricción.
 - **Una jornada en curso solo la continúa o la finaliza su dueño.** Si otro usuario ingresa en ese celular, la app le avisa y vuelve a pedir el ingreso con el usuario de la jornada. Solo un **administrador** puede cerrarla, escribiendo **FINALIZAR** (queda registrado como cierre por administrador).
 
 ### Palmas visitadas y hectáreas recorridas (automático)
@@ -264,6 +265,9 @@ SanidadData/
 4. Cada celular cargará la nueva cartografía la próxima vez que abra la aplicación con internet.
 
 Mantenga el `ID Palma`, porque es el identificador que vincula los diagnósticos con cada palma.
+
+
+**Límite de la plantación** (restricción para iniciar jornada): en `admin.html` → *Modificar paquete* → **Límite de la plantación**, seleccione el polígono en GeoJSON WGS84 (por ejemplo `plantacion.geojson`, exportado desde QGIS) y pulse **Generar archivos actualizados**. Se descargan `acceso.json` y `plantacion.enc` (cifrado con la misma llave de la cartografía): súbalos a `datos/` del repositorio **Sanidad**. Los celulares lo toman al abrir la app con internet y lo guardan para uso sin conexión.
 
 ## 9. Limitaciones conocidas
 

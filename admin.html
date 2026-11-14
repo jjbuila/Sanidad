@@ -132,6 +132,11 @@ code{background:rgba(255,255,255,.08);padding:1px 6px;border-radius:6px}
         <input type="file" id="eCarto" multiple accept=".geojson,.json,.zip">
       </div>
       <div class="tarjeta">
+        <h2>Límite de la plantación</h2>
+        <p class="tenue">Versión actual: <b id="ePlantVer">—</b>. Polígono de toda la plantación (<code>.geojson</code> en WGS84, por ejemplo <code>plantacion.geojson</code>). La app no deja iniciar jornada por fuera de él. Se publica cifrado como <code>plantacion.enc</code>. Si no lo va a cambiar, deje vacío.</p>
+        <input type="file" id="ePlant" accept=".geojson,.json">
+      </div>
+      <div class="tarjeta">
         <button class="btn nar" id="eGuardar">GENERAR ARCHIVOS ACTUALIZADOS</button>
         <div class="err" id="eMsg"></div>
         <div id="eOk" hidden></div>
@@ -174,6 +179,17 @@ async function descifrar(llave,o){return new Uint8Array(await crypto.subtle.decr
 async function entradaUsuario(dk,dkRaw,u,nombre,rol,clave,extra){
   const salt=rnd(16);const k=await kek(clave,salt);const w=await cifrar(k,dkRaw);
   return {u,salt:b64(salt),iv:w.iv,ct:w.ct,meta:await cifrar(dk,enc.encode(JSON.stringify({...(extra||{}),nombre,rol})))}; // conserva cargo, labores y demás datos
+}
+/* Límite de la plantación: GeoJSON (Polygon/MultiPolygon, WGS84) cifrado en formato SPC1, igual que vias.enc. */
+async function cifrarPlantacion(dk,file){
+  const gj=JSON.parse(await file.text());const fs=(gj.type==='FeatureCollection'?gj.features:gj.type==='Feature'?[gj]:[{type:'Feature',properties:{},geometry:gj}])
+    .filter(f=>f&&f.geometry&&/^(Multi)?Polygon$/.test(f.geometry.type));
+  if(!fs.length)throw new Error('El archivo del límite de la plantación no contiene polígonos.');
+  const c=fs[0].geometry.coordinates.flat(3);if(!c.length||Math.abs(c[0])>180||Math.abs(c[1])>90)throw new Error('El límite de la plantación debe estar en coordenadas geográficas WGS84 (EPSG:4326).');
+  const plano=enc.encode(JSON.stringify({type:'FeatureCollection',name:'plantacion',features:fs.map(f=>({type:'Feature',properties:f.properties||{},geometry:f.geometry}))}));
+  const iv=rnd(12);const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},dk,plano));
+  const out=new Uint8Array(4+12+ct.length);out.set(enc.encode('SPC1'),0);out.set(iv,4);out.set(ct,16);
+  return {bytes:out,poligonos:fs.length};
 }
 async function cifrarCarto(dk,files){
   const fl=files.find(f=>/\.(geo)?json$/i.test(f.name)),fz=files.find(f=>/\.zip$/i.test(f.name));
@@ -282,7 +298,7 @@ $('#eAbrir').onclick=async()=>{
     if(meta.rol!=='admin')throw new Error('Este usuario no es administrador.');
     ED.acceso=a;ED.dk=dk;ED.dkRaw=dkRaw;ED.eliminar.clear();ED.claves.clear();
     ED.lista=[];for(const x of a.usuarios){const m=JSON.parse(dec.decode(await descifrar(dk,x.meta)));ED.lista.push({u:x.u,...m});}
-    $('#eOwner').value=a.repo.owner;$('#eRepo').value=a.repo.repo;$('#eRama').value=a.repo.rama;$('#eCartoVer').textContent=a.carto.version;
+    $('#eOwner').value=a.repo.owner;$('#eRepo').value=a.repo.repo;$('#eRama').value=a.repo.rama;$('#eCartoVer').textContent=a.carto.version;$('#ePlantVer').textContent=a.plantacion?a.plantacion.version:'sin cargar';
     $('#eNuevos').innerHTML='';pintarLista();$('#ePanel').hidden=false;
   }catch(e){msg.textContent='❌ '+e.message;}
   finally{$('#eAbrir').disabled=false;$('#eAbrir').textContent='ABRIR';}
@@ -314,11 +330,14 @@ $('#eGuardar').onclick=async()=>{
     const t=$('#eToken').value.trim();if(t){if(!/^(github_pat_|ghp_)/.test(t))throw new Error('El token debe empezar por github_pat_.');a.token=await cifrar(ED.dk,enc.encode(t));}
     const files=Array.from($('#eCarto').files||[]);let carto=null;
     if(files.length){carto=await cifrarCarto(ED.dk,files);a.carto={archivo:'carto.enc',version:versionAhora(),tam:carto.bytes.length,lotes:carto.lotes};}
+    const fp=$('#ePlant').files[0];let plant=null;
+    if(fp){plant=await cifrarPlantacion(ED.dk,fp);a.plantacion={archivo:'plantacion.enc',version:versionAhora(),tam:plant.bytes.length};}
     a.modificado=new Date().toISOString();
     descargar(JSON.stringify(a,null,1),'acceso.json','application/json');
     if(carto){await new Promise(r=>setTimeout(r,600));descargar(new Blob([carto.bytes]),'carto.enc');}
+    if(plant){await new Promise(r=>setTimeout(r,600));descargar(new Blob([plant.bytes]),'plantacion.enc');}
     const entregar=nuevos.concat(Array.from(ED.claves,([u,clave])=>{const m=ED.lista.find(y=>y.u===u);return {u,nombre:m.nombre,rol:m.rol,clave};}));
-    mostrarResultado($('#eOk'),carto?['acceso.json','carto.enc']:['acceso.json'],entregar);
+    mostrarResultado($('#eOk'),['acceso.json',...(carto?['carto.enc']:[]),...(plant?['plantacion.enc']:[])],entregar);
     ED.acceso=a;
   }catch(e){msg.textContent='❌ '+e.message;}
   finally{bt.disabled=false;bt.textContent='GENERAR ARCHIVOS ACTUALIZADOS';}

@@ -111,6 +111,7 @@ async function abrirInicioCirugia(){
 
 /* ---------- Jornada de cirugía ---------- */
 async function iniciarCirugia(rol,pareja,pr,fecha){
+  {const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}}
   const ordenes=pr?pr.ordenes.map(o=>({...o,estado:'pendiente'})):[];
   const lotes=[...new Set(ordenes.map(o=>o.lote).filter(Boolean))];
   const j={id:idJornada(),labor:'cirugia',rol,pareja,programacion:fecha,pareja_n:pr?pr.n:null,ruta:pr?pr.ruta:[],ordenes,
@@ -396,4 +397,4 @@ function geoCirugia(j,regs,pts,ahora,archivoFotos){
     features:feats};
 }
 /* El botón INICIAR elige la labor; el panel superior muestra la ruta de cirugía. */
-$('#btJornada').onclick=()=>{if(PLAY.on)return;if(S.jornada){if(esCir())panelCirugia();else panelJornada();}else elegirLabor();};
+$('#btJornada').onclick=()=>{if(PLAY.on)return;if(S.jornada){if(esCir())panelCirugia();else panelJornada();}else{const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}elegirLabor();}};

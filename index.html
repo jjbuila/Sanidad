@@ -1020,7 +1020,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261114:0142</div>
+  <div id="splashVer">VERSIÓN 20261114:0202</div>
 </div>
 
 <div id="login" hidden>
@@ -1035,7 +1035,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261114:0142</div>
+  <div id="lgVer2">VERSIÓN 20261114:0202</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1152,7 +1152,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261114:0142';
+const VERSION='20261114:0202';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -1901,6 +1901,7 @@ async function confirmarPlan(){
 }
 function idJornada(){const d=new Date();return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}-${uid().slice(0,6)}`;}
 async function iniciarJornada(sel,evaluador){
+  {const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}}
   const j={id:idJornada(),inicio:new Date().toISOString(),fin:null,evaluador,usuario:SES?SES.u:'',dispositivo:S.cfg.dispositivo,seleccion:sel,estado:'activa',
     km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||5,bufferTerraza:Number(S.cfg.bufferTerraza)||8,metodoVisita:S.cfg.metodoVisita||'calle',paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=evaluador;await guardarCfg();
@@ -1940,7 +1941,7 @@ function actualizarJornadaUI(){
 }
 function relojJornada(){if(!S.jornada)return;$('#pjIni').textContent=hhmm(S.jornada.inicio);$('#pjTiempo').textContent=$('#pjMiniT').textContent=fmtDur(Date.now()-Date.parse(S.jornada.inicio));$('#pjKm').textContent=(S.jornada.km||0).toFixed(2);}
 setInterval(relojJornada,1000);
-$('#btJornada').onclick=()=>{if(PLAY.on)return;if(S.jornada)panelJornada();else abrirPlanificador('nueva');};
+$('#btJornada').onclick=()=>{if(PLAY.on)return;if(S.jornada)panelJornada();else{const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}abrirPlanificador('nueva');}};
 $('#pj').onclick=()=>panelJornada();
 /* Panel de la jornada plegable: inicia oculto (solo la píldora con tiempo y avance) para no ocupar el mapa. */
 S.pjAbierto=false;
@@ -2870,7 +2871,8 @@ async function pedirObs(){VD.estado='obs';VD.g=null;VD.paso=pedirObs;
     VD.obs=true;marcarHecho('__obs');return pasoFoto();});}
 function quitarUltimaFoto(){if(!F||!F.fotosNuevas.length)return false;F.fotosNuevas.pop();const c=$('#fotos');if(c&&c.lastElementChild)c.lastElementChild.remove();
   CAM.n=Math.max(0,CAM.n-1);$('#camN').textContent=CAM.n+(CAM.n===1?' foto':' fotos');return true;}
-async function abrirCamaraVoz(){if($('#camara').hidden){await abrirCamara();await esperar(900);}}
+async function abrirCamaraVoz(){if($('#camara').hidden){await abrirCamara();await esperar(300);}
+  for(let i=0;i<40&&!($('#camVid').videoWidth>0);i++)await esperar(100);} // espera a que la cámara muestre imagen (celulares lentos)
 async function pasoFoto(){VD.estado='foto';VD.g=null;VD.paso=pasoFoto;
   const n=nFotosF();await abrirCamaraVoz();
   await decir(n?`Tiene ${n} foto${n>1?'s':''}. Diga tomar foto para otra, o registrar diagnóstico.`:'Cámara lista. Diga tomar foto.');
@@ -3802,6 +3804,53 @@ async function asegurarCartografia(){
   await procesarCartografia(await z.file('lotes.geojson').async('string'),await z.file('palmas.zip').async('arraybuffer'),{origen:'Paquete cifrado de la app',paquete:c.version});
 }
 
+/* ---------- Límite de la plantación (datos/plantacion.enc, cifrado como vias.enc) ----------
+   No se puede iniciar jornada (censo ni cirugía) si el GPS está por fuera del polígono de la plantación.
+   Tolerancia en el borde: la precisión del GPS (entre 5 y 25 m). Sin polígono cargado no hay restricción. */
+let capaPlantacion=null;
+async function cargarPlantacion(){
+  const v=ACCESO&&ACCESO.plantacion;if(!v||!SES||!SES.dk){S.plantacion=null;return false;}
+  let gj=null;
+  try{const r=await fetch('datos/'+(v.archivo||'plantacion.enc'),{cache:'no-cache'});if(!r.ok)throw new Error('HTTP '+r.status);
+    const buf=new Uint8Array(await r.arrayBuffer());if(DEC.decode(buf.slice(0,4))!=='SPC1')throw new Error('formato');
+    gj=JSON.parse(DEC.decode(await aesDes(SES.dk,buf.slice(4,16),buf.slice(16))));
+    try{await dbPut('config',{clave:'plantacion',v:{version:v.version,gj}});}catch(e){}}
+  catch(e){try{const c=await dbGet('config','plantacion');if(c&&c.v&&c.v.gj)gj=c.v.gj;}catch(_){}}
+  S.plantacion=gj&&gj.features&&gj.features.length?gj:null;dibujarPlantacion();return !!S.plantacion;
+}
+function dibujarPlantacion(){
+  if(capaPlantacion){mapa.removeLayer(capaPlantacion);capaPlantacion=null;}
+  if(!S.plantacion)return;
+  capaPlantacion=L.geoJSON(S.plantacion,{interactive:false,style:{color:'#ffc53d',weight:2.5,opacity:.9,dashArray:'10 7',fill:false}}).addTo(mapa);
+}
+/* ¿El punto está dentro de la plantación? Devuelve {dentro, dist}: dist = metros al borde más cercano. */
+function enPlantacion(lat,lng){
+  const k=111320,cx=Math.cos(lat*Math.PI/180);let dentro=false,dm=Infinity;
+  for(const f of S.plantacion.features){const g=f.geometry;const polys=g.type==='Polygon'?[g.coordinates]:g.coordinates;
+    for(const anillos of polys){let enPoly=false;
+      anillos.forEach((r,ia)=>{let c=false;
+        for(let i=0,j=r.length-1;i<r.length;j=i++){const [xi,yi]=r[i],[xj,yj]=r[j];
+          if(((yi>lat)!==(yj>lat))&&(lng<(xj-xi)*(lat-yi)/(yj-yi)+xi))c=!c;
+          const ax=(xj-lng)*k*cx,ay=(yj-lat)*k,bx=(xi-lng)*k*cx,by=(yi-lat)*k,dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy;
+          const t=L2?Math.max(0,Math.min(1,-(ax*dx+ay*dy)/L2)):0;dm=Math.min(dm,Math.hypot(ax+t*dx,ay+t*dy));}
+        if(ia===0)enPoly=c;else if(c)enPoly=false;}); // anillos interiores = huecos
+      if(enPoly)dentro=true;}}
+  return {dentro,dist:dm};
+}
+/* Motivo por el que no se puede iniciar la jornada aquí (null = sí se puede). */
+function motivoNoIniciar(){
+  if(!S.plantacion)return null;
+  if(!S.gps)return 'Esperando señal GPS para verificar que usted está dentro de la plantación. Intente de nuevo en unos segundos.';
+  const r=enPlantacion(S.gps.lat,S.gps.lng),tol=Math.min(25,Math.max(5,Number(S.gps.acc)||0));
+  if(r.dentro||r.dist<=tol)return null;
+  return `No se puede iniciar la jornada porque usted está por fuera de la plantación (a ${r.dist>=1000?(r.dist/1000).toFixed(1)+' km':Math.round(r.dist)+' m'} del límite). Ingrese a la plantación e intente de nuevo.`;
+}
+function avisarFueraPlantacion(m){
+  abrirHoja('No se puede iniciar la jornada',`<div class="aviso">📍 ${esc(m)}</div><p class="tenue">El límite de la plantación se ve en el mapa con línea amarilla discontinua.</p>`);
+  try{navigator.vibrate&&navigator.vibrate([250,120,250]);}catch(e){}
+  hablar(m,true);
+  if(capaPlantacion&&S.gps){try{mapa.fitBounds(capaPlantacion.getBounds().extend([S.gps.lat,S.gps.lng]),{padding:[30,30]});}catch(e){}}
+}
 /* ===================== NÚCLEO COMÚN DE LABORES (App, visor y programador) =====================
    1) Calendario laboral colombiano: festivos (Ley 51 de 1983 «Ley Emiliani» y fiestas móviles por Semana Santa).
       Día hábil = lunes a sábado que no sea festivo. Plazo D+1 hábil para cirugías.
@@ -4109,6 +4158,7 @@ async function abrirInicioCirugia(){
 
 /* ---------- Jornada de cirugía ---------- */
 async function iniciarCirugia(rol,pareja,pr,fecha){
+  {const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}}
   const ordenes=pr?pr.ordenes.map(o=>({...o,estado:'pendiente'})):[];
   const lotes=[...new Set(ordenes.map(o=>o.lote).filter(Boolean))];
   const j={id:idJornada(),labor:'cirugia',rol,pareja,programacion:fecha,pareja_n:pr?pr.n:null,ruta:pr?pr.ruta:[],ordenes,
@@ -4394,7 +4444,7 @@ function geoCirugia(j,regs,pts,ahora,archivoFotos){
     features:feats};
 }
 /* El botón INICIAR elige la labor; el panel superior muestra la ruta de cirugía. */
-$('#btJornada').onclick=()=>{if(PLAY.on)return;if(S.jornada){if(esCir())panelCirugia();else panelJornada();}else elegirLabor();};
+$('#btJornada').onclick=()=>{if(PLAY.on)return;if(S.jornada){if(esCir())panelCirugia();else panelJornada();}else{const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}elegirLabor();}};
 
 /* =====================================================================
    ARRANQUE
@@ -4428,6 +4478,7 @@ async function despuesDeIngresar(){
   try{await asegurarCartografia();}catch(e){alert(e.message);}
   dibujarLotes();pintarUsuario();
   VIAS.visible=S.cfg.vias!==false;
+  try{await cargarPlantacion();}catch(e){}
   try{await cargarVias(v=>dbPut('config',{clave:'vias',v}),async()=>{const r=await dbGet('config','vias');return r&&r.v;});}catch(e){}
   if(S.cfg.jornadaActiva){const j=await dbGet('jornadas',S.cfg.jornadaActiva);
     if(j&&j.estado==='activa'){
