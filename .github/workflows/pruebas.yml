@@ -42,6 +42,8 @@ jobs:
         run: python src/build.py "$RUNNER_TEMP/deps/node_modules" src/marca
 
       - name: Ejecutar las pruebas
+        env:
+          TZ: America/Bogota   # las horas de la app y el visor son de Colombia
         run: |
           python -m http.server 8765 --bind 127.0.0.1 > /dev/null 2>&1 &
           sleep 2
