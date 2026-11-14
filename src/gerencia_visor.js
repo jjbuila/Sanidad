@@ -451,16 +451,16 @@ async function listarReportes(){
 const tipoRep=p=>/\.pdf$/i.test(p)?['📄 PDF','nar','application/pdf']:/\.html$/i.test(p)?['🗺 Interactivo','prim','text/html']:/\.xlsx$/i.test(p)?['📊 Excel','','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']:['⬇ '+p,'','application/octet-stream'];
 function pintarReportes(){
   if(GER.reportes==null&&!GER.cargandoRep){GER.cargandoRep=true;listarReportes().finally(()=>{GER.cargandoRep=false;pintarGer();});}
-  const R=GER.reportes,repo=SES.repo;
+  const R=GER.reportes,repo=SES.repo;const RM=GER.rm||(GER.rm={tipo:'diario',fecha:hoyISO(),envio:'todos',para:'',msg:''});
   const t=(lista,col)=>tablaGer([{t:col,f:x=>`<b>${esc(x.nombre)}</b>`},{t:'Archivos',f:x=>x.archivos.map(f=>{const [et,cl]=tipoRep(f.path);return `<button class="btn mini ${cl}" data-rep="${esc(f.sha)}|${esc(f.path)}">${et}</button>`;}).join(' ')}],lista);
   return `<p class="tenue">El <b>reporte diario</b> se genera de lunes a sábado a las <b>3:00 p. m.</b> (sin festivos) con las jornadas finalizadas y sincronizadas hasta esa hora; el <b>semanal</b>, los lunes a las 6:00 a. m. Cada uno trae <b>PDF con mapa</b>, <b>reporte interactivo</b> (mapa satelital con capas y filtros) y <b>Excel</b>, y se envía por correo y WhatsApp a los destinatarios configurados en la administración.</p>
     <div class="ger-sec"><h3>📤 Generar y enviar ahora (manual)</h3>
-      <div class="ger-par">Reporte <select id="rmTipo"><option value="diario">Diario</option><option value="semanal">Semanal (semana de la fecha)</option></select>
-        Fecha <input type="date" id="rmFecha" value="${esc(hoyISO())}">
-        Enviar a <select id="rmEnvio"><option value="todos">Todos los destinatarios configurados</option><option value="correos">Solo a estos correos…</option><option value="ninguno">No enviar (solo generar)</option></select>
-        <input type="text" id="rmPara" placeholder="correo1@palmares.com.co, correo2@…" style="min-width:260px" hidden>
+      <div class="ger-par">Reporte <select id="rmTipo">${[['diario','Diario'],['semanal','Semanal (semana de la fecha)']].map(([v,t])=>`<option value="${v}" ${RM.tipo===v?'selected':''}>${t}</option>`).join('')}</select>
+        Fecha <input type="date" id="rmFecha" value="${esc(RM.fecha)}">
+        Enviar a <select id="rmEnvio">${[['todos','Todos los destinatarios configurados'],['correos','Solo a estos correos…'],['ninguno','No enviar (solo generar)']].map(([v,t])=>`<option value="${v}" ${RM.envio===v?'selected':''}>${t}</option>`).join('')}</select>
+        <input type="text" id="rmPara" placeholder="correo1@palmares.com.co, correo2@…" style="min-width:260px" value="${esc(RM.para)}" ${RM.envio==='correos'?'':'hidden'}>
         <button class="btn mini nar" id="rmIr">📤 Generar y enviar</button></div>
-      <p class="tenue" id="rmMsg">Tarda de 3 a 5 minutos: queda en la lista de abajo y llega por correo (y WhatsApp si es a todos los destinatarios). <a href="https://github.com/${esc(repo.owner)}/${esc(repo.repo)}/actions/workflows/reporte-manual.yml" target="_blank" rel="noopener">Ver ejecución en GitHub</a></p></div>
+      <p class="tenue" id="rmMsg">${RM.msg?RM.msg+'<br>':''}Tarda de 3 a 5 minutos: queda en la lista de abajo y llega por correo (y WhatsApp si es a todos los destinatarios). <a href="https://github.com/${esc(repo.owner)}/${esc(repo.repo)}/actions/workflows/reporte-manual.yml" target="_blank" rel="noopener">Ver ejecución en GitHub</a></p></div>
     <div class="ger-par"><button class="btn mini" id="repRecargar">↻ Actualizar lista</button></div>
     ${R==null?'<p class="tenue">Consultando reportes…</p>':`<div class="ger-sec"><h3>Reportes diarios</h3>${R.diarios.length?t(R.diarios,'Fecha'):'<p class="tenue">Aún no hay reportes diarios.</p>'}</div>
       <div class="ger-sec"><h3>Reportes semanales</h3>${R.semanales.length?t(R.semanales,'Semana'):'<p class="tenue">Aún no hay reportes semanales.</p>'}</div>`}`;
@@ -472,7 +472,8 @@ async function solicitarReporte(sol){
     `Reporte ${sol.tipo} a pedido (${SES.nombre||SES.u})`,sha);
 }
 ENLACES_GER.reportes=()=>{const r=$('#repRecargar');if(r)r.onclick=()=>{GER.reportes=null;pintarGer();};
-  const ev=$('#rmEnvio');if(ev)ev.onchange=()=>{$('#rmPara').hidden=ev.value!=='correos';};
+  const RM=GER.rm,ev=$('#rmEnvio');
+  if(ev){ev.onchange=()=>{RM.envio=ev.value;$('#rmPara').hidden=ev.value!=='correos';};$('#rmTipo').onchange=e=>RM.tipo=e.target.value;$('#rmFecha').onchange=e=>RM.fecha=e.target.value;$('#rmPara').oninput=e=>RM.para=e.target.value;}
   const ir=$('#rmIr');if(ir)ir.onclick=async()=>{const m=$('#rmMsg');const tipo=$('#rmTipo').value,fecha=$('#rmFecha').value,envio=ev.value;
     const para=$('#rmPara').value.split(/[,;\s]+/).map(x=>x.trim().toLowerCase()).filter(Boolean);
     if(envio==='correos'&&(!para.length||para.some(x=>!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)))){m.textContent='❌ Escriba uno o más correos válidos, separados por coma.';return;}
@@ -480,9 +481,9 @@ ENLACES_GER.reportes=()=>{const r=$('#repRecargar');if(r)r.onclick=()=>{GER.repo
     if(!confirm(`¿Generar el reporte ${tipo} del ${fecha} y enviarlo a ${dest}?`))return;
     ir.disabled=true;ir.textContent='Solicitando…';
     try{await solicitarReporte({tipo,fecha,envio,para:envio==='correos'?para:[]});
-      m.innerHTML=`✅ Solicitado a las ${esc(new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}))}. En 3 a 5 minutos aparece en la lista y llega a ${esc(dest)}.`;
+      RM.msg=`✅ Solicitado a las ${esc(new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}))}. En 3 a 5 minutos aparece en la lista y llega a ${esc(dest)}.`;m.innerHTML=RM.msg;
       setTimeout(()=>{if(GER.tab==='reportes'){GER.reportes=null;pintarGer();}},300000);}
-    catch(e){m.textContent='❌ '+e.message;}finally{ir.disabled=false;ir.textContent='📤 Generar y enviar';}};
+    catch(e){RM.msg='';m.textContent='❌ '+e.message;}finally{ir.disabled=false;ir.textContent='📤 Generar y enviar';}};
   $$('#gerPanel [data-rep]').forEach(b=>b.onclick=async()=>{const [sha,path]=b.dataset.rep.split('|');const tipo=tipoRep(path)[2];b.disabled=true;
     const w=tipo==='text/html'?window.open('','_blank'):null;
     try{const buf=await (await gh(`/git/blobs/${sha}`,'application/vnd.github.raw+json')).arrayBuffer();const u=URL.createObjectURL(new Blob([buf],{type:tipo}));
