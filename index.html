@@ -1021,7 +1021,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261114:1518</div>
+  <div id="splashVer">VERSIÓN 20261114:1534</div>
 </div>
 
 <div id="login" hidden>
@@ -1036,7 +1036,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261114:1518</div>
+  <div id="lgVer2">VERSIÓN 20261114:1534</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1153,7 +1153,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261114:1518';
+const VERSION='20261114:1534';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -2436,6 +2436,7 @@ function abrirPalma(id,dm){
       <div class="coord">${lat.toFixed(7)}, ${lng.toFixed(7)}</div>
       ${p._existe===false?'<div style="color:var(--ambar)"><b>Sitio sin palma según la cartografía</b></div>':''}
     </div>
+    ${AUD.ids.has(String(id))?`<div class="aviso">🔎 Palma de la auditoría ${esc(AUD.m.id)}: diagnostíquela sin consultar registros anteriores.</div>`:''}
     ${S.jornada?(hoy?(hoy.sync==='sincronizado'?`<button class="btn ancho" id="btDiag">${IC.candado} Ver diagnóstico de hoy</button>`
         :(dGps!=null&&dGps<=regla.R?`<button class="btn ancho prim" id="btDiag">✎ Editar diagnóstico de hoy</button>`
         :`<button class="btn ancho" id="btDiag">Ver diagnóstico de hoy · para editar acérquese a ${regla.R} m</button>`))
@@ -2621,6 +2622,7 @@ async function guardarRegistro(frm){
     if(S.gps){r.gps_lat=+S.gps.lat.toFixed(7);r.gps_lng=+S.gps.lng.toFixed(7);r.gps_acc=Math.round(S.gps.acc*10)/10;r.dist_gps=Math.round(dist(S.gps.lat,S.gps.lng,r.lat,r.lng)*10)/10;}
     else{r.gps_lat=null;r.gps_lng=null;r.gps_acc=null;r.dist_gps=null;}
   }
+  if(AUD.m&&AUD.ids.has(String(r.palma_id)))r.auditoria=AUD.m.id; // diagnóstico de auditoría (lo mide el visor)
   r.modificado=new Date().toISOString();r.sync='pendiente';
   try{
     for(const fo of F.fotosNuevas){await dbPut('fotos',{id:fo.id,registro_id:r.id,buf:fo.buf,type:fo.type});r.fotos.push(fo.id);}
@@ -3248,7 +3250,7 @@ function planos(r){
     sintomas:(r.sintomas||[]).join('|'),estado_hongo:r.hongo||'',cirugia:r.cirugia||'',produccion:r.produccion||'',raices_buenas:r.raices||'',transitabilidad:r.transitabilidad||'',
     problemas:(r.problemas||[]).join('|'),grado_pc:r.grado_pc||'',severidad:r.severidad||'',accion:r.accion||'',observaciones:r.observaciones,n_fotos:(r.fotos||[]).length,
     fotos:(r.fotos||[]).map(f=>f+'.jpg').join('|'),lat:r.lat,lng:r.lng,gps_lat:r.gps_lat,gps_lng:r.gps_lng,gps_precision_m:r.gps_acc,
-    dist_gps_palma_m:r.dist_gps,dispositivo:S.cfg.dispositivo,sincronizado:r.sync_fecha||null};
+    dist_gps_palma_m:r.dist_gps,dispositivo:S.cfg.dispositivo,sincronizado:r.sync_fecha||null,...(r.auditoria?{auditoria:r.auditoria}:{})};
   PROBLEMAS.forEach(p=>o['p_'+p.id]=(r.problemas||[]).includes(p.id)?1:0);
   return o;
 }
@@ -3675,6 +3677,49 @@ async function panelApk(){
 async function avisoApk(){if(!EN_APK)return;await ultimaApk();if(!apkNueva())return;
   const k='sv_apk_aviso_'+APK.ultima;try{if(localStorage.getItem(k)===fechaLocal())return;localStorage.setItem(k,fechaLocal());}catch(e){}
   toast(`📲 Hay una APK nueva (${APK.ultima}). Menú → App Android para descargarla.`,7000);}
+/* ---------- Auditoría por muestreo (supervisores y administradores) ----------
+   El visor guarda la muestra en el repositorio de datos (auditoria/AUD-*.json). Aquí se lista sin el diagnóstico original
+   (auditoría a ciegas) y los diagnósticos que el supervisor registre en esas palmas quedan marcados con «auditoria». */
+const AUD={m:null,ids:new Set(),capa:null};
+const puedeAuditar=()=>!!SES&&(SES.rol==='admin'||SES.rol==='supervisor');
+async function cargarAuditoria(){
+  if(!puedeAuditar())return;let m=null;
+  if(S.cfg.gh&&S.cfg.gh.token&&navigator.onLine)try{
+    const l=await (await ghFetch(`/contents/auditoria?ref=${encodeURIComponent(S.cfg.gh.rama)}`)).json();
+    const f=(Array.isArray(l)?l:[]).filter(x=>x.type==='file'&&/^AUD-.*\.json$/.test(x.name)).sort((a,b)=>b.name.localeCompare(a.name))[0];
+    if(f){m=JSON.parse(await (await ghRaw('auditoria/'+f.name)).text());try{await dbPut('config',{clave:'auditoria',v:m});}catch(e){}}}catch(e){m=null;}
+  if(!m)try{const c=await dbGet('config','auditoria');if(c&&c.v)m=c.v;}catch(e){}
+  AUD.m=m;AUD.ids=new Set(m?m.palmas.map(x=>String(x.palma_id)):[]);
+}
+const auditadaPorMi=pid=>S.registros.some(r=>String(r.palma_id)===String(pid)&&AUD.m&&r.auditoria===AUD.m.id);
+function capaAuditoria(on){
+  if(AUD.capa){mapa.removeLayer(AUD.capa);AUD.capa=null;}if(!on||!AUD.m)return;
+  AUD.capa=L.layerGroup().addTo(mapa);
+  for(const x of AUD.m.palmas){if(x.lat==null)continue;const hecha=auditadaPorMi(x.palma_id);
+    L.circleMarker([x.lat,x.lng],{radius:11,color:hecha?'#22d39a':'#c77dff',weight:3,fill:false}).bindTooltip(`🔎 ${esc(x.lote)} · L${esc(x.linea??'?')} · P${esc(x.palma??'?')}${hecha?' ✓':''}`)
+      .on('click',()=>irPalmaAuditoria(x)).addTo(AUD.capa);}
+}
+function irPalmaAuditoria(x){cerrarHoja();if(x.lat!=null)mapa.setView([x.lat,x.lng],Math.max(mapa.getZoom(),19));
+  if(S.idx.has(String(x.palma_id))||S.idx.has(x.palma_id))setTimeout(()=>abrirPalma(S.idx.has(x.palma_id)?x.palma_id:String(x.palma_id)),300);
+  else toast(S.jornada?`Esta palma es del lote ${x.lote}: agregue ese lote a la jornada para registrarla.`:`Inicie una jornada que incluya el lote ${x.lote} para registrar esta palma.`,5000);}
+async function panelAuditoria(){
+  if(!AUD.m){abrirHoja('Auditoría','<p class="tenue">Buscando la muestra de auditoría…</p>');await cargarAuditoria();}
+  if(!AUD.m){abrirHoja('Auditoría','<div class="aviso">No hay muestras de auditoría. La genera la gerencia en el visor web (📊 Gerencia → Auditoría).</div>');return;}
+  const M=AUD.m,g=S.gps,lotes=new Map();
+  for(const x of M.palmas){if(!lotes.has(x.lote))lotes.set(x.lote,[]);lotes.get(x.lote).push(x);}
+  const hechas=M.palmas.filter(x=>auditadaPorMi(x.palma_id)).length;
+  const fila=x=>{const d=g&&x.lat!=null?dist(g.lat,g.lng,x.lat,x.lng):null;const h=auditadaPorMi(x.palma_id);
+    return `<button class="btn ancho" data-aud="${esc(x.palma_id)}" style="justify-content:space-between;margin-top:4px"><span>${h?'✅':'🔎'} L${esc(x.linea??'?')} · P${esc(x.palma??'?')}</span><span class="tenue">${d==null?'':d<1000?Math.round(d)+' m':(d/1000).toFixed(1)+' km'}</span></button>`;};
+  abrirHoja('Auditoría',`
+    <div class="stats"><div class="stat"><b>${num(M.palmas.length)}</b><span>Palmas</span></div><div class="stat"><b>${num(hechas)}</b><span>Registradas por usted</span></div><div class="stat"><b>${num(lotes.size)}</b><span>Lotes</span></div></div>
+    <div class="aviso">🔎 Muestra <b>${esc(M.id)}</b>. Diagnostique cada palma <b>como si fuera la primera vez</b>: la app no muestra el diagnóstico del censador. Lo que registre aquí queda marcado como auditoría.</div>
+    <button class="btn prim ancho" id="audMapa">${AUD.capa?'Ocultar':'Ver'} las palmas en el mapa</button>
+    ${[...lotes.entries()].sort((a,b)=>String(a[0]).localeCompare(String(b[0]),'es',{numeric:true})).map(([l,xs])=>`<h3>Lote ${esc(l)} <span class="tenue">(${xs.filter(x=>auditadaPorMi(x.palma_id)).length}/${xs.length})</span></h3>${xs.map(fila).join('')}`).join('')}
+    <button class="btn ancho" id="audRecargar" style="margin-top:12px">↻ Buscar una muestra más reciente</button>`);
+  $('#audMapa').onclick=()=>{capaAuditoria(!AUD.capa);cerrarHoja();if(AUD.capa){try{mapa.fitBounds(L.latLngBounds(M.palmas.filter(x=>x.lat!=null).map(x=>[x.lat,x.lng])),{padding:[40,40],maxZoom:18});}catch(e){}}};
+  $('#audRecargar').onclick=async()=>{AUD.m=null;await cargarAuditoria();panelAuditoria();};
+  $$('#hojaCuerpo [data-aud]').forEach(b=>b.onclick=()=>{const x=M.palmas.find(y=>String(y.palma_id)===b.dataset.aud);if(x)irPalmaAuditoria(x);});
+}
 function menu(){
   const mos=(id,ic,t,s)=>`<button class="mosaico" id="${id}">${IC[ic]}<b>${t}</b><small>${s}</small></button>`;
   abrirHoja('Menú',`
@@ -3687,6 +3732,7 @@ function menu(){
       ${mos('mSync','sync','Sincronizar','Enviar a GitHub')}
       ${mos('mExp','descarga','Exportar','Respaldo local')}
       ${mos('mHist','nube','Recuperar mi historial','Bajar mis jornadas sincronizadas')}
+      ${puedeAuditar()?mos('mAud','bd','Auditoría',AUD.m?`${AUD.m.palmas.length} palmas · ${esc(AUD.m.id)}`:'Muestra para verificar'):''}
       ${mos('mZona','mapa','Mapa sin conexión','Guardar la zona visible')}
       ${mos('mBg','ubic','Pantalla bloqueada','Batería y segundo plano')}
       ${SES&&(SES.rol==='admin'||SES.rol==='supervisor')?mos('mVisor','mapa','Visor web','Todos los recorridos sincronizados'):''}
@@ -3699,7 +3745,7 @@ function menu(){
     <p class="tenue" style="text-align:center;margin-top:16px">Sanidad Vegetal · versión ${VERSION} · Cartografía ${esc(CARTO.version||'—')}${EN_APK?' · APK '+esc(textoApkInst()):''}<br>Palmas de Tumaco S.A.S.</p>`);
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#mJor',()=>{if(S.jornada)panelJornada();else{cerrarHoja();$('#btJornada').click();}}); // pasa por las mismas verificaciones del botón Iniciar
-  on('#mApk',panelApk);
+  on('#mApk',panelApk);on('#mAud',panelAuditoria);
   if(!APK.ultima)ultimaApk().then(()=>{const e=$('#mApkTxt');if(e){e.textContent=`Instalada: ${textoApkInst()} · Última: ${APK.ultima||'—'}`;
     if(apkNueva()){const b=$('#mApk');if(b&&b.querySelector('b'))b.querySelector('b').textContent='¡Nueva APK!';}}});
   on('#mBD',()=>{cerrarHoja();abrirBD('diag');});on('#mRec',()=>{cerrarHoja();abrirBD('jor');});on('#mRes',()=>{cerrarHoja();abrirBD('res');});
@@ -4535,6 +4581,7 @@ async function despuesDeIngresar(){
   dibujarLotes();pintarUsuario();
   VIAS.visible=S.cfg.vias!==false;
   try{await cargarPlantacion();}catch(e){}
+  try{await cargarAuditoria();}catch(e){}
   try{await cargarVias(v=>dbPut('config',{clave:'vias',v}),async()=>{const r=await dbGet('config','vias');return r&&r.v;});}catch(e){}
   if(S.cfg.jornadaActiva){const j=await dbGet('jornadas',S.cfg.jornadaActiva);
     if(j&&j.estado==='activa'){
