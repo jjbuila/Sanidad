@@ -2007,7 +2007,7 @@ async function pintarJornadas(){
       ${res?`<span>Ha recorridas <b>${res.ha_recorridas.toFixed(2)}</b></span><span>Palmas visitadas <b>${num(res.palmas_visitadas)}</b></span>`:''}
       <span>Diagnósticos <b>${num(regs.length)}</b></span><span>Puntos GPS <b>${num(n)}</b></span>
       ${j.resumen_paradas?`<span>Paradas <b>${j.resumen_paradas.n_paradas} (${durHM(j.resumen_paradas.minutos_paradas)})</b></span><span>En movimiento <b>${durHM(j.resumen_paradas.minutos_movimiento)}</b></span>`:(S.jornada&&S.jornada.id===j.id?`<span>Paradas <b>${PAR.lista.length}</b></span>`:'')}</div>
-      ${res&&res.por_lote.length?`<div class="met">${res.por_lote.map(x=>`<span><b>${esc(x.lote)}</b>: ${num(x.palmas_visitadas)} palmas · ${x.ha.toFixed(2)} ha · ${num(x.diagnosticos)} diag.</span>`).join('')}</div>`:''}
+      ${res&&res.por_lote.length?`<div class="met">${res.por_lote.map(x=>`<span><b>${esc(x.lote)}</b>: ${num(x.palmas_visitadas)} palmas · ${(Number(x.ha)||0).toFixed(2)} ha · ${num(x.diagnosticos||0)} diag.</span>`).join('')}</div>`:''}
       <div class="fila"><button class="btn prim" data-play="${esc(j.id)}">${IC.play} Reproducir recorrido</button><button class="btn" data-ver="${esc(j.id)}">Ver diagnósticos</button></div>
       <div class="fila"><button class="btn" data-dl="${esc(j.id)}">${IC.descarga} Descargar recorrido (GeoJSON)</button><button class="btn" data-kml="${esc(j.id)}">${IC.descarga} KML (Google Earth)</button></div></div>`);
   }
@@ -2252,7 +2252,7 @@ async function sincronizar(manual){
       if(ids.length){const z=new JSZip();for(const fid of ids){const f=await dbGet('fotos',fid);if(f)z.file(fid+'.jpg',f.buf);}
         nombreZip=j.id+'_fotos.zip';archivos.push({path:`${raiz}/${fechaLocal(j.inicio)}/${nombreZip}`,b64:aB64(await z.generateAsync({type:'uint8array',compression:'STORE'}))});}
       archivos.unshift({path:base+'.geojson',texto:JSON.stringify(esC?geoCirugia(j,regs,pts,ahora,nombreZip):geoJornada(j,regs,pts,ahora,nombreZip))});
-      const sha=await ghCommit(archivos,esC?`Sanidad Vegetal · Cirugía · ${j.evaluador} · ${fechaLocal(j.inicio)} · ${regs.filter(r=>r.tipo==='cirugia').length} cirugía(s)`:`Sanidad Vegetal · ${j.evaluador} · jornada ${fechaLocal(j.inicio)} · ${regs.length} diagnóstico(s)`);
+      const sha=await ghCommit(archivos,esC?`Sanidad Vegetal · Cirugía · ${j.evaluador} · ${fechaLocal(j.inicio)} · ${regs.filter(r=>r.tipo==='cirugia').length} cirugía(s) · u:${j.usuario||''}`:`Sanidad Vegetal · ${j.evaluador} · jornada ${fechaLocal(j.inicio)} · ${regs.length} diagnóstico(s) · u:${j.usuario||''}`);
       regs.forEach(r=>{r.sync='sincronizado';r.sync_fecha=ahora;r.sync_commit=sha;});if(regs.length)await dbPutVarios('registros',regs);
       pts.forEach(p=>p.s=1);if(pts.length)await dbPutVarios('track',pts);
       j.sync='sincronizado';j.sync_fecha=ahora;j.sync_commit=sha;await dbPut('jornadas',j);
@@ -2330,6 +2330,96 @@ async function zipCompleto(){
   z.file('jornadas_por_lote.csv','\ufeff'+aCSV(['jornada_id','fecha','evaluador','hora_inicio','hora_fin','km_jornada','lote','palmas_visitadas','palmas_existentes','sitios_vacios','ha_recorridas','diagnosticos','paradas','minutos_paradas'],filasJL));
   for(const r of rs)for(const fid of (r.fotos||[])){const f=await dbGet('fotos',fid);if(f)z.file('fotos/'+fid+'.jpg',f.buf);}
   return await z.generateAsync({type:'blob',compression:'DEFLATE'});
+}
+/* =====================================================================
+   RECUPERAR MI HISTORIAL: descarga al celular las jornadas del usuario ya sincronizadas en SanidadData
+   (cambio de celular o reinstalación). Se buscan los commits del usuario (mensaje con «u:usuario» o su nombre),
+   se lee cada .geojson (y, si se pide, su _fotos.zip) y se guarda en solo lectura. No toca jornadas que ya estén aquí.
+   ===================================================================== */
+function panelHistorial(){
+  if(!SES||!S.cfg.gh.token){toast('Inicie sesión con internet para recuperar su historial.');return;}
+  const hoy=fechaLocal(),d0=fechaLocal(Date.now()-30*864e5);
+  abrirHoja('Recuperar mi historial',`
+    <p class="tenue">Descarga a este celular las jornadas de <b>${esc(SES.nombre||SES.u)}</b> que ya están sincronizadas en GitHub, por ejemplo si cambió de celular o reinstaló la app. Quedan en <b>solo lectura</b>; las jornadas que ya están en este celular no se modifican.</p>
+    <div class="fila"><div style="flex:1"><label class="campo">Desde</label><input type="date" id="hDesde" value="${d0}" max="${hoy}"></div>
+      <div style="flex:1"><label class="campo">Hasta</label><input type="date" id="hHasta" value="${hoy}" max="${hoy}"></div></div>
+    <label class="chip-op" style="display:inline-block;margin-top:8px"><input type="checkbox" id="hFotos" checked><span>Incluir fotos (usa más datos; mejor con WiFi)</span></label>
+    <div class="barra" style="margin:12px 0 4px"><i id="hBar"></i></div><p class="tenue" id="hMsg"></p>
+    <button class="btn prim ancho grande" id="hIr">${IC.descarga} DESCARGAR MI HISTORIAL</button>`);
+  $('#hIr').onclick=async()=>{
+    const d1=$('#hDesde').value,d2=$('#hHasta').value;
+    if(!d1||!d2||d1>d2){toast('Revise el rango de fechas.');return;}
+    if((Date.parse(d2)-Date.parse(d1))/864e5>366){toast('El rango máximo es de un año.');return;}
+    if(!navigator.onLine){toast('Necesita internet para descargar el historial.');return;}
+    const b=$('#hIr');b.disabled=true;
+    const prog=(f,m)=>{const i=$('#hBar'),p=$('#hMsg');if(i)i.style.width=Math.round(f*100)+'%';if(p)p.textContent=m;};
+    try{const r=await descargarHistorial(d1,d2,$('#hFotos').checked,prog);
+      prog(1,r.nuevas?`✅ ${r.nuevas} jornada(s) recuperada(s): ${num(r.diags)} registro(s), ${num(r.fotos)} foto(s).${r.ya?` ${r.ya} ya estaban en este celular.`:''}`
+        :r.ya?`Sus ${r.ya} jornada(s) de esas fechas ya estaban en este celular.`:'No se encontraron jornadas suyas sincronizadas en esas fechas.');
+      if(r.nuevas)toast(`✅ Historial recuperado: ${r.nuevas} jornada(s).`,4000);}
+    catch(e){prog(0,'⚠ '+e.message);toast(e.message,6000);}
+    finally{if($('#hIr'))$('#hIr').disabled=false;}
+  };
+}
+function esCommitMio(m,u,nombres){m=String(m||'');if(!m.startsWith('Sanidad Vegetal'))return false;
+  if(m.includes('u:'+u+' ')||m.endsWith('u:'+u))return true;return nombres.some(n=>n&&m.includes(`· ${n} ·`));}
+async function descargarHistorial(d1,d2,conFotos,prog){
+  const u=SES.u,nombres=[...new Set([SES.nombre,S.cfg.evaluador].filter(Boolean))];
+  const rama=encodeURIComponent(S.cfg.gh.rama),since=new Date(d1+'T00:00:00-05:00').toISOString();
+  prog(.02,'Buscando sus jornadas en GitHub…');
+  const mios=[];
+  for(let page=1;page<=60;page++){
+    const l=await (await ghFetch(`/commits?sha=${rama}&since=${encodeURIComponent(since)}&per_page=100&page=${page}`)).json();
+    if(!Array.isArray(l)||!l.length)break;
+    mios.push(...l.filter(c=>esCommitMio(c.commit&&c.commit.message,u,nombres)));
+    prog(Math.min(.2,.02+page*.02),`Buscando sus jornadas en GitHub… (${num(page*100)} envíos revisados)`);
+    if(l.length<100)break;}
+  // Archivos .geojson de esos commits dentro del rango de fechas (la fecha es la carpeta del archivo)
+  const objetivos=new Map();
+  for(let i=0;i<mios.length;i++){
+    const c=await (await ghFetch(`/commits/${mios[i].sha}`)).json();const fs=(c.files||[]).filter(f=>f.status!=='removed');
+    for(const f of fs){const m=/(?:^|\/)jornadas\/(\d{4}-\d{2}-\d{2})\/([^/]+)\.geojson$/.exec(f.filename);if(!m||m[1]<d1||m[1]>d2)continue;
+      objetivos.set(m[2],{id:m[2],sha:f.sha,dir:f.filename.replace(/[^/]+$/,''),archivos:fs});}
+    prog(.2+.15*(i+1)/mios.length,`Revisando sus envíos: ${i+1} de ${mios.length}`);}
+  let nuevas=0,ya=0,diags=0,fotos=0,k=0;const lista=[...objetivos.values()];
+  for(const o of lista){k++;
+    if(await dbGet('jornadas',o.id)){ya++;continue;}
+    prog(.35+.63*(k-1)/lista.length,`Descargando jornada ${k} de ${lista.length}…`);
+    const g=JSON.parse(await (await ghFetch(`/git/blobs/${o.sha}`,{accept:'application/vnd.github.raw+json'})).text());
+    const h=g.jornada||{};if(h.usuario?h.usuario!==u:!nombres.includes(h.evaluador))continue; // solo jornadas del usuario
+    let zip=null;
+    if(conFotos&&h.archivo_fotos){const zf=o.archivos.find(f=>f.filename===o.dir+h.archivo_fotos);
+      if(zf){try{zip=await JSZip.loadAsync(await (await ghFetch(`/git/blobs/${zf.sha}`,{accept:'application/vnd.github.raw+json'})).arrayBuffer());}catch(e){console.warn('fotos',o.id,e);}}}
+    const r=await importarJornadaGeo(g,zip);nuevas++;diags+=r.regs;fotos+=r.fotos;}
+  if(nuevas){S.registros=await dbAll('registros');recalcUltimo();estadoSync();refrescarBD();}
+  return {nuevas,ya,diags,fotos};
+}
+async function importarJornadaGeo(g,zip){
+  const h=g.jornada||{},esC=h.labor==='cirugia',id=h.id;
+  const sp=s=>Array.isArray(s)?s:(s?String(s).split('|').filter(Boolean):[]);const sinJpg=f=>String(f).replace(/\.jpg$/i,'');
+  const regs=[],pts=[],paradas=[];
+  for(const ft of g.features||[]){const p=ft.properties||{},c=ft.geometry&&ft.geometry.coordinates;if(!c)continue;
+    if(p.tipo==='recorrido'){const cs=ft.geometry.type==='LineString'?c:[c];const t0=Date.parse(h.inicio)||0;
+      cs.forEach((q,i)=>pts.push({j:id,t:Date.parse((p.tiempos||[])[i])||t0+i*1000,lat:q[1],lng:q[0],acc:(p.precision_m||[])[i]??null,s:1}));}
+    else if(p.tipo==='parada')paradas.push({n:p.n,inicio:Date.parse(p.inicio),fin:Date.parse(p.fin),duracion_min:p.duracion_min,lote:p.lote,tipo:p.clase,diagnosticos:p.diagnosticos,sin_senal_min:p.sin_senal_min,puntos:p.puntos,lat:c[1],lng:c[0]});
+    else if(p.tipo==='diagnostico'||(!p.tipo&&p.palma_id)){
+      const r={id:p.id,jornada_id:p.jornada_id||id,palma_id:p.palma_id,lote:p.lote,linea:p.linea,numero:p.palma,fecha:p.fecha,creado:p.creado,modificado:p.modificado,
+        evaluador:p.evaluador,estado:p.estado,rama:p.rama??null,n1_codigo:p.n1_codigo||'',n1:p.nivel1||'',n2:p.nivel2||'',n3:p.nivel3||'',sintomas:sp(p.sintomas),
+        hongo:p.estado_hongo||'',cirugia:p.cirugia||'',produccion:p.produccion||'',raices:p.raices_buenas||'',transitabilidad:p.transitabilidad||'',problemas:sp(p.problemas),
+        grado_pc:p.grado_pc||'',severidad:p.severidad||'',accion:p.accion||'',observaciones:p.observaciones||'',fotos:sp(p.fotos).map(sinJpg),lat:c[1],lng:c[0],
+        gps_lat:p.gps_lat,gps_lng:p.gps_lng,gps_acc:p.gps_precision_m,dist_gps:p.dist_gps_palma_m};
+      if(esC)Object.assign(r,{tipo:'diagnostico',origen:p.origen,autor_rol:p.autor_rol,usuario:p.usuario,corrige_id:p.corrige_id,corrige_texto:p.corrige_texto,corrige_evaluador:p.corrige_evaluador,corrige_fecha:p.corrige_fecha});
+      regs.push(r);}
+    else if(p.id){const r={...p,numero:p.palma,fotos:sp(p.fotos).map(sinJpg),lat:c[1],lng:c[0]};delete r.palma;regs.push(r);}}
+  regs.forEach(r=>{r.sync='sincronizado';r.sync_fecha=h.sincronizado||null;r.importado=true;});
+  let nf=0;
+  if(zip)for(const r of regs)for(const fid of r.fotos||[]){const zf=zip.file(fid+'.jpg');if(!zf)continue;
+    await dbPut('fotos',{id:fid,registro_id:r.id,buf:await zf.async('arraybuffer'),type:'image/jpeg'});nf++;}
+  const j={...h,id,estado:'finalizada',sync:'sincronizado',sync_fecha:h.sincronizado||null,importada:true,km:Number(h.km)||0,
+    seleccion:h.lotes_seleccionados||[],paradas,resumen_paradas:{...h},visita:{...h},secuencias:h.secuencias||[],tiempos:h.tiempos||{}};
+  if(esC){j.labor='cirugia';j.ordenes=j.ordenes||[];j.ruta=j.ruta||[];}else delete j.labor;
+  if(regs.length)await dbPutVarios('registros',regs);if(pts.length)await dbPutVarios('track',pts);await dbPut('jornadas',j);
+  return {regs:regs.length,fotos:nf};
 }
 function menuExportar(){
   const n=fechaLocal();
@@ -2489,6 +2579,7 @@ function menu(){
       ${mos('mRes','grafico','Resumen','Incidencia por lote')}
       ${mos('mSync','sync','Sincronizar','Enviar a GitHub')}
       ${mos('mExp','descarga','Exportar','Respaldo local')}
+      ${mos('mHist','nube','Recuperar mi historial','Bajar mis jornadas sincronizadas')}
       ${mos('mZona','mapa','Mapa sin conexión','Guardar la zona visible')}
       ${mos('mBg','ubic','Pantalla bloqueada','Batería y segundo plano')}
       ${SES&&(SES.rol==='admin'||SES.rol==='supervisor')?mos('mVisor','mapa','Visor web','Todos los recorridos sincronizados'):''}
@@ -2502,7 +2593,7 @@ function menu(){
   on('#mJor',()=>S.jornada?panelJornada():abrirPlanificador('nueva'));
   on('#mBD',()=>{cerrarHoja();abrirBD('diag');});on('#mRec',()=>{cerrarHoja();abrirBD('jor');});on('#mRes',()=>{cerrarHoja();abrirBD('res');});
   on('#mAct',()=>{cerrarHoja();buscarActualizacion(true);});
-  on('#mSync',panelSync);on('#mSalir',cerrarSesion);on('#mExp',menuExportar);on('#mZona',()=>{cerrarHoja();setTimeout(guardarZona,300);});on('#mCfg',abrirConfig);on('#mBg',()=>{cerrarHoja();setTimeout(()=>revisarSegundoPlano(true),300);});
+  on('#mSync',panelSync);on('#mSalir',cerrarSesion);on('#mExp',menuExportar);on('#mHist',panelHistorial);on('#mZona',()=>{cerrarHoja();setTimeout(guardarZona,300);});on('#mCfg',abrirConfig);on('#mBg',()=>{cerrarHoja();setTimeout(()=>revisarSegundoPlano(true),300);});
   on('#mVisor',()=>{cerrarHoja();window.open('visor.html','_blank');});
   on('#mInst',()=>{cerrarHoja();instalarApp();});
 }

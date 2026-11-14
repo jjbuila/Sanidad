@@ -187,6 +187,8 @@ SanidadData/
 
 **Uso en QGIS:** al abrir el `.geojson`, QGIS ofrece dos subcapas, una de puntos (diagnósticos) y otra de líneas (recorrido). Para consolidar varias jornadas, use *Vectorial → Herramientas de gestión de datos → Combinar capas vectoriales*.
 
+**Recuperar mi historial** (menú → *Recuperar mi historial*): si el operario cambia de celular o reinstala la app, descarga a ese celular **sus propias jornadas ya sincronizadas** en `SanidadData` (diagnósticos, recorrido, paradas y, si lo marca, las fotos) para el rango de fechas que elija (máximo un año). Las jornadas descargadas quedan en **solo lectura** y no se vuelven a enviar; las que ya estaban en el celular no se modifican. La app reconoce las jornadas del usuario por el mensaje del envío (desde esta versión incluye `u:usuario`; las anteriores, por el nombre del evaluador) y confirma el usuario dentro de cada archivo.
+
 ## 7.1 Visor web (administración)
 
 - **Filtros de selección múltiple:** Programa, Operario, Lote, Estado y **Enfermedad principal, Opción de la enfermedad (si aplica) y Tipo de seguimiento**. Cada filtro abre una lista con buscador, botón *Todos* (quita el filtro), *Marcar los visibles* (marca lo que muestra la búsqueda), casillas para elegir varias opciones y *solo este* para una sola. Sin nada marcado = Todos. Los lotes se limitan al programa elegido; Opción de la enfermedad muestra las de la enfermedad principal elegida y Tipo de seguimiento las de la opción elegida. Los filtros de enfermedad y estado aplican a los diagnósticos; los demás, a jornadas, recorridos, secuencias y diagnósticos.
