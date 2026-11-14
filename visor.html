@@ -874,7 +874,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261114:1712</div>
+    <div id="lgVer">VERSIÓN 20261114:1725</div>
   </div>
 </div>
 
@@ -969,7 +969,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261114:1712';
+const VERSION='20261114:1725';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1705,11 +1705,12 @@ function precargarFotos(j){if(j&&j.zipSha&&j.diags.some(d=>Number(d.n_fotos)>0))
 function popupDiag(d,ll){
   const n=Number(d.n_fotos)||0;
   const html=foto=>(n?`<div class="ppFoto">${foto}</div>`:'')+htmlDiag(d)+`<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-    ${n?`<button class="btn mini nar ppFotos">📷 Ver ${n} foto(s)</button>`:''}<button class="btn mini ppJor">Ver jornada</button></div>`;
+    ${n?`<button class="btn mini nar ppFotos">📷 Ver ${n} foto(s)</button>`:''}<button class="btn mini ppJor">Ver jornada</button><button class="btn mini ppHist">🕘 Historia de la palma</button></div>`;
   const pp=L.popup({maxWidth:340,minWidth:260}).setLatLng(ll||[d.lat,d.lng]).setContent(html('<span class="tenue">Cargando foto…</span>')).openOn(mapa);
   const enlazar=()=>{const e=pp.getElement();if(!e)return;
     e.querySelectorAll('.ppFotos,.ppFoto img').forEach(b=>b.onclick=()=>verFotos(d));
-    const j=e.querySelector('.ppJor');if(j)j.onclick=()=>{mapa.closePopup(pp);abrirDetalle(d._j);};};
+    const j=e.querySelector('.ppJor');if(j)j.onclick=()=>{mapa.closePopup(pp);abrirDetalle(d._j);};
+    const h=e.querySelector('.ppHist');if(h)h.onclick=()=>{mapa.closePopup(pp);verHistoriaPalma(d);};};
   setTimeout(enlazar,0);
   if(n)fotoPrincipal(d).then(u=>{if(!mapa.hasLayer(pp))return;pp.setContent(html(u?`<img src="${u}" alt="Foto del diagnóstico">`:'<span class="tenue">Foto no disponible</span>'));setTimeout(enlazar,0);});
 }
@@ -2329,7 +2330,7 @@ function pintarCir(msg){
    ===================================================================== */
 const GER={on:false,tab:'tablero',sync:null,cargandoSync:false,calor:null,umbralSync:2,umbralCiclo:30,
   cal:{dist:20,prec:15,seg:20,racha:8,tipo:'',op:'',solo:true},revisados:new Set(),aud:{pct:5,min:5,muestra:null,lista:null,sel:null,res:null},reportes:null};
-const TABS_GER=[['tablero','TABLERO'],['cirugia','CIRUGÍA'],['sync','SINCRONIZACIÓN'],['calidad','CALIDAD'],['auditoria','AUDITORÍA'],['reportes','REPORTES']];
+const TABS_GER=[['tablero','TABLERO'],['plan','PLANIFICACIÓN'],['cirugia','CIRUGÍA'],['sync','SINCRONIZACIÓN'],['calidad','CALIDAD'],['auditoria','AUDITORÍA'],['reportes','REPORTES']];
 (function montarGerencia(){
   const css=document.createElement('style');css.textContent=`
   #gerPanel{position:fixed;left:0;right:0;bottom:0;z-index:1150;background:radial-gradient(120% 60% at 50% 0%,#0d3a2a 0%,#06140f 60%);overflow:auto;padding:12px 16px 40px}
@@ -2387,7 +2388,7 @@ function pintarGer(){
   const cab=`<div class="ger-cab"><h2>📊 GERENCIA</h2><div class="ger-tabs">${TABS_GER.map(([k,t])=>`<button data-gt="${k}" class="${GER.tab===k?'on':''}">${t}</button>`).join('')}</div>
     <button class="btn mini" id="gerX" title="Cerrar y volver al mapa">✕ Cerrar</button></div>`;
   let cuerpo='';
-  try{cuerpo={tablero:pintarTablero,cirugia:pintarCirGer,sync:pintarSync,calidad:pintarCalidad,auditoria:pintarAuditoria,reportes:pintarReportes}[GER.tab]();}
+  try{cuerpo={plan:pintarPlanCenso,tablero:pintarTablero,cirugia:pintarCirGer,sync:pintarSync,calidad:pintarCalidad,auditoria:pintarAuditoria,reportes:pintarReportes}[GER.tab]();}
   catch(e){console.error(e);cuerpo=`<div class="ger-aviso ger-mal">⚠ ${esc(e.message)}</div>`;}
   P.innerHTML=cab+cuerpo;
   $$('#gerPanel [data-gt]').forEach(b=>b.onclick=()=>{GER.tab=b.dataset.gt;pintarGer();});
@@ -2684,6 +2685,77 @@ ENLACES_GER.auditoria=()=>{enlazarRango();const A=GER.aud;
     try{const f=A.lista.find(x=>x.name===A.sel);const m=JSON.parse(await blobTexto(f.sha));await resultadosMuestra(m);}catch(e){toast(e.message,6000);}
     A.cargandoRes=false;pintarGer();};};
 
+/* ---------------- PLANIFICACIÓN DEL CENSO ----------------
+   Propone a cada operario los lotes más atrasados del ciclo (sin censo o con más días desde el último), agrupando lotes
+   cercanos y respetando su meta de hectáreas por día. Se guarda en censo/plan/AAAA-MM-DD.json; la App lo muestra al iniciar. */
+GER.plan={fecha:null,ops:null,res:null,guardado:false,sha:null};
+function centroLote(l){const f=LOTES&&LOTES.features.find(x=>x.properties._lote===l);if(!f||!f.geometry)return null;
+  const cs=(f.geometry.type==='Polygon'?f.geometry.coordinates[0]:f.geometry.coordinates.flatMap(p=>p[0]));if(!cs.length)return null;
+  return [cs.reduce((a,c)=>a+c[1],0)/cs.length,cs.reduce((a,c)=>a+c[0],0)/cs.length];}
+function haLote(l){const m=IND_LOTES[l];return m?Math.max(0,(Number(m.n)||0)-(Number(m.vacios)||0))/115:0;}
+function candidatosPlan(){
+  const ult=new Map();for(const j of JOR)for(const x of j.por_lote){const u=ult.get(x.lote);if(!u||j.fecha>u)ult.set(x.lote,j.fecha);}
+  const hoy=hoyISO();
+  return (LOTES?LOTES.features.map(f=>f.properties._lote):[]).filter(l=>l&&enProg(l)&&haLote(l)>0).map(l=>{const f=ult.get(l);return {lote:l,prog:PROG.get(l)||'',ultimo:f||null,dias:f?diasEntre(f,hoy):null,ha:+haLote(l).toFixed(1),c:centroLote(l)};})
+    .sort((a,b)=>(a.dias==null?-1:0)-(b.dias==null?-1:0)||(b.dias??0)-(a.dias??0)||ordenNat(a.lote,b.lote));
+}
+function proponerPlan(ops){
+  const pool=candidatosPlan().filter(x=>x.dias==null||x.dias>=7);const usados=new Set();const out=[];
+  for(const o of ops){const meta=Math.max(1,Number(o.meta)||15);const sel=[];let ha=0;
+    const semilla=pool.find(x=>!usados.has(x.lote));if(!semilla){out.push({...o,lotes:[]});continue;}
+    sel.push(semilla);usados.add(semilla.lote);ha+=semilla.ha;
+    while(ha<meta*.9){const c=semilla.c;let mejor=null,dm=Infinity;
+      for(const x of pool){if(usados.has(x.lote)||!x.c||!c)continue;const d=dist(c[0],c[1],x.c[0],x.c[1])*(x.prog===semilla.prog?1:1.6);if(d<dm){dm=d;mejor=x;}}
+      if(!mejor||ha+mejor.ha>meta*1.35&&sel.length)break;sel.push(mejor);usados.add(mejor.lote);ha+=mejor.ha;}
+    out.push({...o,lotes:sel.map(x=>({lote:x.lote,ha:x.ha,dias:x.dias}))});}
+  return out;
+}
+function pintarPlanCenso(){
+  const P=GER.plan;if(!P.fecha)P.fecha=(()=>{const h=new Date();const f=hoyISO();return h.getHours()<10&&esHabil(f)?f:habilMas(f);})();
+  if(P.ops==null&&!P.cargandoOps){P.cargandoOps=true;cirUsuarios().then(us=>{const O=resumenOperarios();
+      P.ops=us.filter(x=>!x.inactivo&&x.rol==='operario'&&(!x.labores||!x.labores.length||x.labores.includes('censo'))).map(x=>{const r=O.find(o=>o.usuario===x.u);return {usuario:x.u,nombre:x.nombre,activo:true,meta:r&&r.ha_dia>0?+r.ha_dia.toFixed(1):15};});})
+    .catch(e=>toast(e.message,6000)).finally(()=>{P.cargandoOps=false;pintarGer();});}
+  if(!JOR.length)return sinDatos().replace('No hay jornadas cargadas.','Para planificar se usa el avance del ciclo de censo: cargue al menos 60 a 90 días.');
+  const tOps=P.ops==null?'<p class="tenue">Cargando operarios…</p>':tablaGer([{t:'',f:o=>`<input type="checkbox" data-pa="${esc(o.usuario)}" ${o.activo?'checked':''}>`},{t:'Operario disponible',f:o=>esc(o.nombre)},
+    {t:'Meta ha/día',f:o=>`<input type="number" data-pm="${esc(o.usuario)}" value="${o.meta}" min="1" max="80" step="0.5" style="width:80px">`}],P.ops);
+  const tRes=P.res?tablaGer([{t:'Operario',f:a=>`<b>${esc(a.nombre)}</b>`},{t:'Lotes asignados (puede editarlos, separados por coma)',f:a=>`<input type="text" data-pl="${esc(a.usuario)}" value="${esc(a.lotes.map(x=>x.lote).join(', '))}" style="width:100%;min-width:260px">`},
+    {t:'Ha',n:1,f:a=>num(a.lotes.reduce((t,x)=>t+x.ha,0),1)},{t:'Días sin censo',f:a=>esc(a.lotes.map(x=>x.dias==null?'s/c':x.dias).join(', '))}],P.res):'';
+  return `<p class="tenue">Propone a cada operario los lotes más atrasados del ciclo de censo (primero los que no tienen censo en el periodo cargado, luego los de más días), agrupando lotes cercanos hasta su meta de hectáreas por día. La meta parte de su productividad real (ha/día) y se puede cambiar.</p>
+    <div class="ger-par">Fecha del plan <input type="date" id="plFecha" value="${esc(P.fecha)}"> <button class="btn mini prim" id="plProp">Proponer plan</button>
+      ${P.res?`<button class="btn mini nar" id="plGuardar">${P.guardado?'✅ Guardado · guardar de nuevo':'Guardar y enviar a los celulares'}</button>`:''}</div>
+    <div class="ger-sec"><h3>Operarios</h3>${tOps}</div>${P.res?`<div class="ger-sec"><h3>Plan propuesto · ${esc(P.fecha)}</h3>${tRes}</div>`:''}`;
+}
+function leerPlanEditado(){const P=GER.plan;if(!P.res)return;const cand=new Map(candidatosPlan().map(x=>[x.lote,x]));
+  for(const a of P.res){const e=document.querySelector(`#gerPanel [data-pl="${CSS.escape(a.usuario)}"]`);if(!e)continue;
+    a.lotes=e.value.split(/[,;\s]+/).map(x=>x.trim().toUpperCase()).filter(Boolean).map(l=>{const c=cand.get(l);return {lote:l,ha:c?c.ha:+haLote(l).toFixed(1),dias:c?c.dias:null};});}}
+ENLACES_GER.plan=()=>{enlazarRango();const P=GER.plan;
+  const f=$('#plFecha');if(f)f.onchange=()=>{P.fecha=f.value;P.guardado=false;};
+  $$('#gerPanel [data-pa]').forEach(c=>c.onchange=()=>{const o=P.ops.find(x=>x.usuario===c.dataset.pa);if(o)o.activo=c.checked;});
+  $$('#gerPanel [data-pm]').forEach(c=>c.onchange=()=>{const o=P.ops.find(x=>x.usuario===c.dataset.pm);if(o)o.meta=Number(c.value)||15;});
+  const b=$('#plProp');if(b)b.onclick=()=>{if(!P.ops)return;P.res=proponerPlan(P.ops.filter(o=>o.activo));P.guardado=false;pintarGer();};
+  const g=$('#plGuardar');if(g)g.onclick=async()=>{leerPlanEditado();g.disabled=true;g.textContent='Guardando…';
+    const ruta=`censo/plan/${P.fecha}.json`;let sha=null;try{const r=await (await gh(`/contents/${ruta}?ref=${encodeURIComponent(SES.repo.rama)}`)).json();sha=r.sha;}catch(e){}
+    const plan={formato:'sanidad-plan-censo-1',fecha:P.fecha,creado:new Date().toISOString(),creado_por:SES.u,asignaciones:P.res.filter(a=>a.lotes.length).map(a=>({usuario:a.usuario,nombre:a.nombre,lotes:a.lotes}))};
+    try{await ghPut(ruta,JSON.stringify(plan,null,1),`Plan de censo ${P.fecha} (${plan.asignaciones.length} operarios)`,sha);P.guardado=true;toast('✅ Plan guardado: cada operario verá sus lotes al iniciar la jornada.');}
+    catch(e){toast(e.message,6000);}pintarGer();};};
+/* ---------------- LÍNEA DE TIEMPO DE LA PALMA ----------------
+   Censo → cirugía → recuperación → alta, con los diagnósticos cargados en el visor y, si están cargados, los de cirugía. */
+function historiaPalma(pid){
+  const ev=[];const k=String(pid);
+  for(const j of JOR)for(const d of j.diags)if(String(d.palma_id)===k)ev.push({t:Date.parse(d.creado),tipo:'Censo',txt:[d.nivel1,d.nivel2].filter(Boolean).join(' › ')||d.estado_nombre||d.estado,quien:j.evaluador,d:{...d,_j:j}});
+  if(CIR.cargado){for(const d of CIR.correcciones)if(String(d.palma_id)===k)ev.push({t:tDe(d),tipo:d.origen==='caso_nuevo'?'Caso nuevo (cirujano)':'Corrección (cirujano)',txt:[d.nivel1,d.nivel2].filter(Boolean).join(' › '),quien:d.evaluador||''});
+    for(const c of CIR.cirugias)if(String(c.palma_id)===k)ev.push({t:tDe(c),tipo:'Cirugía',txt:[c.tipo_cirugia,c.producto].filter(Boolean).join(' · ')||'Cirugía realizada',quien:c._j&&c._j.evaluador||''});}
+  return ev.filter(e=>Number.isFinite(e.t)).sort((a,b)=>a.t-b.t);
+}
+function verHistoriaPalma(d){
+  const ev=historiaPalma(d.palma_id);const ult=ev[ev.length-1];
+  const enRec=ult&&/RECUPERACI/i.test(ult.txt||'');const dias=ult?Math.floor((Date.now()-ult.t)/864e5):0;
+  const html=`<b class="h">🕘 ${esc(etiquetaDiag(d))}</b><div style="margin:6px 0 2px" class="tenue">${ev.length} evento(s) en los datos cargados${CIR.cargado?'':' (cargue Cirugías para ver también las cirugías)'}</div>
+    <div style="max-height:260px;overflow:auto">${ev.map(e=>`<div style="border-left:3px solid ${e.tipo==='Cirugía'?'#2f93d5':/RECUPERACI/i.test(e.txt)?'#ff9f1c':/DE ALTA/i.test(e.txt)?'#00e676':'#e53935'};padding:3px 8px;margin:4px 0">
+      <b>${esc(new Date(e.t).toLocaleDateString('es-CO'))}</b> · ${esc(e.tipo)}<br>${esc(e.txt)}<br><span class="tenue">${esc(e.quien||'')}</span></div>`).join('')}</div>
+    ${enRec&&dias>30?`<div class="aviso" style="margin-top:6px">⏰ En recuperación sin nueva revisión hace ${dias} días.</div>`:''}`;
+  L.popup({maxWidth:340,minWidth:260}).setLatLng([d.lat,d.lng]).setContent(html).openOn(mapa);
+}
 /* ---------------- REPORTES (diarios 3:00 p. m. y semanales) ----------------
    Los generan flujos automáticos del repositorio de datos: reportes/diario/AAAA-MM-DD/ y reportes/AAAA-Snn/ (PDF con mapa, HTML interactivo y Excel). */
 async function listarReportes(){

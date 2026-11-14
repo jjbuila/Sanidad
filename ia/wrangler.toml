@@ -1,0 +1,10 @@
+name = "sanidad-ia"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Repositorio de datos: solo quien tenga un token con escritura en él puede usar el servicio
+REPO_DATOS = "jjbuila/SanidadData"
+
+# La clave de Anthropic NO va aquí. Se guarda como secreto:  npx wrangler secret put ANTHROPIC_API_KEY

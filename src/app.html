@@ -1123,6 +1123,7 @@ function abrirPlanificador(modo){
   $('#plBusca').oninput=pintarPlanLista;$('#plProg').onchange=pintarPlanLista;
   $('#plOk').onclick=confirmarPlan;
   dibujarLotes();pintarPlanLista();pintarPlanSel();
+  if(modo==='nueva')bannerPlan();
 }
 function pintarPlanLista(){
   const c=$('#plLista');if(!c)return;
@@ -1693,6 +1694,7 @@ function abrirPalma(id,dm){
       :(regla.ok?`<button class="btn prim ancho grande" id="btDiag">${IC.mas} REGISTRAR DIAGNÓSTICO</button>`
         :`<div class="aviso">${regla.motivo}</div>${S.gps?`<button class="btn ancho" id="btVerRadio">Ver palmas a ${regla.R} m o menos</button>`:''}`))
       :'<div class="aviso">Inicie una jornada para registrar diagnósticos.</div>'}
+    ${lineaTiempoPalma(hist)}
     <h3>Historial (${hist.length})</h3>
     ${hist.map(tarjetaRegistro).join('')||'<p class="tenue">Esta palma aún no tiene diagnósticos.</p>'}`);
   const b=$('#btDiag');if(b)b.onclick=()=>abrirFormulario(hoy||{palma_id:id});
@@ -1750,6 +1752,7 @@ async function abrirFormulario(base){
       <label class="campo">Fotografías <i>*</i> <span class="tenue" style="font-weight:400">(mínimo una, obligatoria)</span></label>
       ${bloq?'':'<button type="button" class="btn ancho" id="btFoto">📷 Tomar foto</button>'}
       <div class="fotos" id="fotos"></div>
+      ${!bloq&&iaDisponible()?'<button type="button" class="btn ancho" id="btIA" style="margin-top:8px">🤖 Sugerir diagnóstico con la foto (piloto)</button><div id="iaBox" style="margin-top:6px"></div>':''}
       ${bloq?'':`<div class="fila" style="margin-top:16px"><button type="submit" class="btn prim grande">💾 GUARDAR</button>${edit?'<button type="button" class="btn peligro" id="btBorrarReg">🗑 Eliminar</button>':''}</div>`}
     </form>`);
   for(const fid of (r.fotos||[])){const fo=await dbGet('fotos',fid);if(fo)agregarMiniatura(fid,new Blob([fo.buf],{type:fo.type}),false,bloq);}
@@ -1777,6 +1780,7 @@ async function abrirFormulario(base){
   const vis=()=>{pintarN2();pintarResto();};
   frm.addEventListener('change',vis);vis();
   const bf=$('#btFoto');if(bf)bf.onclick=()=>abrirCamara();
+  F.ia=null;const bi=$('#btIA');if(bi)bi.onclick=sugerirIA;
   const bb=$('#btBorrarReg');if(bb)bb.onclick=()=>borrarRegistro(r.id);
   frm.onsubmit=e=>{e.preventDefault();if(!bloq)guardarRegistro(frm);};
 }
@@ -1838,6 +1842,51 @@ async function marcarJornadaPendiente(jid){
   if(S.jornada&&S.jornada.id===jid){S.jornada.sync='pendiente';await dbPut('jornadas',S.jornada);return;}
   const j=await dbGet('jornadas',jid);if(j){j.sync='pendiente';await dbPut('jornadas',j);}
 }
+/* ---------- Piloto: diagnóstico sugerido por IA a partir de la foto (config/servicios.json → ia.url) ----------
+   La foto (reducida a 1024 px) y las opciones del formulario van al servicio intermedio, que comprueba el token de la App y consulta a Claude.
+   Es solo una sugerencia: el operario la aplica o no, y siempre puede corregir. Se registra si la aceptó (r.ia). */
+const IA={cfg:null};
+async function cargarServiciosIA(){
+  let c=null;
+  if(S.cfg.gh&&S.cfg.gh.token&&navigator.onLine)try{c=JSON.parse(await (await ghRaw('config/servicios.json')).text());try{await dbPut('config',{clave:'servicios',v:c});}catch(e){}}catch(e){c=null;}
+  if(!c)try{const x=await dbGet('config','servicios');if(x)c=x.v;}catch(e){}
+  IA.cfg=c&&c.ia&&c.ia.activo&&/^https:\/\//.test(c.ia.url||'')?c.ia:null;
+}
+const iaDisponible=()=>!!(IA.cfg&&(!IA.cfg.usuarios||!IA.cfg.usuarios.length||(SES&&IA.cfg.usuarios.includes(SES.u))));
+async function fotoParaIA(){
+  let fo=F.fotosNuevas[F.fotosNuevas.length-1];
+  if(!fo){const ids=(F.r.fotos||[]).filter(x=>!F.fotosQuitar.includes(x));if(ids.length)fo=await dbGet('fotos',ids[ids.length-1]);}
+  if(!fo)return null;
+  const bmp=await createImageBitmap(new Blob([fo.buf],{type:fo.type||'image/jpeg'}));const k=Math.min(1,1024/Math.max(bmp.width,bmp.height));
+  const cv=document.createElement('canvas');cv.width=Math.round(bmp.width*k);cv.height=Math.round(bmp.height*k);cv.getContext('2d').drawImage(bmp,0,0,cv.width,cv.height);
+  const b=await new Promise(ok=>cv.toBlob(ok,'image/jpeg',.82));const a=new Uint8Array(await b.arrayBuffer());let t='';for(let i=0;i<a.length;i+=0x8000)t+=String.fromCharCode.apply(null,a.subarray(i,i+0x8000));
+  return btoa(t);
+}
+async function sugerirIA(){
+  const box=$('#iaBox');if(!box)return;
+  if(!navigator.onLine){box.innerHTML='<div class="aviso">La sugerencia por IA necesita internet. Diagnostique normalmente.</div>';return;}
+  const img=await fotoParaIA();if(!img){box.innerHTML='<div class="aviso">Primero tome una foto de la palma.</div>';return;}
+  box.innerHTML='<p class="tenue">🤖 Analizando la foto…</p>';
+  const hist=S.registros.filter(x=>String(x.palma_id)===String(F.r.palma_id)&&x.id!==F.r.id).sort((a,b)=>String(b.creado).localeCompare(String(a.creado)))[0];
+  try{
+    const resp=await fetch(IA.cfg.url,{method:'POST',headers:{'Authorization':'Bearer '+S.cfg.gh.token,'Content-Type':'application/json'},
+      body:JSON.stringify({imagen:img,media_type:'image/jpeg',opciones:RAMAS.map(x=>({c:x.c,n1:x.n1,n2:x.n2||'',s:x.s||[]})),contexto:{lote:F.lote,historial:hist?[hist.n1,hist.n2].filter(Boolean).join(' › '):''}})});
+    const d=await resp.json().catch(()=>({}));if(!resp.ok)throw new Error(d.error||('Error '+resp.status));
+    const n=N1S.find(x=>x.c===d.codigo)||(d.codigo==='SN'?{c:'SN',n1:'SANA'}:null);if(!n)throw new Error('La sugerencia no corresponde al formulario.');
+    const opc=d.opcion&&RAMAS.some(x=>x.c===d.codigo&&x.n2===d.opcion)?d.opcion:'';
+    F.ia={codigo:d.codigo,opcion:opc,confianza:d.confianza,modelo:d.modelo||'',fecha:new Date().toISOString()};
+    const col={alta:'var(--verde,#00a651)',media:'var(--ambar,#ff9f1c)',baja:'var(--rojo,#e53935)'}[d.confianza]||'';
+    box.innerHTML=`<div class="ficha" style="border-left:4px solid ${col}"><b>🤖 Sugerencia (piloto):</b> ${esc(n.n1)}${opc?' › '+esc(opc):''}
+      <div class="tenue">Confianza: <b style="color:${col}">${esc(d.confianza||'')}</b>${(d.sintomas||[]).length?' · '+esc(d.sintomas.join('; ')):''}</div>
+      <div style="margin-top:4px">${esc(d.explicacion||'')}</div>
+      <div class="fila" style="margin-top:8px"><button type="button" class="btn prim" id="iaUsar">Aplicar sugerencia</button><button type="button" class="btn" id="iaNo">Descartar</button></div>
+      <div class="tenue" style="font-size:12px;margin-top:4px">Revise siempre: usted decide el diagnóstico.</div></div>`;
+    $('#iaNo').onclick=()=>{box.innerHTML='';};
+    $('#iaUsar').onclick=()=>{const frm=$('#frm');const marcar=(name,v)=>{const i=[...frm.querySelectorAll(`input[name="${name}"]`)].find(x=>x.value===v);if(i&&!i.checked){i.checked=true;i.dispatchEvent(new Event('change',{bubbles:true}));}};
+      marcar('n1',d.codigo);if(opc)marcar('n2',opc);for(const s of d.sintomas||[])marcar('sintomas',s);
+      F.ia.aplicada=true;box.innerHTML='<div class="tenue">✅ Sugerencia aplicada. Complete los demás campos y revise antes de guardar.</div>';$('#secN2').scrollIntoView({block:'center',behavior:'smooth'});};
+  }catch(e){F.ia=null;box.innerHTML=`<div class="aviso">No se pudo obtener la sugerencia: ${esc(e.message)}. Diagnostique normalmente.</div>`;}
+}
 async function guardarRegistro(frm){
   if(SYNC.activo){alert('Se está sincronizando con GitHub. Intente de nuevo en unos segundos.');return;}
   const r=F.r;if(r.sync==='sincronizado'){alert('Este diagnóstico ya fue sincronizado y no se puede modificar.');return;}
@@ -1873,6 +1922,8 @@ async function guardarRegistro(frm){
     else{r.gps_lat=null;r.gps_lng=null;r.gps_acc=null;r.dist_gps=null;}
   }
   if(AUD.m&&AUD.ids.has(String(r.palma_id)))r.auditoria=AUD.m.id; // diagnóstico de auditoría (lo mide el visor)
+  if(F.ia)r.ia={sugerido:F.ia.codigo,opcion:F.ia.opcion,confianza:F.ia.confianza,modelo:F.ia.modelo,aplicada:!!F.ia.aplicada,
+    acerto:F.ia.codigo===r.n1_codigo&&(F.ia.opcion||'')===(r.n2||'')}; // piloto de IA: ¿coincidió con el diagnóstico final del operario?
   r.modificado=new Date().toISOString();r.sync='pendiente';
   try{
     for(const fo of F.fotosNuevas){await dbPut('fotos',{id:fo.id,registro_id:r.id,buf:fo.buf,type:fo.type});r.fotos.push(fo.id);}
@@ -2500,7 +2551,7 @@ function planos(r){
     sintomas:(r.sintomas||[]).join('|'),estado_hongo:r.hongo||'',cirugia:r.cirugia||'',produccion:r.produccion||'',raices_buenas:r.raices||'',transitabilidad:r.transitabilidad||'',
     problemas:(r.problemas||[]).join('|'),grado_pc:r.grado_pc||'',severidad:r.severidad||'',accion:r.accion||'',observaciones:r.observaciones,n_fotos:(r.fotos||[]).length,
     fotos:(r.fotos||[]).map(f=>f+'.jpg').join('|'),lat:r.lat,lng:r.lng,gps_lat:r.gps_lat,gps_lng:r.gps_lng,gps_precision_m:r.gps_acc,
-    dist_gps_palma_m:r.dist_gps,dispositivo:S.cfg.dispositivo,sincronizado:r.sync_fecha||null,...(r.auditoria?{auditoria:r.auditoria}:{})};
+    dist_gps_palma_m:r.dist_gps,dispositivo:S.cfg.dispositivo,sincronizado:r.sync_fecha||null,...(r.auditoria?{auditoria:r.auditoria}:{}),...(r.ia?{ia_sugerido:[r.ia.sugerido,r.ia.opcion].filter(Boolean).join(' › '),ia_confianza:r.ia.confianza,ia_aplicada:r.ia.aplicada,ia_acerto:r.ia.acerto}:{})};
   PROBLEMAS.forEach(p=>o['p_'+p.id]=(r.problemas||[]).includes(p.id)?1:0);
   return o;
 }
@@ -2970,6 +3021,54 @@ async function panelAuditoria(){
   $('#audRecargar').onclick=async()=>{AUD.m=null;await cargarAuditoria();panelAuditoria();};
   $$('#hojaCuerpo [data-aud]').forEach(b=>b.onclick=()=>{const x=M.palmas.find(y=>String(y.palma_id)===b.dataset.aud);if(x)irPalmaAuditoria(x);});
 }
+/* ---------- Panel del día (supervisores y administradores): último reporte diario, jornadas recibidas hoy y alertas ---------- */
+async function panelDia(){
+  if(!navigator.onLine){toast('El panel del día necesita internet.');return;}
+  abrirHoja('Panel del día','<p class="tenue">Consultando el repositorio de datos…</p>');
+  const hoy=fechaLocal(),rama=encodeURIComponent(S.cfg.gh.rama);let res=null,recibidas=[],fechaRes=null;
+  try{const l=await (await ghFetch(`/contents/jornadas/${hoy}?ref=${rama}`)).json();recibidas=(Array.isArray(l)?l:[]).filter(x=>/\.geojson$/.test(x.name));}catch(e){}
+  try{const d=await (await ghFetch(`/contents/reportes/diario?ref=${rama}`)).json();const ult=(Array.isArray(d)?d:[]).filter(x=>x.type==='dir').map(x=>x.name).sort().pop();
+    if(ult){fechaRes=ult;res=JSON.parse(await (await ghRaw(`reportes/diario/${ult}/resumen.json`)).text());}}catch(e){}
+  const R=res&&res.resumen||{},al=res&&res.alertas||[],esHoy=fechaRes===hoy;
+  const stat=(v,t,c)=>`<div class="stat"><b style="${c?'color:'+c:''}">${esc(v??'—')}</b><span>${esc(t)}</span></div>`;
+  abrirHoja('Panel del día',`
+    <div class="stats">${stat(num(recibidas.length),'Jornadas recibidas hoy')}${stat(R['Ha recorridas']!=null?String(R['Ha recorridas']).replace('.',','):'—','Ha (último reporte)')}${stat(R['Diagnósticos']!=null?num(R['Diagnósticos']):'—','Diagnósticos')}
+      ${stat(R['Casos de PC (palmas)']!=null?num(R['Casos de PC (palmas)']):'—','Casos de PC',R['Casos de PC (palmas)']?'var(--rojo)':'')}${stat(R['PC vencidos sin cirugía']!=null?num(R['PC vencidos sin cirugía']):'—','PC vencidos',R['PC vencidos sin cirugía']?'var(--rojo)':'')}${stat(num(al.length),'Alertas',al.length?'var(--ambar)':'')}</div>
+    <p class="tenue">${fechaRes?`Reporte diario del <b>${esc(fechaRes)}</b>${esHoy?' (hoy, corte 3:00 p. m.)':' (el de hoy se genera a las 3:00 p. m.)'}.`:'Aún no hay reportes diarios.'} Las jornadas aparecen cuando el operario las finaliza y se sincronizan.</p>
+    <h3>Alertas</h3>${al.length?al.map(a=>`<div class="aviso" style="${a.nivel==='alta'?'border-color:var(--rojo)':''}">${a.nivel==='alta'?'🔴':'🟠'} ${esc(a.texto)}</div>`).join(''):'<p class="tenue">✅ Sin alertas.</p>'}
+    <h3>Operarios${fechaRes?' ('+esc(fechaRes)+')':''}</h3>${(res&&res.operarios||[]).length?`<div style="overflow-x:auto"><table class="tabla"><tr><th>Operario</th><th>Inicio</th><th>Fin</th><th>Ha</th><th>Diag.</th></tr>${
+      res.operarios.map(o=>`<tr><td>${esc(o.Operario)}</td><td>${esc(o.Inicio||'')}</td><td>${esc(o.Fin||'')}</td><td>${esc(String(o.Ha).replace('.',','))}</td><td>${num(o['Diagnósticos'])}</td></tr>`).join('')}</table></div>`:'<p class="tenue">Sin datos.</p>'}
+    ${(res&&res.lotes_pc||[]).length?`<h3>Lotes con casos de PC</h3><div class="chips">${res.lotes_pc.map(x=>`<span class="chip-op"><span><b>${esc(x.Lote)}</b> · ${num(x['Casos PC'])} casos${x['Incidencia PC %']!=null?' · '+String(x['Incidencia PC %']).replace('.',',')+' %':''}</span></span>`).join('')}</div>`:''}
+    <button class="btn ancho" id="pdRec" style="margin-top:12px">↻ Actualizar</button>`);
+  $('#pdRec').onclick=panelDia;
+}
+/* ---------- Plan del censo: lotes asignados por la gerencia (censo/plan/AAAA-MM-DD.json) ---------- */
+const PLANC={p:null};
+async function cargarPlanCenso(){
+  let p=null;const f=fechaLocal();
+  if(S.cfg.gh&&S.cfg.gh.token&&navigator.onLine)try{p=JSON.parse(await (await ghRaw(`censo/plan/${f}.json`)).text());try{await dbPut('config',{clave:'plan_censo',v:p});}catch(e){}}catch(e){p=null;}
+  if(!p)try{const c=await dbGet('config','plan_censo');if(c&&c.v&&c.v.fecha===f)p=c.v;}catch(e){}
+  PLANC.p=p;
+}
+const misLotesPlan=()=>{const a=PLANC.p&&SES&&(PLANC.p.asignaciones||[]).find(x=>x.usuario===SES.u);return a?a.lotes:[];};
+function bannerPlan(){
+  const ls=misLotesPlan();if(!ls.length||!$('#plLista'))return;
+  const ha=ls.reduce((t,x)=>t+(Number(x.ha)||0),0);
+  $('#plLista').insertAdjacentHTML('beforebegin',`<div class="aviso" id="plAsig">📋 <b>Lotes asignados para hoy:</b> ${ls.map(x=>esc(x.lote)).join(', ')} <span class="tenue">(${String(ha.toFixed(1)).replace('.',',')} ha aprox.)</span>
+    <button class="btn prim ancho" id="plUsar" style="margin-top:8px">Usar los lotes asignados</button></div>`);
+  $('#plUsar').onclick=()=>{for(const x of ls)if(CARTO.lotes[x.lote]&&!enPlan(x.lote))alternarPlan(x.lote);pintarPlanLista();pintarPlanSel();
+    const fs=(S.lotes?S.lotes.features:[]).filter(f=>ls.some(x=>x.lote===f.properties._lote));const k=cajaDe(fs);if(k)mapa.fitBounds(k,{padding:[40,40],maxZoom:17});toast('Lotes asignados seleccionados. Revise y toque INICIAR JORNADA.');};
+}
+/* ---------- Línea de tiempo de la palma (registros de este celular, del más antiguo al más reciente) ---------- */
+function lineaTiempoPalma(hist){
+  if(!hist.length)return '';
+  const ev=hist.slice().sort((a,b)=>String(a.creado).localeCompare(String(b.creado)));
+  const ult=ev[ev.length-1],dias=Math.floor((Date.now()-Date.parse(ult.creado))/864e5);
+  const enRec=/RECUPERACI/i.test(ult.n2||'')||ult.estado==='tratamiento';
+  return `<div class="ficha" style="margin-top:8px"><b>Línea de tiempo</b>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px">${ev.map((r,i)=>`${i?'<span class="tenue">→</span>':''}<span class="chip-op" style="pointer-events:none"><span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${colorReg(r)};margin-right:4px"></span>${esc(fechaLocal(r.creado))} · ${esc(r.n2||r.n1||(estadoDe(r.estado)||{}).n||r.estado)}</span></span>`).join('')}</div>
+    ${enRec&&dias>30?`<div class="aviso" style="margin-top:6px">⏰ Palma en recuperación sin nueva revisión hace ${dias} días.</div>`:''}</div>`;
+}
 function menu(){
   const mos=(id,ic,t,s)=>`<button class="mosaico" id="${id}">${IC[ic]}<b>${t}</b><small>${s}</small></button>`;
   abrirHoja('Menú',`
@@ -2982,6 +3081,7 @@ function menu(){
       ${mos('mSync','sync','Sincronizar','Enviar a GitHub')}
       ${mos('mExp','descarga','Exportar','Respaldo local')}
       ${mos('mHist','nube','Recuperar mi historial','Bajar mis jornadas sincronizadas')}
+      ${puedeAuditar()?mos('mDia','grafico','Panel del día','Reporte, jornadas y alertas'):''}
       ${puedeAuditar()?mos('mAud','bd','Auditoría',AUD.m?`${AUD.m.palmas.length} palmas · ${esc(AUD.m.id)}`:'Muestra para verificar'):''}
       ${mos('mZona','mapa','Mapa sin conexión','Guardar la zona visible')}
       ${mos('mBg','ubic','Pantalla bloqueada','Batería y segundo plano')}
@@ -2995,7 +3095,7 @@ function menu(){
     <p class="tenue" style="text-align:center;margin-top:16px">Sanidad Vegetal · versión ${VERSION} · Cartografía ${esc(CARTO.version||'—')}${EN_APK?' · APK '+esc(textoApkInst()):''}<br>Palmas de Tumaco S.A.S.</p>`);
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#mJor',()=>{if(S.jornada)panelJornada();else{cerrarHoja();$('#btJornada').click();}}); // pasa por las mismas verificaciones del botón Iniciar
-  on('#mApk',panelApk);on('#mAud',panelAuditoria);
+  on('#mApk',panelApk);on('#mAud',panelAuditoria);on('#mDia',panelDia);
   if(!APK.ultima)ultimaApk().then(()=>{const e=$('#mApkTxt');if(e){e.textContent=`Instalada: ${textoApkInst()} · Última: ${APK.ultima||'—'}`;
     if(apkNueva()){const b=$('#mApk');if(b&&b.querySelector('b'))b.querySelector('b').textContent='¡Nueva APK!';}}});
   on('#mBD',()=>{cerrarHoja();abrirBD('diag');});on('#mRec',()=>{cerrarHoja();abrirBD('jor');});on('#mRes',()=>{cerrarHoja();abrirBD('res');});
@@ -3240,6 +3340,9 @@ async function despuesDeIngresar(){
   try{await cargarPlantacion();}catch(e){}
   try{await cargarAuditoria();}catch(e){}
   try{await cargarRamas();}catch(e){}
+  try{await cargarPlanCenso();}catch(e){}
+  try{await cargarServiciosIA();}catch(e){}
+  if(puedeAuditar()&&navigator.onLine)setTimeout(async()=>{try{const d=await (await ghFetch(`/contents/reportes/diario/${fechaLocal()}/resumen.json?ref=${encodeURIComponent(S.cfg.gh.rama)}`,{accept:'application/vnd.github.raw+json'})).json();if(d.alertas&&d.alertas.length)toast(`⚠ ${d.alertas.length} alerta(s) en el reporte de hoy. Menú → Panel del día.`,7000);}catch(e){}},9000);
   try{await cargarVias(v=>dbPut('config',{clave:'vias',v}),async()=>{const r=await dbGet('config','vias');return r&&r.v;});}catch(e){}
   if(S.cfg.jornadaActiva){const j=await dbGet('jornadas',S.cfg.jornadaActiva);
     if(j&&j.estado==='activa'){

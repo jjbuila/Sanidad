@@ -17,7 +17,7 @@
 
 **Pruebas automáticas:** cada cambio en `src/` o `tests/` dispara en GitHub Actions el flujo **Pruebas** (`.github/workflows/pruebas.yml`): compila la app y ejecuta las pruebas de `tests/` (unas 200 verificaciones con GitHub simulado y datos ficticios). Si algo falla, el flujo queda en rojo antes de que el cambio llegue a los celulares. Ver `tests/README.md`.
 
-**Gerencia (visor):** botón **📊 GERENCIA** con Tablero, Cirugía, Sincronización, Calidad, Auditoría y Reportes. El reporte semanal (PDF + Excel) lo genera cada lunes a las 6:00 a. m. el flujo `reporte-semanal.yml` del repositorio de datos, en `reportes/AAAA-Snn/`.
+**Gerencia (visor):** botón **📊 GERENCIA** con Tablero, Planificación, Cirugía, Sincronización, Calidad, Auditoría y Reportes. Ver la sección 7.4 (reportes diarios, alertas, planificación, panel del día e IA).
 
 ## 2. Preparar el repositorio privado de datos
 
@@ -225,6 +225,37 @@ SanidadData/
 - **Todos a la vez:** un reloj común; cada operario es una flecha con su nombre y una estela de su color. Si el rango tiene varias fechas, se superponen por hora del día. Muestra operarios activos, diagnósticos que van apareciendo y km.
 - **Uno a uno:** cada jornada completa en orden de inicio (⏮ anterior, ⏭ siguiente) y pasa sola a la siguiente; sigue al operario y se detiene 5 s en cada diagnóstico mostrando su ficha con la foto.
 - Velocidad ×60 a ×3600 y barra para adelantar o retroceder. Al cerrar (✕) el mapa vuelve a mostrar los recorridos y diagnósticos.
+
+## 7.4 Reportes diarios, alertas y administración a escala
+
+**Reporte diario (corte 3:00 p. m.).** De lunes a sábado (sin festivos de Colombia), a las 3:00 p. m., el flujo `reporte-diario.yml` del repositorio de datos genera en `reportes/diario/AAAA-MM-DD/`:
+- **PDF** con mapa (lotes, recorridos por operario, casos de PC, escala y norte), resumen, operarios, lotes y alertas.
+- **Reporte interactivo** (`_interactivo.html`): mapa sobre imagen satelital con capas, recorridos y diagnósticos con ficha; se abre en cualquier navegador.
+- **Excel** con las tablas y `resumen.json` (lo usa el *Panel del día* de la App).
+Entran las jornadas finalizadas y sincronizadas hasta el corte. Para generarlo a otra hora o de otra fecha: repositorio de datos → Actions → *Reporte diario* → *Run workflow* (fecha opcional). El **semanal** sigue cada lunes a las 6:00 a. m. en `reportes/AAAA-Snn/`, también con reporte interactivo.
+
+**Alertas automáticas** (van en el reporte diario y se envían aparte): operarios sin sincronizar más de N días, casos de PC vencidos sin cirugía, lotes con incidencia de PC por encima del umbral, palmas en recuperación sin revisión en N días y calidad del censo (diagnósticos lejos de la palma, GPS impreciso, sin foto, muy rápidos).
+
+**Envíos por correo (Microsoft 365) y WhatsApp (Cloud API de Meta).** En `admin.html` → *Alertas y reportes automáticos*: destinatarios (correo y/o WhatsApp, y qué recibe cada uno), umbrales y nombres de las plantillas; se guarda en `config/alertas.json`. Configuración única (la hace el administrador; las claves nunca se escriben en la App ni en el código):
+1. Repositorio de datos → Settings → Secrets and variables → Actions: `SMTP_USER`, `SMTP_PASS` (cuenta de Microsoft 365 con *SMTP autenticado* habilitado), opcional `SMTP_FROM`; `WA_TOKEN` y `WA_PHONE_ID` de Meta Business.
+2. En WhatsApp Manager, plantillas de categoría *Utilidad* en español: `sanidad_reporte_diario` (encabezado *Documento*, 6 variables) y `sanidad_alerta` (2 variables). El texto exacto está en la guía dentro de la tarjeta de administración.
+3. Botón *Probar: generar y enviar el reporte de hoy*.
+
+**Índice diario.** Cada hora (6 a. m. a 8 p. m., lunes a sábado) el flujo `indice.yml` resume las jornadas de cada día en `indice/AAAA-MM-DD.json`. El visor descarga un archivo por día en lugar de una jornada a la vez, por lo que con muchos operarios carga mucho más rápido; si el índice no está al día, lee las jornadas una por una como antes.
+
+**Panel del día (App).** Menú → *Panel del día* (supervisores y administradores): jornadas recibidas hoy, hectáreas, diagnósticos, casos de PC, alertas, operarios y lotes con PC del último reporte diario. Al ingresar, si el reporte de hoy trae alertas, aparece un aviso.
+
+**Planificación del censo (visor → GERENCIA → Planificación).** Propone a cada operario de censo activo los lotes más atrasados del ciclo (primero los que no tienen censo en el periodo cargado, luego los de más días; nunca los censados hace menos de 7 días), agrupando lotes cercanos hasta su meta de hectáreas por día (parte de su productividad real; se puede cambiar). Los lotes de cada operario se pueden editar. *Guardar y enviar a los celulares* crea `censo/plan/AAAA-MM-DD.json`; ese día, al planificar la jornada, el operario ve **«Lotes asignados para hoy»** y el botón *Usar los lotes asignados*. Cargue al menos 60 a 90 días en el visor para planificar.
+
+**Historia de la palma.** En el visor, en la ficha de un diagnóstico, *🕘 Historia de la palma* muestra en orden sus censos y, si se cargó Cirugías, las cirugías y correcciones, con aviso si lleva más de 30 días en recuperación sin revisión. En la App, la ficha de la palma muestra la **línea de tiempo** con sus registros.
+
+**Carga masiva de usuarios e historial.** En *Modificar paquete existente*: *Cargar usuarios desde Excel o CSV* (columnas en cualquier orden: usuario, nombre, cargo, identificación, rol, labores, rol en cirugía, contraseña, estado). Crea los nuevos, actualiza los existentes y muestra un resumen con errores antes de aplicar. Al generar los archivos queda un **historial de cambios** (quién, cuándo, qué usuarios se crearon, editaron, suspendieron o eliminaron) en `config/historial_usuarios.json`, consultable desde la misma página.
+
+**Diagnóstico sugerido por IA (piloto).** Con la foto ya tomada, el botón *🤖 Sugerir diagnóstico con la foto* envía la foto (reducida) y las opciones del formulario a un servicio intermedio propio, que consulta a Claude (Anthropic) y devuelve enfermedad, opción, síntomas visibles, confianza y una explicación corta. El operario decide: *Aplicar sugerencia* marca los campos y él revisa y completa. Cada diagnóstico guarda si se usó la IA y si coincidió con el diagnóstico final (`ia_sugerido`, `ia_aplicada`, `ia_acerto`), para medir el piloto antes de ampliarlo. Puesta en marcha (una vez):
+1. Cuenta gratuita de Cloudflare y clave de API en console.anthropic.com con límite de gasto mensual.
+2. En la carpeta `ia/` de este repositorio: `npm install`, `npx wrangler login`, `npx wrangler secret put ANTHROPIC_API_KEY` y `npx wrangler deploy`.
+3. En `admin.html` → *Diagnóstico sugerido por IA (piloto)*: pegue la dirección del servicio, elija los usuarios del piloto (vacío = todos), marque *Activar* y guarde (`config/servicios.json`).
+El servicio solo atiende a quien tenga el token de la App con escritura en el repositorio de datos, y necesita internet; sin internet se diagnostica como siempre.
 
 ## 7.3 Módulo de cirugía
 

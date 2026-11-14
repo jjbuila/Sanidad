@@ -743,11 +743,12 @@ function precargarFotos(j){if(j&&j.zipSha&&j.diags.some(d=>Number(d.n_fotos)>0))
 function popupDiag(d,ll){
   const n=Number(d.n_fotos)||0;
   const html=foto=>(n?`<div class="ppFoto">${foto}</div>`:'')+htmlDiag(d)+`<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-    ${n?`<button class="btn mini nar ppFotos">📷 Ver ${n} foto(s)</button>`:''}<button class="btn mini ppJor">Ver jornada</button></div>`;
+    ${n?`<button class="btn mini nar ppFotos">📷 Ver ${n} foto(s)</button>`:''}<button class="btn mini ppJor">Ver jornada</button><button class="btn mini ppHist">🕘 Historia de la palma</button></div>`;
   const pp=L.popup({maxWidth:340,minWidth:260}).setLatLng(ll||[d.lat,d.lng]).setContent(html('<span class="tenue">Cargando foto…</span>')).openOn(mapa);
   const enlazar=()=>{const e=pp.getElement();if(!e)return;
     e.querySelectorAll('.ppFotos,.ppFoto img').forEach(b=>b.onclick=()=>verFotos(d));
-    const j=e.querySelector('.ppJor');if(j)j.onclick=()=>{mapa.closePopup(pp);abrirDetalle(d._j);};};
+    const j=e.querySelector('.ppJor');if(j)j.onclick=()=>{mapa.closePopup(pp);abrirDetalle(d._j);};
+    const h=e.querySelector('.ppHist');if(h)h.onclick=()=>{mapa.closePopup(pp);verHistoriaPalma(d);};};
   setTimeout(enlazar,0);
   if(n)fotoPrincipal(d).then(u=>{if(!mapa.hasLayer(pp))return;pp.setContent(html(u?`<img src="${u}" alt="Foto del diagnóstico">`:'<span class="tenue">Foto no disponible</span>'));setTimeout(enlazar,0);});
 }

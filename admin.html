@@ -175,6 +175,13 @@ table.usuarios td{font-size:13.5px}
         <div class="err" id="aMsg"></div>
       </div>
       <div class="tarjeta">
+        <h2>Diagnóstico sugerido por IA (piloto)</h2>
+        <p class="tenue">Con la foto de la palma, la App sugiere el diagnóstico del formulario y el operario lo confirma o corrige. Usa un servicio intermedio propio (Cloudflare Worker, carpeta <code>ia/</code> del repositorio de la App) que guarda la clave de Anthropic. Configuración en <code>config/servicios.json</code>.</p>
+        <button class="btn" id="iAbrir">Abrir la configuración de la IA</button>
+        <div id="iEditor" hidden></div>
+        <div class="err" id="iMsg"></div>
+      </div>
+      <div class="tarjeta">
         <h2>Formulario de diagnóstico</h2>
         <p class="tenue">Enfermedades principales, sus opciones, síntomas, estados del hongo y campos que aplican. Se guarda en el repositorio de datos (<code>config/ramas.json</code>); la App lo toma al ingresar con internet. Versión publicada: <b id="rVer">—</b></p>
         <button class="btn" id="rAbrir">Abrir el editor del formulario</button>
@@ -572,6 +579,31 @@ $('#aAbrir').onclick=async()=>{const m=$('#aMsg'),b=$('#aAbrir');m.textContent='
   if(EDA.abierto){$('#aEditor').hidden=true;EDA.abierto=false;b.textContent='Abrir la configuración de alertas y reportes';return;}
   b.disabled=true;b.textContent='Cargando…';try{await cargarAlertasCfg();pintarAlertasCfg();$('#aEditor').hidden=false;EDA.abierto=true;b.textContent='Cerrar la configuración';}
   catch(e){m.style.color='var(--rojo)';m.textContent='❌ '+e.message;b.textContent='Abrir la configuración de alertas y reportes';}finally{b.disabled=false;}};
+/* ---------- Piloto de IA (config/servicios.json del repositorio de datos) ---------- */
+const EDI={cfg:null,sha:null};
+$('#iAbrir').onclick=async()=>{const m=$('#iMsg'),b=$('#iAbrir'),E=$('#iEditor');m.textContent='';
+  if(!E.hidden){E.hidden=true;b.textContent='Abrir la configuración de la IA';return;}
+  b.disabled=true;try{
+    try{const f=await ghAdmin(`/contents/config/servicios.json?ref=${encodeURIComponent(ED.acceso.repo.rama||'main')}`);EDI.cfg=JSON.parse(deB64u(f.content));EDI.sha=f.sha;}
+    catch(e){if(e.status!==404)throw e;EDI.cfg={formato:'sanidad-servicios-1'};EDI.sha=null;}
+    const I=EDI.cfg.ia||{activo:false,url:'',usuarios:[]};
+    E.innerHTML=`<label class="check" style="margin-top:12px"><input type="checkbox" id="iActivo" ${I.activo?'checked':''}> Activar el botón «🤖 Sugerir diagnóstico» en la App</label>
+      <label>Dirección del servicio (https://…workers.dev)</label><input type="text" id="iUrl" value="${esc(I.url||'')}" placeholder="https://sanidad-ia.<cuenta>.workers.dev">
+      <label>Usuarios del piloto (separados por coma; vacío = todos)</label><input type="text" id="iUs" value="${esc((I.usuarios||[]).join(', '))}">
+      <div class="fila" style="margin-top:12px"><button class="btn prim" id="iGuardar">GUARDAR EN GITHUB</button></div>
+      <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">Cómo publicar el servicio (una sola vez)</summary><div class="tenue" style="margin-top:8px;line-height:1.6">
+        1. Cree una cuenta gratuita en Cloudflare y una clave de API en console.anthropic.com (con límite de gasto mensual).<br>
+        2. En la carpeta <code>ia/</code> del repositorio de la App: <code>npm install</code>, <code>npx wrangler login</code>, <code>npx wrangler secret put ANTHROPIC_API_KEY</code> (pegue la clave allí; nunca en la App ni en GitHub) y <code>npx wrangler deploy</code>.<br>
+        3. Copie aquí la dirección que muestra wrangler, marque «Activar» y guarde. La App la toma al ingresar con internet.<br>
+        El servicio solo atiende a quien tenga el token de la App con escritura en el repositorio de datos. Costo aproximado: unos pocos centavos de dólar por foto.</div></details>`;
+    $('#iGuardar').onclick=async()=>{const g=$('#iGuardar');m.textContent='';try{
+      const url=$('#iUrl').value.trim();const activo=$('#iActivo').checked;if(activo&&!/^https:\/\/[^\s]+$/.test(url))throw new Error('Escriba la dirección https:// del servicio.');
+      EDI.cfg.ia={activo,url,usuarios:$('#iUs').value.split(/[,;\s]+/).map(x=>x.trim()).filter(Boolean)};EDI.cfg.modificado=new Date().toISOString();g.disabled=true;
+      const r=await ghAdmin('/contents/config/servicios.json',{method:'PUT',body:JSON.stringify({message:'Configuración del piloto de IA',content:b64u(JSON.stringify(EDI.cfg,null,1)),branch:ED.acceso.repo.rama||'main',...(EDI.sha?{sha:EDI.sha}:{})})});
+      EDI.sha=r.content.sha;m.style.color='var(--acento)';m.textContent=activo?'✅ Guardado: la App mostrará el botón al ingresar con internet.':'✅ Guardado: piloto desactivado.';}
+      catch(e){m.style.color='var(--rojo)';m.textContent='❌ '+e.message;}finally{g.disabled=false;}};
+    E.hidden=false;b.textContent='Cerrar la configuración de la IA';}
+  catch(e){m.style.color='var(--rojo)';m.textContent='❌ '+e.message;}finally{b.disabled=false;}};
 /* ---------- Carga masiva de usuarios desde Excel (.xlsx) o CSV ----------
    Columnas (encabezados en la primera fila, en cualquier orden): usuario, nombre, cargo, identificacion, rol, labores, rol_cirugia, contraseña, estado.
    Usuario existente: se actualizan los datos que traiga la fila. Usuario nuevo: se crea (contraseña de la fila o generada). */
