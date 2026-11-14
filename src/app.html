@@ -1948,8 +1948,8 @@ $('#btSeguir').onclick=()=>modoSeguir(!S.seguir);
 /* =====================================================================
    DIAGNÓSTICO POR VOZ (manos libres; el formulario sigue funcionando con el dedo)
    APK: Vosk (plugin nativo; el modelo de español se descarga una sola vez, ~40 MB). Navegador: reconocimiento de voz del navegador.
-   Flujo: «realizar diagnóstico» → la app pregunta cada campo del formulario en orden (según la ramificación) y marca la opción dicha →
-   observación → cámara: «tomar foto», «guardar foto» → «registrar diagnóstico» → confirma por voz lo registrado.
+   Flujo (modo dictado): «realizar diagnóstico» → el operario dicta enfermedad, opción, síntomas, campos, observación y fotos sin que la app
+   pregunte → «registrar diagnóstico» → la app pregunta solo lo que falte y confirma por voz lo registrado.
    Comandos en cualquier momento: repetir, atrás / corregir, cancelar, registrar diagnóstico.
    ===================================================================== */
 const frmAbierto=()=>!!$('#frm')&&!$('#hoja').classList.contains('oculto');
@@ -2030,7 +2030,7 @@ async function alternarDxVoz(){
 function apagarDxVoz(){VD.on=false;VD.estado='off';VOZ.flujo=false;RV.on=false;RV.cb=null;$('#btDxVoz').classList.remove('on');
   if(RV.motor==='vosk'){try{NAT_V().detener();}catch(e){}}else{const r=RV.web;RV.web=null;try{r&&r.abort();}catch(e){}}
   if(!S.jornada&&!VOZ.activa)pantallaEncendida(false);}
-async function modoEspera(saludar){if(!VD.on)return;VD.estado='espera';VOZ.flujo=false;VD.g=null;
+async function modoEspera(saludar){if(!VD.on)return;VD.estado='espera';VOZ.flujo=false;VD.g=null;VD.dictado=false;
   if(saludar)await decir('Diagnóstico por voz activado. Frente a la palma, diga: realizar diagnóstico.');
   await escucharV(CMD_INICIO.map(gramTxt),t=>{if(VD.estado==='espera'&&coincide(t,CMD_INICIO))iniciarDxVoz();});}
 
@@ -2045,11 +2045,11 @@ async function iniciarDxVoz(){
   if(!S.gps){await decir('Esperando señal G P S.');return;}
   const f=palmaParaVoz();if(!f){await decir(`No hay ninguna palma a ${Number(S.cfg.radioSel)||20} metros o menos. Acérquese a la palma.`);return;}
   const id=f.properties._id,hoy=S.hechos.get(id);
-  VD.estado='form';VOZ.flujo=true;VD.pila=[];VD.obs=false;
+  VD.estado='form';VOZ.flujo=true;VD.pila=[];VD.obs=false;VD.dictado=true;
   await abrirFormulario(hoy||{palma_id:id});
   if(!F||$('#frm fieldset[disabled]')){await decir('Ese diagnóstico no se puede modificar.');return modoEspera(false);}
-  await decir(`${hoy?'Corrección del diagnóstico de':'Diagnóstico de'} ${frasePalmaCorta(f.properties)}.`);
-  return siguientePaso();}
+  await decir(`${hoy?'Corrección de':''} ${frasePalmaCorta(f.properties)}. Dicte.`);
+  return iniciarDictado();}
 function gruposForm(){const frm=$('#frm');if(!frm)return [];const out=[];
   frm.querySelectorAll('label.campo').forEach(l=>{const ch=l.nextElementSibling;if(!ch||!ch.classList.contains('chips'))return;
     const ins=[...ch.querySelectorAll('input')];if(!ins.length)return;
@@ -2059,13 +2059,14 @@ function gruposForm(){const frm=$('#frm');if(!frm)return [];const out=[];
 const nFotosF=()=>F?(F.r.fotos||[]).filter(x=>!F.fotosQuitar.includes(x)).length+F.fotosNuevas.length:0;
 async function siguientePaso(){
   if(!F||!frmAbierto())return modoEspera(false);
+  if(VD.dictado)return registrarVoz();
   const g=gruposForm().find(x=>!VD.pila.includes(x.name));
   if(g)return preguntar(g);
   if(!VD.obs)return pedirObs();
   return pasoFoto();}
 async function preguntar(g){VD.estado='pregunta';VD.g=g;VD.paso=()=>preguntar(gruposForm().find(x=>x.name===g.name)||g);
   const lista=g.ops.map((o,k)=>`${k+1}, ${o.t}`).join('. ');
-  await decir(`${g.titulo}. ${g.tipo==='checkbox'?'Puede decir varios; al terminar diga listo. ':''}${g.resp&&g.tipo==='radio'?'Para dejar la respuesta actual diga mantener. ':''}Opciones: ${lista}.`);
+  await decir(`${VD.dictado?'Falta ':''}${g.titulo}. ${g.tipo==='checkbox'?'Puede decir varios; al terminar diga listo. ':''}${g.resp&&g.tipo==='radio'?'Para dejar la respuesta actual diga mantener. ':''}Opciones: ${lista}.`);
   await escucharV(gramDe(g.ops.map(o=>o.t)),t=>responder(g,t));}
 function marcarHecho(name){const i=VD.pila.indexOf(name);if(i>=0)VD.pila=VD.pila.slice(0,i);VD.pila.push(name);}
 async function responder(g,t){
@@ -2084,6 +2085,7 @@ async function responder(g,t){
 async function comandoGeneral(t){
   if(coincide(t,['repetir','repite'])){if(VD.paso)await VD.paso();return true;}
   if(coincide(t,['atrás','corregir','anterior','volver'])){
+    if(VD.dictado){if(!$('#camara').hidden)cerrarCamara();await decir('Dicte la corrección.');await iniciarDictado();return true;}
     if(VD.estado==='foto'){VD.obs=false;VD.pila=VD.pila.filter(n=>n!=='__obs');}else VD.pila.pop();
     if(!$('#camara').hidden)cerrarCamara();
     await siguientePaso();return true;}
@@ -2118,13 +2120,78 @@ function fraseRegistro(r){const e=estadoDe(r.estado)||{n:r.estado||''};const sin
 async function registrarVoz(){
   if(!F||!frmAbierto())return modoEspera(false);
   const falta=gruposForm().find(g=>g.req&&!g.resp);
-  if(falta){VD.pila=VD.pila.filter(n=>n!==falta.name);if(!$('#camara').hidden)cerrarCamara();await decir('Falta: '+falta.titulo+'.');return preguntar(falta);}
+  if(falta){VD.pila=VD.pila.filter(n=>n!==falta.name);if(!$('#camara').hidden)cerrarCamara();await decir('Falta.');return preguntar(falta);}
   if(!nFotosF()){await decir('Falta la foto de la palma.');return pasoFoto();}
   if(!$('#camara').hidden)cerrarCamara();
   const id=F.r.id;await guardarRegistro($('#frm'));
   if(F&&F.r&&F.r.id===id){await decir('No se pudo registrar el diagnóstico. Revise la pantalla.');return;}
   const r=S.registros.find(x=>x.id===id);if(!r){await decir('No se pudo registrar el diagnóstico.');return modoEspera(false);}
   const m=fraseRegistro(r);toast('✅ '+m,7000);await decir(m);return modoEspera(false);}
+/* ---------- Modo dictado: el operario dice todo seguido y la app marca el formulario sin preguntar ----------
+   Ej.: «Pudrición de cogollo, PC inicial. Síntomas manchas necróticas. Cirugía no. Producción sí. Transitabilidad transitable.
+   Observación hojas amarillas. Tomar foto. Guardar foto. Registrar diagnóstico.»
+   Enfermedad y opción se reconocen por su nombre; los demás campos por su nombre + la respuesta («cirugía no»).
+   Al registrar, la app pregunta solo lo que falte y confirma por voz lo registrado. */
+const CLAVES_CAMPO={sintomas:['sintomas','sintoma'],hongo:['hongo'],cirugia:['cirugia'],produccion:['produccion'],raices:['raices','raiz'],transitabilidad:['transitabilidad','transito']};
+const MARCAS_DICTADO=[['observacion','obs'],['observaciones','obs'],['tomar foto','tomar'],['otra foto','tomar'],['guardar foto','guardar'],['repetir foto','repetir'],['borrar foto','repetir'],
+  ['registrar diagnostico','registrar'],['guardar diagnostico','registrar'],['registrar','registrar'],['cancelar diagnostico','cancelar'],['cancelar','cancelar'],['resumen','resumen'],['leer resumen','resumen']];
+const tokV=t=>normV(t).split(' ').filter(Boolean);
+function diceV(a,b){if(a===b)return 1;const A=bigr(a),B=bigr(b),m=new Map();B.forEach(x=>m.set(x,(m.get(x)||0)+1));let k=0;A.forEach(x=>{const v=m.get(x);if(v){k++;m.set(x,v-1);}});return A.length+B.length?2*k/(A.length+B.length):0;}
+const palabraIgual=(a,b)=>a===b||(a.length>3&&b.length>3&&diceV(a,b)>=.8);
+/* Mejor opción cuyo nombre aparece en las palabras dichas (ventana deslizante con tolerancia); -1 si ninguna. */
+function buscarFrase(toks,ops,conPrefijo=false){let mejor=-1,ms=0;
+  ops.forEach((o,k)=>{const ot=tokV(o.t);if(!ot.length)return;const L=ot.length,oj=ot.join(' ');
+    if(conPrefijo&&L>2)for(let w=2;w<L;w++){const pj=ot.slice(0,w).join(' ');if(pj.length<10)continue; // basta el comienzo del nombre («manchas necróticas»)
+      for(let i=0;i+w<=toks.length;i++){const sc=Math.min(.97,diceV(toks.slice(i,i+w).join(' '),pj))*(.9+.1*w/L);if(sc>ms){ms=sc;mejor=k;}}}
+    for(let w=Math.max(1,L-1);w<=L+1;w++)for(let i=0;i+w<=toks.length;i++){const win=toks.slice(i,i+w);
+      let sc;if(w===L&&win.every((x,j)=>x===ot[j]))sc=1+oj.length/1000;          // nombre exacto (el más largo gana: «no transitable» > «transitable»)
+      else if(oj.length<=3)continue;                                              // «sí», «no»: solo exactos
+      else sc=diceV(win.join(' '),oj);
+      if(sc>ms){ms=sc;mejor=k;}}});
+  return ms>=.78?mejor:-1;}
+function posClave(toks,claves,desde=0){for(let i=desde;i<toks.length;i++)if(claves.some(c=>palabraIgual(toks[i],c)))return i;return -1;}
+/* Separa lo dictado en: palabras de campos, texto de observación y comandos (en el orden dicho). */
+function segmentarDictado(t){const toks=tokV(t),campos=[],cmds=[];let obs=null,i=0,enObs=false;
+  while(i<toks.length){let m=null;
+    for(const [frase,cmd] of MARCAS_DICTADO){const ft=frase.split(' ');if(i+ft.length<=toks.length&&ft.every((w,j)=>palabraIgual(toks[i+j],w))){if(!m||ft.length>m.n)m={cmd,n:ft.length};}}
+    if(m){if(m.cmd==='obs'){enObs=true;obs=obs||[];}else{enObs=false;cmds.push(m.cmd);}i+=m.n;continue;}
+    (enObs?obs:campos).push(toks[i]);i++;}
+  return {campos,obs:obs?obs.join(' '):null,cmds};}
+function marcarInput(name,val,on=true){const frm=$('#frm');if(!frm)return false;const inp=[...frm.querySelectorAll(`input[name="${name}"]`)].find(i=>i.value===val);
+  if(!inp||inp.checked===on)return false;inp.checked=on;inp.dispatchEvent(new Event('change',{bubbles:true}));return true;}
+/* Aplica al formulario lo dictado; devuelve cuántos campos marcó. */
+function aplicarDictado(toks){if(!toks.length)return 0;let n=0;
+  for(const name of ['n1','n2']){const g=gruposForm().find(x=>x.name===name);if(!g)continue;const k=buscarFrase(toks,g.ops);if(k>=0&&marcarInput(name,g.ops[k].v)){n++;marcarHecho(name);}}
+  const gs=gruposForm().filter(g=>g.name!=='n1'&&g.name!=='n2');
+  const claveDe=g=>CLAVES_CAMPO[g.name]||[tokV(g.titulo).find(w=>w.length>3)||normV(g.titulo)];
+  const todas=gs.flatMap(g=>claveDe(g));
+  for(const g of gs){const p=posClave(toks,claveDe(g));if(p<0)continue;
+    let fin=toks.length;for(let j=p+1;j<toks.length;j++)if(todas.some(c=>palabraIgual(toks[j],c))){fin=j;break;}
+    const resto=toks.slice(p+1,g.tipo==='checkbox'?fin:Math.min(fin,p+5));
+    if(g.tipo==='checkbox'){for(const o of g.ops)if(buscarFrase(resto,[o],true)===0&&marcarInput(g.name,o.v))n++;marcarHecho(g.name);}
+    else{const k=buscarFrase(resto,g.ops);if(k>=0&&marcarInput(g.name,g.ops[k].v)){n++;marcarHecho(g.name);}}}
+  return n;}
+function resumenForm(){const gs=gruposForm();const partes=gs.map(g=>{const frm=$('#frm');const sel=[...frm.querySelectorAll(`input[name="${g.name}"]:checked`)].map(i=>((i.nextElementSibling||{}).textContent||i.value).trim());
+    return sel.length?`${g.titulo}: ${sel.join(', ')}`:(g.req?`${g.titulo}: falta`:'');}).filter(Boolean);
+  const ob=($('#frm textarea[name=observaciones]')||{}).value;if(ob)partes.push('Observación: '+ob);partes.push(`Fotos: ${nFotosF()}`);
+  return partes.join('. ')+'.';}
+async function iniciarDictado(){VD.estado='dictado';VD.dictado=true;VD.g=null;VD.paso=iniciarDictado;
+  await escucharV(null,t=>dictar(t));}
+async function dictar(t){
+  if(VD.estado!=='dictado'||!frmAbierto())return;
+  const seg=segmentarDictado(t);
+  let n=aplicarDictado(seg.campos);
+  if(seg.obs){const ta=$('#frm textarea[name=observaciones]');if(ta){ta.value=seg.obs;n++;}}
+  if(n)pitido(980,90);else if(!seg.cmds.length)pitido(330,200); // pitido agudo: entendido; grave: no se reconoció ningún campo
+  for(const c of seg.cmds){if(VD.estado!=='dictado'&&c!=='registrar')break;
+    if(c==='tomar'){await abrirCamaraVoz();const a=nFotosF();$('#camDisparo').click();for(let i=0;i<20&&nFotosF()===a;i++)await esperar(100);
+      if(nFotosF()>a)pitido(1200,70);else await decir('No se pudo tomar la foto.');}
+    else if(c==='guardar'){if(!$('#camara').hidden)cerrarCamara();pitido(980,90);}
+    else if(c==='repetir'){quitarUltimaFoto();await abrirCamaraVoz();await decir('Foto borrada.');}
+    else if(c==='resumen'){await decir(resumenForm());}
+    else if(c==='cancelar'){if(!$('#camara').hidden)cerrarCamara();cerrarHoja();F=null;await decir('Diagnóstico cancelado. No se guardó nada.');return modoEspera(false);}
+    else if(c==='registrar'){return registrarVoz();}}
+}
 $('#btDxVoz').onclick=alternarDxVoz;
 if(motorVoz()||EN_APK)$('#btDxVoz').hidden=false;
 $('#guia').onclick=e=>{
