@@ -267,7 +267,7 @@ SanidadData/
 Mantenga el `ID Palma`, porque es el identificador que vincula los diagnósticos con cada palma.
 
 
-**Límite de la plantación** (restricción para iniciar jornada): en `admin.html` → *Modificar paquete* → **Límite de la plantación**, seleccione el polígono en GeoJSON WGS84 (por ejemplo `plantacion.geojson`, exportado desde QGIS) y pulse **Generar archivos actualizados**. Se descargan `acceso.json` y `plantacion.enc` (cifrado con la misma llave de la cartografía): súbalos a `datos/` del repositorio **Sanidad**. Los celulares lo toman al abrir la app con internet y lo guardan para uso sin conexión.
+**Límite de la plantación** (restricción para iniciar jornada): la app lo toma de `cartografia/plantacion.geojson` en el repositorio privado **SanidadData** (GeoJSON WGS84; para cambiarlo, reemplace ese archivo). Como alternativa cifrada, en `admin.html` → *Modificar paquete* → **Límite de la plantación**, seleccione el polígono en GeoJSON WGS84 (por ejemplo `plantacion.geojson`, exportado desde QGIS) y pulse **Generar archivos actualizados**. Se descargan `acceso.json` y `plantacion.enc` (cifrado con la misma llave de la cartografía): súbalos a `datos/` del repositorio **Sanidad**. Si existe `datos/plantacion.enc`, tiene prioridad. Los celulares toman el límite al abrir la app con internet y lo guardan para uso sin conexión.
 
 ## 9. Limitaciones conocidas
 

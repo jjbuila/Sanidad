@@ -1020,7 +1020,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261114:0202</div>
+  <div id="splashVer">VERSIÓN 20261114:0213</div>
 </div>
 
 <div id="login" hidden>
@@ -1035,7 +1035,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261114:0202</div>
+  <div id="lgVer2">VERSIÓN 20261114:0213</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1152,7 +1152,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261114:0202';
+const VERSION='20261114:0213';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -3804,18 +3804,22 @@ async function asegurarCartografia(){
   await procesarCartografia(await z.file('lotes.geojson').async('string'),await z.file('palmas.zip').async('arraybuffer'),{origen:'Paquete cifrado de la app',paquete:c.version});
 }
 
-/* ---------- Límite de la plantación (datos/plantacion.enc, cifrado como vias.enc) ----------
+/* ---------- Límite de la plantación (datos/plantacion.enc cifrado, o cartografia/plantacion.geojson del repositorio privado de datos) ----------
    No se puede iniciar jornada (censo ni cirugía) si el GPS está por fuera del polígono de la plantación.
    Tolerancia en el borde: la precisión del GPS (entre 5 y 25 m). Sin polígono cargado no hay restricción. */
 let capaPlantacion=null;
+const PLANTACION_GH='cartografia/plantacion.geojson'; // copia en el repositorio privado de datos (SanidadData)
 async function cargarPlantacion(){
-  const v=ACCESO&&ACCESO.plantacion;if(!v||!SES||!SES.dk){S.plantacion=null;return false;}
+  const v=ACCESO&&ACCESO.plantacion;if(!SES){S.plantacion=null;return false;}
   let gj=null;
-  try{const r=await fetch('datos/'+(v.archivo||'plantacion.enc'),{cache:'no-cache'});if(!r.ok)throw new Error('HTTP '+r.status);
+  // 1) Archivo cifrado publicado con admin.html (datos/plantacion.enc), si existe.
+  if(v&&SES.dk)try{const r=await fetch('datos/'+(v.archivo||'plantacion.enc'),{cache:'no-cache'});if(!r.ok)throw new Error('HTTP '+r.status);
     const buf=new Uint8Array(await r.arrayBuffer());if(DEC.decode(buf.slice(0,4))!=='SPC1')throw new Error('formato');
-    gj=JSON.parse(DEC.decode(await aesDes(SES.dk,buf.slice(4,16),buf.slice(16))));
-    try{await dbPut('config',{clave:'plantacion',v:{version:v.version,gj}});}catch(e){}}
-  catch(e){try{const c=await dbGet('config','plantacion');if(c&&c.v&&c.v.gj)gj=c.v.gj;}catch(_){}}
+    gj=JSON.parse(DEC.decode(await aesDes(SES.dk,buf.slice(4,16),buf.slice(16))));}catch(e){gj=null;}
+  // 2) Si no, el polígono del repositorio privado de datos (se lee con el acceso de sincronización de la sesión).
+  if(!gj&&S.cfg.gh&&S.cfg.gh.token&&navigator.onLine)try{gj=JSON.parse(await (await ghRaw(PLANTACION_GH)).text());}catch(e){gj=null;}
+  if(gj&&gj.features&&gj.features.length){try{await dbPut('config',{clave:'plantacion',v:{version:v?v.version:'datos',gj}});}catch(e){}}
+  else{gj=null;try{const c=await dbGet('config','plantacion');if(c&&c.v&&c.v.gj)gj=c.v.gj;}catch(_){}} // sin conexión: la copia guardada
   S.plantacion=gj&&gj.features&&gj.features.length?gj:null;dibujarPlantacion();return !!S.plantacion;
 }
 function dibujarPlantacion(){
