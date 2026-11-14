@@ -122,8 +122,8 @@ with sync_playwright() as p:
     check('Auditoría: avance (2 auditadas) y concordancia 50 %', vz.evaluate("GER.aud.res.filas.filter(x=>x.hecha).length") == 2 and '50 %' in T, re.sub(r'\s+', ' ', T)[-300:])
     check('Auditoría: lista la diferencia', 'DIFERENCIAS (1)' in T.upper())
     # Reportes
-    vz.click('[data-gt=reportes]'); vz.wait_for_function("GER.reportes&&GER.reportes.length", timeout=10000); time.sleep(.3); T = txt()
-    check('Reportes: lista semanas con PDF y Excel', '2026-S45' in T and 'PDF' in T and 'Excel' in T and 'Generar ahora' in T)
+    vz.click('[data-gt=reportes]'); vz.wait_for_function("GER.reportes&&GER.reportes.semanales.length", timeout=10000); time.sleep(.3); T = txt()
+    check('Reportes: lista semanas con PDF y Excel', '2026-S45' in T and 'PDF' in T and 'Excel' in T and 'Generar el diario ahora' in T)
     vz.click('#gerX'); check('Cerrar vuelve al mapa', vz.evaluate("document.querySelector('#gerPanel').hidden"))
     # ---- App: auditoría para supervisores ----
     pg = ctx.new_page(); pg.on('pageerror', lambda e: errores.append('app: ' + str(e)[:200])); pg.on('dialog', lambda d: (print('     ALERTA:', d.message), d.dismiss()))

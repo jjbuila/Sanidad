@@ -531,12 +531,20 @@ async function cargar(){
     let raiz;try{raiz=await (await gh(`/contents/jornadas?ref=${encodeURIComponent(SES.repo.rama)}`)).json();}
     catch(e){if(e.status===404){JOR=[];aplicarFiltros();progreso(1,'Aún no hay jornadas sincronizadas en el repositorio.');return;}throw e;}
     const dias=(Array.isArray(raiz)?raiz:[]).filter(x=>x.type==='dir'&&x.name>=d1&&x.name<=d2).map(x=>({path:x.name,sha:x.sha})).sort((a,b)=>a.path.localeCompare(b.path));
+    // Índice diario (indice/AAAA-MM-DD.json): una sola descarga por día si está al día con la carpeta; si no, se leen las jornadas una por una
+    const deIndice=[];let idx={};
+    try{const l=await (await gh(`/contents/indice?ref=${encodeURIComponent(SES.repo.rama)}`)).json();for(const x of (Array.isArray(l)?l:[]))if(/\.json$/.test(x.name))idx[x.name.slice(0,-5)]=x.sha;}catch(e){idx={};}
+    const sinIndice=[];
+    await enParalelo(dias,4,async dia=>{const sha=idx[dia.path];if(!sha){sinIndice.push(dia);return;}
+      try{const I=JSON.parse(await blobTexto(sha));if(I.arbol!==dia.sha)throw new Error('índice desactualizado');for(const a of I.archivos||[])deIndice.push({a,dia:dia.path});}
+      catch(e){sinIndice.push(dia);}});
     const archivos=[];
-    await enParalelo(dias,6,async dia=>{for(const f of await arbol(dia.sha))archivos.push({...f,dia:dia.path});});
+    await enParalelo(sinIndice,6,async dia=>{for(const f of await arbol(dia.sha))archivos.push({...f,dia:dia.path});});
     const geos=archivos.filter(f=>f.type==='blob'&&f.path.endsWith('.geojson'));
     const viejas=archivos.filter(f=>f.type==='tree'); // formato anterior: una carpeta por jornada
     const zips=new Map(archivos.filter(f=>f.path.endsWith('_fotos.zip')).map(f=>[f.dia+'/'+f.path,f.sha]));
     const nuevas=[];let hechos=0;
+    for(const {a,dia} of deIndice){try{nuevas.push(normalizar(a.g,{path:a.path,sha:a.sha,dia},a.zip||undefined));}catch(e){console.warn('Jornada ilegible (índice)',a.path,e);}}
     await enParalelo(geos,6,async f=>{
       try{const g=JSON.parse(await blobTexto(f.sha));nuevas.push(normalizar(g,f,zips.get(f.dia+'/'+f.path.replace(/\.geojson$/,'_fotos.zip'))));}
       catch(e){console.warn('Jornada ilegible',f.path,e);}

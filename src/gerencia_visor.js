@@ -365,25 +365,33 @@ ENLACES_GER.auditoria=()=>{enlazarRango();const A=GER.aud;
     try{const f=A.lista.find(x=>x.name===A.sel);const m=JSON.parse(await blobTexto(f.sha));await resultadosMuestra(m);}catch(e){toast(e.message,6000);}
     A.cargandoRes=false;pintarGer();};};
 
-/* ---------------- REPORTES SEMANALES ----------------
-   Los genera cada lunes un flujo automático en el repositorio de datos (reportes/AAAA-Snn/): Excel con el detalle y PDF de resumen. */
+/* ---------------- REPORTES (diarios 3:00 p. m. y semanales) ----------------
+   Los generan flujos automáticos del repositorio de datos: reportes/diario/AAAA-MM-DD/ y reportes/AAAA-Snn/ (PDF con mapa, HTML interactivo y Excel). */
 async function listarReportes(){
-  try{const r=await (await gh(`/contents/reportes?ref=${encodeURIComponent(SES.repo.rama)}`)).json();const sem=(Array.isArray(r)?r:[]).filter(x=>x.type==='dir').sort((a,b)=>b.name.localeCompare(a.name));
-    const out=[];for(const s of sem.slice(0,26)){const fs=await arbol(s.sha);out.push({semana:s.name,archivos:fs.filter(f=>f.type==='blob')});}GER.reportes=out;}
-  catch(e){if(e.status===404)GER.reportes=[];else{GER.reportes=[];toast(e.message,6000);}}
+  const rama=encodeURIComponent(SES.repo.rama);const out={diarios:[],semanales:[]};
+  try{const r=await (await gh(`/contents/reportes?ref=${rama}`)).json();const dirs=(Array.isArray(r)?r:[]).filter(x=>x.type==='dir');
+    for(const s of dirs.filter(x=>/^\d{4}-S\d{2}$/.test(x.name)).sort((a,b)=>b.name.localeCompare(a.name)).slice(0,20))out.semanales.push({nombre:s.name,archivos:(await arbol(s.sha)).filter(f=>f.type==='blob')});
+    const d=dirs.find(x=>x.name==='diario');
+    if(d){const dias=(await arbol(d.sha)).filter(x=>x.type==='tree').sort((a,b)=>b.path.localeCompare(a.path)).slice(0,30);
+      for(const x of dias)out.diarios.push({nombre:x.path,archivos:(await arbol(x.sha)).filter(f=>f.type==='blob'&&!/\.json$/.test(f.path))});}}
+  catch(e){if(e.status!==404)toast(e.message,6000);}
+  GER.reportes=out;
 }
+const tipoRep=p=>/\.pdf$/i.test(p)?['📄 PDF','nar','application/pdf']:/\.html$/i.test(p)?['🗺 Interactivo','prim','text/html']:/\.xlsx$/i.test(p)?['📊 Excel','','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']:['⬇ '+p,'','application/octet-stream'];
 function pintarReportes(){
   if(GER.reportes==null&&!GER.cargandoRep){GER.cargandoRep=true;listarReportes().finally(()=>{GER.cargandoRep=false;pintarGer();});}
-  const R=GER.reportes;
-  const lista=R==null?'<p class="tenue">Consultando reportes…</p>':!R.length?'<div class="ger-aviso">Aún no hay reportes. El primero se genera el próximo lunes a las 6:00 a. m.; también puede generarlo ahora desde GitHub (botón de abajo).</div>':
-    tablaGer([{t:'Semana',f:x=>`<b>${esc(x.semana)}</b>`},{t:'Archivos',f:x=>x.archivos.map(f=>`<button class="btn mini ${/\.pdf$/i.test(f.path)?'nar':''}" data-rep="${esc(f.sha)}|${esc(f.path)}">${/\.pdf$/i.test(f.path)?'📄 PDF':/\.xlsx$/i.test(f.path)?'📊 Excel':'⬇ '+esc(f.path)}</button>`).join(' ')}],R);
-  return `<p class="tenue">Cada lunes a las 6:00 a. m. se genera el reporte de la semana anterior (lunes a domingo): <b>PDF</b> de resumen para la gerencia y <b>Excel</b> con el detalle por operario, lote, diagnósticos y cirugía. Quedan guardados en el repositorio de datos (carpeta <code>reportes/</code>).</p>
-    <div class="ger-par"><a class="btn mini" href="https://github.com/${esc(SES.repo.owner)}/${esc(SES.repo.repo)}/actions/workflows/reporte-semanal.yml" target="_blank" rel="noopener">▶ Generar ahora en GitHub (Run workflow)</a>
-      <button class="btn mini" id="repRecargar">↻ Actualizar lista</button></div>${lista}`;
+  const R=GER.reportes,repo=SES.repo;
+  const t=(lista,col)=>tablaGer([{t:col,f:x=>`<b>${esc(x.nombre)}</b>`},{t:'Archivos',f:x=>x.archivos.map(f=>{const [et,cl]=tipoRep(f.path);return `<button class="btn mini ${cl}" data-rep="${esc(f.sha)}|${esc(f.path)}">${et}</button>`;}).join(' ')}],lista);
+  return `<p class="tenue">El <b>reporte diario</b> se genera de lunes a sábado a las <b>3:00 p. m.</b> (sin festivos) con las jornadas finalizadas y sincronizadas hasta esa hora; el <b>semanal</b>, los lunes a las 6:00 a. m. Cada uno trae <b>PDF con mapa</b>, <b>reporte interactivo</b> (mapa satelital con capas y filtros) y <b>Excel</b>, y se envía por correo y WhatsApp a los destinatarios configurados en la administración.</p>
+    <div class="ger-par"><a class="btn mini" href="https://github.com/${esc(repo.owner)}/${esc(repo.repo)}/actions/workflows/reporte-diario.yml" target="_blank" rel="noopener">▶ Generar el diario ahora</a>
+      <a class="btn mini" href="https://github.com/${esc(repo.owner)}/${esc(repo.repo)}/actions/workflows/reporte-semanal.yml" target="_blank" rel="noopener">▶ Generar el semanal ahora</a><button class="btn mini" id="repRecargar">↻ Actualizar lista</button></div>
+    ${R==null?'<p class="tenue">Consultando reportes…</p>':`<div class="ger-sec"><h3>Reportes diarios</h3>${R.diarios.length?t(R.diarios,'Fecha'):'<p class="tenue">Aún no hay reportes diarios.</p>'}</div>
+      <div class="ger-sec"><h3>Reportes semanales</h3>${R.semanales.length?t(R.semanales,'Semana'):'<p class="tenue">Aún no hay reportes semanales.</p>'}</div>`}`;
 }
 ENLACES_GER.reportes=()=>{const r=$('#repRecargar');if(r)r.onclick=()=>{GER.reportes=null;pintarGer();};
-  $$('#gerPanel [data-rep]').forEach(b=>b.onclick=async()=>{const [sha,path]=b.dataset.rep.split('|');b.disabled=true;
-    try{const buf=await (await gh(`/git/blobs/${sha}`,'application/vnd.github.raw+json')).arrayBuffer();const u=URL.createObjectURL(new Blob([buf],{type:/\.pdf$/i.test(path)?'application/pdf':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
-      const a=document.createElement('a');a.href=u;a.download=path.split('/').pop();document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);}
-    catch(e){toast(e.message,6000);}b.disabled=false;});};
+  $$('#gerPanel [data-rep]').forEach(b=>b.onclick=async()=>{const [sha,path]=b.dataset.rep.split('|');const tipo=tipoRep(path)[2];b.disabled=true;
+    const w=tipo==='text/html'?window.open('','_blank'):null;
+    try{const buf=await (await gh(`/git/blobs/${sha}`,'application/vnd.github.raw+json')).arrayBuffer();const u=URL.createObjectURL(new Blob([buf],{type:tipo}));
+      if(w){w.location.href=u;}else{const a=document.createElement('a');a.href=u;a.download=path.split('/').pop();document.body.appendChild(a);a.click();a.remove();}setTimeout(()=>URL.revokeObjectURL(u),120000);}
+    catch(e){if(w)w.close();toast(e.message,6000);}b.disabled=false;});};
 

@@ -137,7 +137,9 @@ table.usuarios td{font-size:13.5px}
           <select id="eFLab"><option value="">Todas las labores</option><option value="censo">Censo</option><option value="cirugia">Cirugía</option><option value="inactivo">Suspendidos</option><option value="cambios">Con cambios</option></select>
         </div>
         <div style="overflow-x:auto"><table class="usuarios"><thead><tr><th>Usuario</th><th>Nombre</th><th>Cargo</th><th>Rol</th><th>Labores</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="eLista"></tbody></table></div>
-        <div class="fila" style="margin-top:12px"><button class="btn chico prim" id="eAgregar">＋ Nuevo usuario</button><button class="btn chico" id="eCsv">⬇ Exportar lista (CSV, sin contraseñas)</button></div>
+        <div class="fila" style="margin-top:12px"><button class="btn chico prim" id="eAgregar">＋ Nuevo usuario</button><button class="btn chico" id="eImport">⬆ Cargar desde Excel o CSV</button><button class="btn chico" id="eCsv">⬇ Exportar lista (CSV, sin contraseñas)</button><button class="btn chico" id="eHist">🕘 Historial de cambios</button></div>
+        <input type="file" id="eImportF" accept=".csv,.xlsx,.txt" hidden>
+        <div id="eHistBox" class="form-usr" hidden></div>
         <div id="eForm" class="form-usr" hidden></div>
         <p class="tenue" style="margin-top:10px">Los cambios quedan marcados como <b>pendientes</b> y se aplican al pulsar <b>GENERAR ARCHIVOS ACTUALIZADOS</b> (al final de esta página).</p>
       </div>
@@ -161,6 +163,13 @@ table.usuarios td{font-size:13.5px}
         <h2>Límite de la plantación</h2>
         <p class="tenue">Versión actual: <b id="ePlantVer">—</b>. Polígono de toda la plantación (<code>.geojson</code> en WGS84, por ejemplo <code>plantacion.geojson</code>). La app no deja iniciar jornada por fuera de él. Se publica cifrado como <code>plantacion.enc</code>. Si no lo va a cambiar, deje vacío.</p>
         <input type="file" id="ePlant" accept=".geojson,.json">
+      </div>
+      <div class="tarjeta">
+        <h2>Alertas y reportes automáticos</h2>
+        <p class="tenue">Reporte <b>diario</b> (lunes a sábado, 3:00 p. m., sin festivos) y <b>semanal</b> (lunes 6:00 a. m.) con PDF y mapa, reporte interactivo y Excel; <b>alertas</b> automáticas. Se envían por correo (Microsoft 365) y WhatsApp. Configuración guardada en <code>config/alertas.json</code> del repositorio de datos.</p>
+        <button class="btn" id="aAbrir">Abrir la configuración de alertas y reportes</button>
+        <div id="aEditor" hidden></div>
+        <div class="err" id="aMsg"></div>
       </div>
       <div class="tarjeta">
         <h2>Formulario de diagnóstico</h2>
@@ -326,10 +335,10 @@ $('#eAbrir').onclick=async()=>{
     const dk=await llaveDatos(dkRaw);const meta=JSON.parse(dec.decode(await descifrar(dk,e.meta)));
     if(meta.rol!=='admin')throw new Error('Este usuario no es administrador.');
     ED.acceso=a;ED.dk=dk;ED.dkRaw=dkRaw;ED.eliminar.clear();ED.claves.clear();ED.cambios.clear();ED.nuevos=[];$('#eForm').hidden=true;
-    ED.lista=[];for(const x of a.usuarios){const m=JSON.parse(dec.decode(await descifrar(dk,x.meta)));ED.lista.push({u:x.u,...m});}
+    ED.lista=[];ED.orig={};for(const x of a.usuarios){const m=JSON.parse(dec.decode(await descifrar(dk,x.meta)));ED.lista.push({u:x.u,...m});ED.orig[x.u]=JSON.stringify(metaDe({u:x.u,...m}));}
     $('#eOwner').value=a.repo.owner;$('#eRepo').value=a.repo.repo;$('#eRama').value=a.repo.rama;$('#eCartoVer').textContent=a.carto.version;$('#ePlantVer').textContent=a.plantacion?a.plantacion.version:'sin cargar';
     pintarLista();$('#ePanel').hidden=false;EDR.cfg=null;EDR.abierto=false;$('#rEditor').hidden=true;$('#rAbrir').textContent='Abrir el editor del formulario';
-    cargarFormulario().catch(()=>{$('#rVer').textContent='—';});
+    cargarFormulario().catch(()=>{$('#rVer').textContent='—';});EDA.cfg=null;EDA.abierto=false;$('#aEditor').hidden=true;
   }catch(e){msg.textContent='❌ '+e.message;}
   finally{$('#eAbrir').disabled=false;$('#eAbrir').textContent='ABRIR';}
 };
@@ -486,6 +495,137 @@ $('#rAbrir').onclick=async()=>{const m=$('#rMsg');m.textContent='';const b=$('#r
   if(EDR.abierto){$('#rEditor').hidden=true;EDR.abierto=false;b.textContent='Abrir el editor del formulario';return;}
   b.disabled=true;b.textContent='Cargando…';try{await cargarFormulario();pintarEditor();$('#rEditor').hidden=false;EDR.abierto=true;b.textContent='Cerrar el editor';}
   catch(e){m.style.color='var(--rojo)';m.textContent='❌ '+e.message;b.textContent='Abrir el editor del formulario';}finally{b.disabled=false;}};
+/* ---------- Alertas y reportes automáticos (config/alertas.json del repositorio de datos) ---------- */
+const EDA={cfg:null,sha:null,abierto:false};
+const ALERTAS_DEF={formato:'sanidad-alertas-1',activo:true,destinatarios:[],umbrales:{dias_sin_sincronizar:2,incidencia_lote_pct:2,dias_recuperacion_sin_revision:30,alertas_calidad_por_100:20},
+  whatsapp:{plantilla_reporte:'sanidad_reporte_diario',plantilla_alerta:'sanidad_alerta',idioma:'es'}};
+async function cargarAlertasCfg(){
+  try{const f=await ghAdmin(`/contents/config/alertas.json?ref=${encodeURIComponent(ED.acceso.repo.rama||'main')}`);const c=JSON.parse(deB64u(f.content));EDA.sha=f.sha;
+    EDA.cfg={...ALERTAS_DEF,...c,umbrales:{...ALERTAS_DEF.umbrales,...(c.umbrales||{})},whatsapp:{...ALERTAS_DEF.whatsapp,...(c.whatsapp||{})}};}
+  catch(e){if(e.status!==404)throw e;EDA.cfg=JSON.parse(JSON.stringify(ALERTAS_DEF));EDA.sha=null;}
+}
+function pintarAlertasCfg(){
+  const C=EDA.cfg,U=C.umbrales,W=C.whatsapp,repo=ED.acceso.repo;
+  const fila=(d,i)=>`<tr data-i="${i}"><td><input type="text" data-k="nombre" value="${esc(d.nombre||'')}" placeholder="Nombre"></td><td><input type="text" data-k="correo" value="${esc(d.correo||'')}" placeholder="correo@palmasdetumaco.com"></td>
+    <td><input type="text" data-k="whatsapp" value="${esc(d.whatsapp||'')}" placeholder="+57 300 000 0000"></td>
+    ${['reporte_diario','reporte_semanal','alertas'].map(k=>`<td style="text-align:center"><input type="checkbox" data-k="${k}" ${d[k]!==false?'checked':''}></td>`).join('')}<td><button class="btn chico peligro" data-x>✕</button></td></tr>`;
+  $('#aEditor').innerHTML=`
+    <label class="check" style="margin-top:12px"><input type="checkbox" id="aActivo" ${C.activo!==false?'checked':''}> Envíos activos (desmarque para pausar correos y WhatsApp; los reportes se siguen generando)</label>
+    <h2 style="font-size:15px;margin-top:14px">Destinatarios</h2>
+    <div style="overflow-x:auto"><table><thead><tr><th>Nombre</th><th>Correo</th><th>WhatsApp</th><th>Reporte diario</th><th>Reporte semanal</th><th>Alertas</th><th></th></tr></thead><tbody id="aDest">${C.destinatarios.map(fila).join('')}</tbody></table></div>
+    <button class="btn chico" id="aAdd" style="margin-top:8px">＋ Destinatario</button>
+    <h2 style="font-size:15px;margin-top:16px">Umbrales de alerta</h2>
+    <div class="fila"><div><label>Días sin sincronizar</label><input type="text" id="aU1" value="${U.dias_sin_sincronizar}"></div><div><label>Incidencia de PC por lote (%)</label><input type="text" id="aU2" value="${U.incidencia_lote_pct}"></div>
+      <div><label>Días en recuperación sin revisión</label><input type="text" id="aU3" value="${U.dias_recuperacion_sin_revision}"></div><div><label>Alertas de calidad por cada 100 diagnósticos</label><input type="text" id="aU4" value="${U.alertas_calidad_por_100}"></div></div>
+    <h2 style="font-size:15px;margin-top:16px">Plantillas de WhatsApp (aprobadas en Meta)</h2>
+    <div class="fila"><div><label>Plantilla del reporte</label><input type="text" id="aW1" value="${esc(W.plantilla_reporte)}"></div><div><label>Plantilla de alerta</label><input type="text" id="aW2" value="${esc(W.plantilla_alerta)}"></div><div><label>Idioma</label><input type="text" id="aW3" value="${esc(W.idioma)}"></div></div>
+    <div class="fila" style="margin-top:12px"><button class="btn prim" id="aGuardar">GUARDAR EN GITHUB</button>
+      <a class="btn" target="_blank" rel="noopener" href="https://github.com/${esc(repo.owner)}/${esc(repo.repo)}/actions/workflows/reporte-diario.yml">▶ Probar: generar y enviar el reporte de hoy</a></div>
+    <details style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">Configuración única de los envíos (claves y plantillas)</summary>
+      <div class="tenue" style="margin-top:8px;line-height:1.6">
+      <b>1. Claves en GitHub</b> (repositorio <code>${esc(repo.owner)}/${esc(repo.repo)}</code> → Settings → Secrets and variables → Actions → New repository secret):<br>
+      · <code>SMTP_USER</code> y <code>SMTP_PASS</code>: cuenta de Microsoft 365 que envía (por ejemplo reportes@…). El administrador de Microsoft 365 debe habilitar «SMTP autenticado» para esa cuenta. Opcional <code>SMTP_FROM</code>.<br>
+      · <code>WA_TOKEN</code> (token permanente de un usuario del sistema de Meta Business) y <code>WA_PHONE_ID</code> (identificador del número de WhatsApp Business).<br>
+      <b>2. Plantillas en WhatsApp Manager</b> (categoría Utilidad, idioma Español):<br>
+      · <code>sanidad_reporte_diario</code>: encabezado <i>Documento</i>; cuerpo: «Reporte de sanidad vegetal del {{1}}: {{2}} jornadas, {{3}} hectáreas recorridas, {{4}} diagnósticos y {{5}} casos de PC. Alertas: {{6}}. El detalle va en el PDF adjunto.»<br>
+      · <code>sanidad_alerta</code>: cuerpo: «⚠ Alerta de sanidad vegetal ({{1}}): {{2}}»<br>
+      <b>3. Números</b>: escríbalos con indicativo (+57…). Mientras la cuenta de Meta esté en prueba, cada número debe agregarse como destinatario de prueba en Meta.</div></details>`;
+  enlazarAlertasCfg();
+}
+function leerAlertasCfg(){
+  const C=EDA.cfg;C.activo=$('#aActivo').checked;
+  C.destinatarios=$$('#aDest tr').map(tr=>{const g=k=>tr.querySelector(`[data-k=${k}]`);return {nombre:g('nombre').value.trim(),correo:g('correo').value.trim().toLowerCase(),whatsapp:g('whatsapp').value.replace(/[^\d+]/g,''),
+    reporte_diario:g('reporte_diario').checked,reporte_semanal:g('reporte_semanal').checked,alertas:g('alertas').checked};});
+  const n=(id,d)=>{const v=Number(String($(id).value).replace(',','.'));return Number.isFinite(v)&&v>0?v:d;};
+  C.umbrales={dias_sin_sincronizar:n('#aU1',2),incidencia_lote_pct:n('#aU2',2),dias_recuperacion_sin_revision:n('#aU3',30),alertas_calidad_por_100:n('#aU4',20)};
+  C.whatsapp={plantilla_reporte:$('#aW1').value.trim()||'sanidad_reporte_diario',plantilla_alerta:$('#aW2').value.trim()||'sanidad_alerta',idioma:$('#aW3').value.trim()||'es'};
+}
+function enlazarAlertasCfg(){
+  $('#aAdd').onclick=()=>{leerAlertasCfg();EDA.cfg.destinatarios.push({nombre:'',correo:'',whatsapp:'',reporte_diario:true,reporte_semanal:true,alertas:true});pintarAlertasCfg();};
+  $$('#aDest [data-x]').forEach(b=>b.onclick=()=>{leerAlertasCfg();EDA.cfg.destinatarios.splice(+b.closest('tr').dataset.i,1);pintarAlertasCfg();});
+  $('#aGuardar').onclick=async()=>{const m=$('#aMsg'),b=$('#aGuardar');m.style.color='';m.textContent='';
+    try{leerAlertasCfg();const C=EDA.cfg;C.destinatarios=C.destinatarios.filter(d=>d.nombre||d.correo||d.whatsapp); // las filas vacías se descartan al guardar
+      for(const d of C.destinatarios){if(d.correo&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.correo))throw new Error(`Correo no válido: ${d.correo}`);
+        if(d.whatsapp&&!/^\+?\d{10,15}$/.test(d.whatsapp))throw new Error(`Número de WhatsApp no válido: ${d.whatsapp} (use el indicativo, por ejemplo +573001234567).`);
+        if(!d.correo&&!d.whatsapp)throw new Error(`«${d.nombre}» no tiene correo ni WhatsApp.`);}
+      b.disabled=true;b.textContent='Guardando…';C.modificado=new Date().toISOString();
+      const r=await ghAdmin('/contents/config/alertas.json',{method:'PUT',body:JSON.stringify({message:'Configuración de alertas y reportes',content:b64u(JSON.stringify(C,null,1)),branch:ED.acceso.repo.rama||'main',...(EDA.sha?{sha:EDA.sha}:{})})});
+      EDA.sha=r.content.sha;m.style.color='var(--acento)';m.textContent=`✅ Guardado: ${C.destinatarios.length} destinatario(s). Se aplica desde el próximo reporte.`;}
+    catch(e){m.style.color='var(--rojo)';m.textContent='❌ '+e.message;}finally{b.disabled=false;b.textContent='GUARDAR EN GITHUB';}};
+}
+$('#aAbrir').onclick=async()=>{const m=$('#aMsg'),b=$('#aAbrir');m.textContent='';
+  if(EDA.abierto){$('#aEditor').hidden=true;EDA.abierto=false;b.textContent='Abrir la configuración de alertas y reportes';return;}
+  b.disabled=true;b.textContent='Cargando…';try{await cargarAlertasCfg();pintarAlertasCfg();$('#aEditor').hidden=false;EDA.abierto=true;b.textContent='Cerrar la configuración';}
+  catch(e){m.style.color='var(--rojo)';m.textContent='❌ '+e.message;b.textContent='Abrir la configuración de alertas y reportes';}finally{b.disabled=false;}};
+/* ---------- Carga masiva de usuarios desde Excel (.xlsx) o CSV ----------
+   Columnas (encabezados en la primera fila, en cualquier orden): usuario, nombre, cargo, identificacion, rol, labores, rol_cirugia, contraseña, estado.
+   Usuario existente: se actualizan los datos que traiga la fila. Usuario nuevo: se crea (contraseña de la fila o generada). */
+const normCol=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+const SINON={usuario:['usuario','user','login'],nombre:['nombre','nombre_completo','nombres'],cargo:['cargo'],identificacion:['identificacion','cedula','documento','cc'],rol:['rol','perfil'],
+  labores:['labores','labor'],rol_cirugia:['rol_cirugia','rol_en_cirugia'],clave:['contrasena','clave','password'],estado:['estado']};
+async function leerTabla(f){
+  if(/\.xlsx$/i.test(f.name)){const z=await JSZip.loadAsync(await f.arrayBuffer());const dp=new DOMParser();
+    const ss=z.file('xl/sharedStrings.xml')?[...dp.parseFromString(await z.file('xl/sharedStrings.xml').async('string'),'application/xml').getElementsByTagName('si')].map(x=>x.textContent):[];
+    const hoja=Object.keys(z.files).filter(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n)).sort()[0];if(!hoja)throw new Error('El archivo de Excel no tiene hojas.');
+    const doc=dp.parseFromString(await z.file(hoja).async('string'),'application/xml');const filas=[];
+    for(const row of doc.getElementsByTagName('row')){const fila=[];for(const c of row.getElementsByTagName('c')){const ref=c.getAttribute('r')||'';let col=0;for(const ch of ref.replace(/\d+/g,''))col=col*26+ch.charCodeAt(0)-64;
+      const t=c.getAttribute('t'),v=c.getElementsByTagName('v')[0];fila[col-1]=t==='s'?ss[+v.textContent]:t==='inlineStr'?c.textContent:(v?v.textContent:'');}filas.push([...fila].map(x=>x??''));}
+    return filas;}
+  const txt=(await f.text()).replace(/^\ufeff/,'');const sep=(txt.split('\n')[0].match(/;/g)||[]).length>=(txt.split('\n')[0].match(/,/g)||[]).length?';':',';
+  return txt.split(/\r?\n/).filter(l=>l.trim()).map(l=>{const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const ch=l[i];if(ch==='"'){if(q&&l[i+1]==='"'){cur+='"';i++;}else q=!q;}else if(ch===sep&&!q){out.push(cur);cur='';}else cur+=ch;}out.push(cur);return out.map(x=>x.trim());});
+}
+async function importarUsuarios(f){
+  const filas=await leerTabla(f);if(filas.length<2)throw new Error('El archivo no tiene filas de usuarios.');
+  const cab=filas[0].map(normCol);const col={};for(const [k,syn] of Object.entries(SINON)){const i=cab.findIndex(c=>syn.includes(c));if(i>=0)col[k]=i;}
+  if(col.usuario==null)throw new Error('Falta la columna «usuario».');
+  const rolDe=v=>{v=normCol(v);return /admin/.test(v)?'admin':/super/.test(v)?'supervisor':v?'operario':null;};
+  const labDe=v=>{v=normCol(v);if(!v)return null;const l=[];if(/censo/.test(v))l.push('censo');if(/cirug/.test(v))l.push('cirugia');return l.length?l:null;};
+  const res={nuevos:[],act:[],err:[]};const vistos=new Set();
+  filas.slice(1).forEach((fl,i)=>{const g=k=>col[k]!=null?String(fl[col[k]]??'').trim():'';const u=g('usuario').toLowerCase();const n=i+2;
+    if(!u&&!g('nombre'))return;
+    if(!reUser.test(u)){res.err.push(`Fila ${n}: usuario «${u||'(vacío)'}» no válido.`);return;}
+    if(vistos.has(u)){res.err.push(`Fila ${n}: «${u}» está repetido en el archivo.`);return;}vistos.add(u);
+    const datos={};if(g('nombre'))datos.nombre=g('nombre').toUpperCase();if(g('cargo'))datos.cargo=g('cargo');if(g('identificacion'))datos.identificacion=g('identificacion');
+    const ro=rolDe(g('rol'));if(ro)datos.rol=ro;const la=labDe(g('labores'));if(la)datos.labores=la;
+    const rc=normCol(g('rol_cirugia'));if(rc)datos.rol_cirugia=/ciruj/.test(rc)?'cirujano':'auxiliar';
+    const es=normCol(g('estado'));if(es)datos.inactivo=/susp|inact/.test(es);
+    const clave=g('clave');if(clave){const e=validarClave(clave);if(e){res.err.push(`Fila ${n} (${u}): contraseña ${e}.`);return;}}
+    const ex=todos().find(x=>x.u===u);
+    if(ex){res.act.push({x:ex,datos,clave});}
+    else{if(!datos.nombre){res.err.push(`Fila ${n}: falta el nombre del usuario nuevo «${u}».`);return;}
+      res.nuevos.push({u,nombre:datos.nombre,cargo:'',identificacion:'',rol:'operario',labores:['censo'],rol_cirugia:'',...datos,clave:clave||generarClave(),nuevo:true});}});
+  const msg=`Archivo: ${f.name}\n\n· ${res.nuevos.length} usuario(s) nuevo(s)\n· ${res.act.length} usuario(s) existente(s) a actualizar\n· ${res.err.length} fila(s) con error${res.err.length?':\n  '+res.err.slice(0,12).join('\n  ')+(res.err.length>12?'\n  …':''):''}\n\n¿Aplicar los cambios? (Quedan pendientes hasta «Generar archivos actualizados».)`;
+  if(!(res.nuevos.length+res.act.length)){alert(msg.replace(/\n\n¿Aplicar[\s\S]*$/,''));return;}
+  if(!confirm(msg))return;
+  for(const {x,datos,clave} of res.act){Object.assign(x,datos);if(!x.nuevo)ED.cambios.add(x.u);if(clave){if(x.nuevo)x.clave=clave;else ED.claves.set(x.u,clave);}}
+  ED.nuevos.push(...res.nuevos);pintarLista();
+}
+$('#eImport').onclick=()=>{const i=$('#eImportF');i.value='';i.click();};
+$('#eImportF').onchange=async()=>{const f=$('#eImportF').files[0];if(!f)return;try{await importarUsuarios(f);}catch(e){alert('No se pudo leer el archivo: '+e.message);}};
+/* ---------- Historial de cambios de usuarios (config/historial_usuarios.json del repositorio de datos) ---------- */
+function cambiosUsuarios(){
+  const out=[];
+  for(const x of ED.nuevos)out.push({u:x.u,accion:'Creado',detalle:`${x.nombre} · ${ROL_TXT[x.rol]||x.rol}`});
+  for(const u of ED.eliminar)out.push({u,accion:'Eliminado',detalle:(ED.lista.find(x=>x.u===u)||{}).nombre||''});
+  for(const [u] of ED.claves)if(!ED.eliminar.has(u))out.push({u,accion:'Contraseña nueva',detalle:''});
+  for(const u of ED.cambios){if(ED.eliminar.has(u))continue;const x=ED.lista.find(y=>y.u===u);const o=JSON.parse(ED.orig[u]||'{}'),n=metaDe(x);
+    const campos=[...new Set([...Object.keys(o),...Object.keys(n)])].filter(k=>JSON.stringify(o[k]??null)!==JSON.stringify(n[k]??null));
+    if(campos.includes('inactivo'))out.push({u,accion:n.inactivo?'Suspendido':'Reactivado',detalle:''});
+    const resto=campos.filter(k=>k!=='inactivo');if(resto.length)out.push({u,accion:'Editado',detalle:resto.map(k=>`${k}: ${JSON.stringify(o[k]??'—')} → ${JSON.stringify(n[k]??'—')}`).join('; ')});}
+  return out;
+}
+async function registrarHistorial(cambios){
+  if(!cambios.length)return;const rama=ED.acceso.repo.rama||'main';let arr=[],sha=null;
+  try{const f=await ghAdmin(`/contents/config/historial_usuarios.json?ref=${encodeURIComponent(rama)}`);arr=JSON.parse(deB64u(f.content));sha=f.sha;}catch(e){if(e.status!==404)throw e;}
+  const admin=(ED.lista.find(x=>x.u===$('#eUser').value.trim().toLowerCase())||{}).nombre||$('#eUser').value.trim();
+  arr.unshift({fecha:new Date().toISOString(),admin,usuario_admin:$('#eUser').value.trim().toLowerCase(),cambios});arr=arr.slice(0,500);
+  await ghAdmin('/contents/config/historial_usuarios.json',{method:'PUT',body:JSON.stringify({message:`Usuarios: ${cambios.length} cambio(s) por ${admin}`,content:b64u(JSON.stringify(arr,null,1)),branch:rama,...(sha?{sha}:{})})});
+}
+$('#eHist').onclick=async()=>{const B=$('#eHistBox');if(!B.hidden){B.hidden=true;return;}B.hidden=false;B.innerHTML='<p class="tenue">Consultando el historial…</p>';
+  try{let arr=[];try{const f=await ghAdmin(`/contents/config/historial_usuarios.json?ref=${encodeURIComponent(ED.acceso.repo.rama||'main')}`);arr=JSON.parse(deB64u(f.content));}catch(e){if(e.status!==404)throw e;}
+    B.innerHTML=`<h2 style="font-size:16px">Historial de cambios de usuarios</h2>`+(arr.length?`<div style="overflow-x:auto;max-height:420px"><table><thead><tr><th>Fecha</th><th>Administrador</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>${
+      arr.slice(0,100).flatMap(h=>h.cambios.map(c=>`<tr><td>${esc(new Date(h.fecha).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}))}</td><td>${esc(h.admin)}</td><td><b>${esc(c.u)}</b></td><td>${esc(c.accion)}</td><td class="tenue">${esc(c.detalle)}</td></tr>`)).join('')}</tbody></table></div>`:'<p class="tenue">Aún no hay cambios registrados.</p>');}
+  catch(e){B.innerHTML=`<p class="err">❌ ${esc(e.message)}</p>`;}};
 $('#eAgregar').onclick=()=>formUsuario(null);
 ['#eBuscar','#eFRol','#eFLab'].forEach(s=>$(s).addEventListener('input',pintarLista));
 $('#eCsv').onclick=()=>{const T=todos().filter(x=>!ED.eliminar.has(x.u));
@@ -520,9 +660,10 @@ $('#eGuardar').onclick=async()=>{
     const entregar=nuevos.concat(Array.from(ED.claves,([u,clave])=>{const m=ED.lista.find(y=>y.u===u);return {u,nombre:m.nombre,rol:m.rol,clave};}));
     mostrarResultado($('#eOk'),['acceso.json',...(carto?['carto.enc']:[]),...(plant?['plantacion.enc']:[])],entregar);
     ED.acceso=a;
+    const cambiosH=cambiosUsuarios();registrarHistorial(cambiosH).catch(e=>{msg.textContent='⚠ Archivos generados, pero no se pudo guardar el historial de cambios: '+e.message;});
     // El paquete descargado pasa a ser el actual: los cambios ya quedaron aplicados
     for(const x of ED.nuevos){delete x.clave;delete x.nuevo;ED.lista.push(x);}ED.nuevos=[];
-    ED.lista=ED.lista.filter(x=>!ED.eliminar.has(x.u));ED.eliminar.clear();ED.claves.clear();ED.cambios.clear();pintarLista();
+    ED.lista=ED.lista.filter(x=>!ED.eliminar.has(x.u));ED.eliminar.clear();ED.claves.clear();ED.cambios.clear();ED.orig={};for(const x of ED.lista)ED.orig[x.u]=JSON.stringify(metaDe(x));pintarLista();
   }catch(e){msg.textContent='❌ '+e.message;}
   finally{bt.disabled=false;bt.textContent='GENERAR ARCHIVOS ACTUALIZADOS';}
 };
