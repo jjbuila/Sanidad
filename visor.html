@@ -874,7 +874,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261114:1809</div>
+    <div id="lgVer">VERSIÓN 20261114:1823</div>
   </div>
 </div>
 
@@ -969,7 +969,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261114:1809';
+const VERSION='20261114:1823';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -2772,18 +2772,47 @@ const tipoRep=p=>/\.pdf$/i.test(p)?['📄 PDF','nar','application/pdf']:/\.html$
 function pintarReportes(){
   if(GER.reportes==null&&!GER.cargandoRep){GER.cargandoRep=true;listarReportes().finally(()=>{GER.cargandoRep=false;pintarGer();});}
   const R=GER.reportes,repo=SES.repo;const RM=GER.rm||(GER.rm={tipo:'diario',fecha:hoyISO(),envio:'todos',para:'',msg:''});
-  const t=(lista,col)=>tablaGer([{t:col,f:x=>`<b>${esc(x.nombre)}</b>`},{t:'Archivos',f:x=>x.archivos.map(f=>{const [et,cl]=tipoRep(f.path);return `<button class="btn mini ${cl}" data-rep="${esc(f.sha)}|${esc(f.path)}">${et}</button>`;}).join(' ')}],lista);
+  const t=(lista,col)=>tablaGer([{t:col,f:x=>`<b>${esc(x.nombre)}</b>`},{t:'Archivos',f:x=>x.archivos.map(f=>{const [et,cl]=tipoRep(f.path);return `<button class="btn mini ${cl}" data-rep="${esc(f.sha)}|${esc(f.path)}">${et}</button>`;}).join(' ')+` <button class="btn mini" data-repzip="${esc(x.nombre)}">⬇ Todo (ZIP)</button>`}],lista);
   return `<p class="tenue">El <b>reporte diario</b> se genera de lunes a sábado a las <b>3:00 p. m.</b> (sin festivos) con las jornadas finalizadas y sincronizadas hasta esa hora; el <b>semanal</b>, los lunes a las 6:00 a. m. Cada uno trae <b>PDF con mapa</b>, <b>reporte interactivo</b> (mapa satelital con capas y filtros) y <b>Excel</b>, y se envía por correo y WhatsApp a los destinatarios configurados en la administración.</p>
     <div class="ger-sec"><h3>📤 Generar y enviar ahora (manual)</h3>
       <div class="ger-par">Reporte <select id="rmTipo">${[['diario','Diario'],['semanal','Semanal (semana de la fecha)']].map(([v,t])=>`<option value="${v}" ${RM.tipo===v?'selected':''}>${t}</option>`).join('')}</select>
         Fecha <input type="date" id="rmFecha" value="${esc(RM.fecha)}">
-        Enviar a <select id="rmEnvio">${[['todos','Todos los destinatarios configurados'],['correos','Solo a estos correos…'],['ninguno','No enviar (solo generar)']].map(([v,t])=>`<option value="${v}" ${RM.envio===v?'selected':''}>${t}</option>`).join('')}</select>
+        Enviar a <select id="rmEnvio">${[['todos','Todos los destinatarios configurados'],['correos','Solo a estos correos…'],['ninguno','No enviar: solo generar y descargar']].map(([v,t])=>`<option value="${v}" ${RM.envio===v?'selected':''}>${t}</option>`).join('')}</select>
         <input type="text" id="rmPara" placeholder="correo1@palmares.com.co, correo2@…" style="min-width:260px" value="${esc(RM.para)}" ${RM.envio==='correos'?'':'hidden'}>
         <button class="btn mini nar" id="rmIr">📤 Generar y enviar</button></div>
       <p class="tenue" id="rmMsg">${RM.msg?RM.msg+'<br>':''}Tarda de 3 a 5 minutos: queda en la lista de abajo y llega por correo (y WhatsApp si es a todos los destinatarios). <a href="https://github.com/${esc(repo.owner)}/${esc(repo.repo)}/actions/workflows/reporte-manual.yml" target="_blank" rel="noopener">Ver ejecución en GitHub</a></p></div>
+    ${RM.listo?`<div class="ger-sec" style="border:2px solid var(--verde,#00a651);border-radius:10px;padding:8px 12px"><h3>✅ Reporte listo · ${esc(RM.listo.nombre)}</h3>
+      <div class="ger-par">${RM.listo.archivos.map(f=>{const [et,cl]=tipoRep(f.path);return `<button class="btn mini ${cl}" data-rep="${esc(f.sha)}|${esc(f.path)}">${et}</button>`;}).join(' ')}
+      <button class="btn mini nar" data-repzip="${esc(RM.listo.nombre)}">⬇ Descargar todo (ZIP)</button></div></div>`:RM.pend?`<p class="tenue">⏳ Generando el reporte ${esc(RM.pend.nombre)}… (se revisa cada 20 segundos)</p>`:''}
     <div class="ger-par"><button class="btn mini" id="repRecargar">↻ Actualizar lista</button></div>
     ${R==null?'<p class="tenue">Consultando reportes…</p>':`<div class="ger-sec"><h3>Reportes diarios</h3>${R.diarios.length?t(R.diarios,'Fecha'):'<p class="tenue">Aún no hay reportes diarios.</p>'}</div>
       <div class="ger-sec"><h3>Reportes semanales</h3>${R.semanales.length?t(R.semanales,'Semana'):'<p class="tenue">Aún no hay reportes semanales.</p>'}</div>`}`;
+}
+/* ---- Exportar reportes: archivos sueltos o todo en un ZIP; seguimiento de la solicitud manual hasta que el reporte esté listo ---- */
+async function carpetaReporte(tipo,nombre){
+  const rama=encodeURIComponent(SES.repo.rama);
+  try{const l=await (await gh(`/contents/${tipo==='semanal'?'reportes':'reportes/diario'}?ref=${rama}`)).json();const x=(Array.isArray(l)?l:[]).find(y=>y.type==='dir'&&y.name===nombre);return x||null;}
+  catch(e){return null;}
+}
+function bajar(blob,nombre){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=nombre;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),120000);}
+async function descargarRepZip(nombre){
+  const R=GER.reportes||{diarios:[],semanales:[]};let it=[...R.diarios,...R.semanales].find(x=>x.nombre===nombre)||(GER.rm&&GER.rm.listo&&GER.rm.listo.nombre===nombre?GER.rm.listo:null);
+  if(!it)throw new Error('No se encontró el reporte '+nombre);
+  toast('Preparando el ZIP…',4000);const z=new JSZip();
+  await Promise.all(it.archivos.map(async f=>z.file(f.path.split('/').pop(),await (await gh(`/git/blobs/${f.sha}`,'application/vnd.github.raw+json')).arrayBuffer())));
+  bajar(await z.generateAsync({type:'blob'}),`reporte_sanidad_${nombre}.zip`);
+}
+function seguirSolicitud(){
+  const RM=GER.rm,P=RM.pend;if(!P)return;clearTimeout(RM.tm);
+  RM.tm=setTimeout(async()=>{if(GER.rm!==RM||RM.pend!==P)return;
+    const c=await carpetaReporte(P.tipo,P.nombre);
+    if(c&&c.sha!==P.antes){const archivos=(await arbol(c.sha)).filter(f=>f.type==='blob'&&!/\.json$/.test(f.path));
+      RM.pend=null;RM.listo={nombre:P.nombre,archivos};RM.msg='';GER.reportes=null;toast(`✅ Reporte ${P.nombre} listo.`,6000);
+      if(!document.querySelector('#gerPanel').hidden&&GER.tab==='reportes')pintarGer();
+      if(P.descargar)try{await descargarRepZip(P.nombre);}catch(e){toast(e.message,6000);}
+      return;}
+    if(Date.now()-P.t0>15*60000){RM.pend=null;RM.msg='⚠ El reporte tarda más de lo normal. Revise la ejecución en GitHub o actualice la lista más tarde.';if(GER.tab==='reportes')pintarGer();return;}
+    seguirSolicitud();},GER.rmPaso||20000);
 }
 async function solicitarReporte(sol){
   const ruta='solicitudes/reporte.json';let sha=null;
@@ -2797,13 +2826,15 @@ ENLACES_GER.reportes=()=>{const r=$('#repRecargar');if(r)r.onclick=()=>{GER.repo
   const ir=$('#rmIr');if(ir)ir.onclick=async()=>{const m=$('#rmMsg');const tipo=$('#rmTipo').value,fecha=$('#rmFecha').value,envio=ev.value;
     const para=$('#rmPara').value.split(/[,;\s]+/).map(x=>x.trim().toLowerCase()).filter(Boolean);
     if(envio==='correos'&&(!para.length||para.some(x=>!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)))){m.textContent='❌ Escriba uno o más correos válidos, separados por coma.';return;}
-    const dest=envio==='todos'?'todos los destinatarios':envio==='correos'?para.join(', '):'nadie (solo se genera)';
-    if(!confirm(`¿Generar el reporte ${tipo} del ${fecha} y enviarlo a ${dest}?`))return;
+    const dest=envio==='todos'?'todos los destinatarios':envio==='correos'?para.join(', '):'nadie';
+    if(!confirm(envio==='ninguno'?`¿Generar el reporte ${tipo} del ${fecha} para descargarlo (sin enviarlo)?`:`¿Generar el reporte ${tipo} del ${fecha} y enviarlo a ${dest}?`))return;
+    const nombre=tipo==='semanal'?semanaISO(fecha):fecha;const antes=await carpetaReporte(tipo,nombre);
     ir.disabled=true;ir.textContent='Solicitando…';
     try{await solicitarReporte({tipo,fecha,envio,para:envio==='correos'?para:[]});
-      RM.msg=`✅ Solicitado a las ${esc(new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}))}. En 3 a 5 minutos aparece en la lista y llega a ${esc(dest)}.`;m.innerHTML=RM.msg;
-      setTimeout(()=>{if(GER.tab==='reportes'){GER.reportes=null;pintarGer();}},300000);}
+      RM.msg=`✅ Solicitado a las ${esc(new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}))}. En 3 a 5 minutos queda listo para descargar aquí${envio==='ninguno'?' (se descarga solo)':' y llega a '+esc(dest)}.`;
+      RM.listo=null;RM.pend={tipo,nombre,antes:antes&&antes.sha,t0:Date.now(),descargar:envio==='ninguno'};seguirSolicitud();pintarGer();}
     catch(e){RM.msg='';m.textContent='❌ '+e.message;}finally{ir.disabled=false;ir.textContent='📤 Generar y enviar';}};
+  $$('#gerPanel [data-repzip]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await descargarRepZip(b.dataset.repzip);}catch(e){toast(e.message,6000);}b.disabled=false;});
   $$('#gerPanel [data-rep]').forEach(b=>b.onclick=async()=>{const [sha,path]=b.dataset.rep.split('|');const tipo=tipoRep(path)[2];b.disabled=true;
     const w=tipo==='text/html'?window.open('','_blank'):null;
     try{const buf=await (await gh(`/git/blobs/${sha}`,'application/vnd.github.raw+json')).arrayBuffer();const u=URL.createObjectURL(new Blob([buf],{type:tipo}));

@@ -246,7 +246,9 @@ Entran las jornadas finalizadas y sincronizadas hasta el corte. Para generarlo a
 **Envío manual.** Además de los automáticos, en cualquier momento:
 - **Visor → 📊 GERENCIA → Reportes → 📤 Generar y enviar ahora:** reporte diario o semanal de la fecha elegida, enviado a todos los destinatarios configurados, solo a los correos que escriba, o sin envío (solo generar).
 - **App → Menú → Panel del día → 📤 Generar y enviar el reporte de hoy ahora** (supervisores y administradores).
-Llega en 3 a 5 minutos y queda en la lista de reportes. Por dentro, la solicitud se guarda en `solicitudes/reporte.json` y la atiende el flujo `reporte-manual.yml`.
+Llega en 3 a 5 minutos y queda en la lista de reportes.
+
+**Exportar (descargar) reportes.** En el visor, cada reporte de la lista tiene botones para descargar el PDF, el interactivo y el Excel, o **⬇ Todo (ZIP)**. Al pedir uno a mano, el visor espera a que esté listo y muestra **✅ Reporte listo** con sus archivos; con la opción *No enviar: solo generar y descargar* el ZIP se descarga solo. En la App, el Panel del día permite exportar el PDF, el Excel o el interactivo del último reporte (en el celular se abre «Compartir» para guardarlo o enviarlo). Por dentro, la solicitud se guarda en `solicitudes/reporte.json` y la atiende el flujo `reporte-manual.yml`.
 
 **Índice diario.** Cada hora (6 a. m. a 8 p. m., lunes a sábado) el flujo `indice.yml` resume las jornadas de cada día en `indice/AAAA-MM-DD.json`. El visor descarga un archivo por día en lugar de una jornada a la vez, por lo que con muchos operarios carga mucho más rápido; si el índice no está al día, lee las jornadas una por una como antes.
 

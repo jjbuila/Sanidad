@@ -1021,7 +1021,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261114:1809</div>
+  <div id="splashVer">VERSIÓN 20261114:1823</div>
 </div>
 
 <div id="login" hidden>
@@ -1036,7 +1036,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261114:1809</div>
+  <div id="lgVer2">VERSIÓN 20261114:1823</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1153,7 +1153,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261114:1809';
+const VERSION='20261114:1823';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -3808,9 +3808,16 @@ async function panelDia(){
     <h3>Operarios${fechaRes?' ('+esc(fechaRes)+')':''}</h3>${(res&&res.operarios||[]).length?`<div style="overflow-x:auto"><table class="tabla"><tr><th>Operario</th><th>Inicio</th><th>Fin</th><th>Ha</th><th>Diag.</th></tr>${
       res.operarios.map(o=>`<tr><td>${esc(o.Operario)}</td><td>${esc(o.Inicio||'')}</td><td>${esc(o.Fin||'')}</td><td>${esc(String(o.Ha).replace('.',','))}</td><td>${num(o['Diagnósticos'])}</td></tr>`).join('')}</table></div>`:'<p class="tenue">Sin datos.</p>'}
     ${(res&&res.lotes_pc||[]).length?`<h3>Lotes con casos de PC</h3><div class="chips">${res.lotes_pc.map(x=>`<span class="chip-op"><span><b>${esc(x.Lote)}</b> · ${num(x['Casos PC'])} casos${x['Incidencia PC %']!=null?' · '+String(x['Incidencia PC %']).replace('.',',')+' %':''}</span></span>`).join('')}</div>`:''}
+    ${fechaRes?`<h3>Exportar el reporte del ${esc(fechaRes)}</h3><div class="fila"><button class="btn" data-pdx="pdf">📄 PDF</button><button class="btn" data-pdx="xlsx">📊 Excel</button><button class="btn" data-pdx="html">🗺 Interactivo</button></div>`:''}
     <button class="btn nar ancho" id="pdEnviar" style="margin-top:12px">📤 Generar y enviar el reporte de hoy ahora</button>
     <button class="btn ancho" id="pdRec" style="margin-top:8px">↻ Actualizar</button>`);
   $('#pdRec').onclick=panelDia;
+  $$('#hojaCuerpo [data-pdx]').forEach(b=>b.onclick=async()=>{const ext=b.dataset.pdx;const nombre=`reporte_${fechaRes}${ext==='html'?'_interactivo':''}.${ext==='html'?'html':ext}`;b.disabled=true;
+    try{const buf=await (await ghRaw(`reportes/diario/${fechaRes}/${nombre}`)).arrayBuffer();
+      const tipo={pdf:'application/pdf',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',html:'text/html'}[ext];
+      await compartir(new Blob([buf],{type:tipo}),nombre);
+      if(NATIVO&&!(navigator.canShare))toast('Si no se abrió, descárguelo en el visor (GERENCIA → Reportes) o revise el correo.',7000);}
+    catch(e){toast(e.message,6000);}b.disabled=false;});
   $('#pdEnviar').onclick=async()=>{if(!confirm('¿Generar el reporte de hoy con las jornadas sincronizadas hasta ahora y enviarlo a todos los destinatarios?'))return;
     const b=$('#pdEnviar');b.disabled=true;b.textContent='Solicitando…';const ruta='solicitudes/reporte.json',rama=encodeURIComponent(S.cfg.gh.rama);
     try{let sha=null;try{sha=(await (await ghFetch(`/contents/${ruta}?ref=${rama}`)).json()).sha;}catch(e){}

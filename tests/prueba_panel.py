@@ -3,7 +3,7 @@ Visor: pestaña PLANIFICACIÓN (propone y guarda censo/plan/AAAA-MM-DD.json) e h
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 from comun import CANAL, TMP
-import sys, time, json, re, base64
+import sys, time, json, re, base64, os
 sys.stdout.reconfigure(encoding='utf-8')
 from datetime import datetime, timedelta
 from playwright.sync_api import sync_playwright
@@ -21,13 +21,18 @@ EST = {'plan': None}
 def gh(route):
     req = route.request; u = req.url; m = req.method
     if f'/contents/jornadas/{HOY}?' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps([{'type': 'file', 'name': f'J{k}.geojson'} for k in range(4)]))
-    if '/contents/reportes/diario?' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps([{'type': 'dir', 'name': '2026-11-01'}, {'type': 'dir', 'name': HOY}]))
+    if '/contents/reportes/diario?' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps([{'type': 'dir', 'name': '2026-11-01', 'sha': 'd01'}, {'type': 'dir', 'name': HOY, 'sha': 'dhoy'}]
+        + ([{'type': 'dir', 'name': '2026-11-02', 'sha': 'dnew'}] if EST.get('listo') else [])))
+    if u.endswith('/git/trees/dnew'): return route.fulfill(status=200, content_type='application/json', body=json.dumps({'tree': [{'path': 'reporte_2026-11-02.pdf', 'type': 'blob', 'sha': 'bp'}, {'path': 'reporte_2026-11-02.xlsx', 'type': 'blob', 'sha': 'bx'}, {'path': 'resumen.json', 'type': 'blob', 'sha': 'bj'}]}))
+    if u.endswith('/git/blobs/bp') or u.endswith('/git/blobs/bx'): return route.fulfill(status=200, body=b'%PDF-prueba')
+    if f'/contents/reportes/diario/{HOY}/reporte_{HOY}.pdf' in u: return route.fulfill(status=200, body=b'%PDF-1.4 prueba')
     if f'/contents/reportes/diario/{HOY}/resumen.json' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps(RESUMEN))
     if f'/contents/censo/plan/{HOY}.json' in u and m == 'GET': return route.fulfill(status=200, content_type='application/json', body=json.dumps(PLAN))
     if '/contents/config/servicios.json' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps({'ia': {'activo': True, 'url': 'https://ia.prueba.dev/', 'usuarios': []}}))
     if '/contents/solicitudes/reporte.json' in u:
         if m == 'PUT':
             b = json.loads(req.post_data); EST.setdefault('sol', []).append(json.loads(base64.b64decode(b['content']).decode('utf-8')))
+            if EST['sol'][-1].get('fecha') == '2026-11-02': EST['listo'] = True
             return route.fulfill(status=201, content_type='application/json', body=json.dumps({'content': {'sha': 'solsha'}}))
         return route.fulfill(status=200, content_type='application/json', body=json.dumps({'sha': 'solsha'}))
     if '/contents/reportes?' in u: return route.fulfill(status=200, content_type='application/json', body='[]')
@@ -38,7 +43,7 @@ def gh(route):
 errores = []
 with sync_playwright() as p:
     nav = p.chromium.launch(**CANAL, headless=True)
-    ctx = nav.new_context(service_workers='block', viewport={'width': 1300, 'height': 950})
+    ctx = nav.new_context(service_workers='block', viewport={'width': 1300, 'height': 950}, accept_downloads=True)
     ctx.route('https://api.github.com/**', gh)
     IAP = []
     def ia(route):
@@ -58,6 +63,9 @@ with sync_playwright() as p:
     pg.evaluate("window.confirm=()=>true"); pg.click('#pdEnviar'); pg.wait_for_timeout(800)
     sol = (EST.get('sol') or [{}])[-1]
     check('App: «Generar y enviar el reporte de hoy» deja la solicitud', sol.get('tipo') == 'diario' and sol.get('envio') == 'todos' and sol.get('fecha') == HOY and sol.get('solicitado_por') == 'Sara', sol)
+    pg.evaluate('navigator.canShare=undefined')
+    with pg.expect_download(timeout=10000) as dlp: pg.click('[data-pdx=pdf]')
+    check('App: exporta el PDF del último reporte', dlp.value.suggested_filename == f'reporte_{HOY}.pdf', dlp.value.suggested_filename)
     op = pg.evaluate("()=>{SES={u:'op1',nombre:'PEDRO PEREZ',rol:'operario'};menu();return !!document.querySelector('#mDia')}")
     check('App: un operario no ve el panel del día', not op)
     r = pg.evaluate("""async()=>{await cargarPlanCenso();const ls=misLotesPlan().map(x=>x.lote);
@@ -135,6 +143,15 @@ with sync_playwright() as p:
     check('Visor: solicitud manual con tipo, fecha y correos puntuales', sol['tipo'] == 'semanal' and sol['envio'] == 'correos' and sol['para'] == ['gerente@ejemplo.com', 'jefe@ejemplo.com'] and sol['solicitado_por'] == 'Admin', sol)
     vz.select_option('#rmEnvio', 'correos'); vz.fill('#rmPara', 'no-es-correo'); vz.click('#rmIr'); vz.wait_for_timeout(300)
     check('Visor: valida los correos antes de solicitar', 'correos válidos' in vz.inner_text('#rmMsg') and len(EST['sol']) == 2)
+    sem = vz.evaluate("['2026-11-14','2026-01-01','2027-01-04','2026-12-31'].map(semanaISO)")
+    check('Visor: semana ISO del reporte semanal', sem == ['2026-S46', '2026-S01', '2027-S01', '2026-S53'], sem)
+    vz.evaluate("GER.rmPaso=500;window.confirm=()=>true"); vz.select_option('#rmTipo', 'diario'); vz.fill('#rmFecha', '2026-11-02'); vz.select_option('#rmEnvio', 'ninguno')
+    with vz.expect_download(timeout=15000) as dlv: vz.click('#rmIr')
+    import zipfile
+    zp = os.path.join(TMP, 'rep.zip'); dlv.value.save_as(zp); nombres = sorted(zipfile.ZipFile(zp).namelist())
+    check('Visor: «solo generar y descargar» espera el reporte y descarga el ZIP', dlv.value.suggested_filename == 'reporte_sanidad_2026-11-02.zip' and nombres == ['reporte_2026-11-02.pdf', 'reporte_2026-11-02.xlsx'], nombres)
+    vz.wait_for_timeout(300)
+    check('Visor: muestra «Reporte listo» con sus archivos', 'REPORTE LISTO' in vz.inner_text('#gerPanel').upper() and EST['sol'][-1]['envio'] == 'ninguno', vz.evaluate('JSON.stringify({l:GER.rm.listo,p:GER.rm.pend,t:GER.tab})')[:300])
     vz.click('#gerX'); vz.wait_for_timeout(200)
     h = vz.evaluate("()=>{const d=JOR[1].diags[0];verHistoriaPalma(d);return document.querySelector('.leaflet-popup-content').innerText}")
     check('Visor: historia de la palma con sus censos en orden', h.count('Censo') == 2 and h.index('PC INICIAL') < h.index('EN RECUPERACI'), h[:200])
