@@ -819,6 +819,9 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 #rep .ops span.inact{opacity:.4}
 .rep-etq{background:rgba(6,20,15,.82);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;font-family:var(--t);font-weight:700;font-size:12px;padding:0 5px;box-shadow:none}
 .rep-etq::before{display:none}
+.ppFoto{margin:-2px 0 8px}
+.ppFoto img{display:block;width:100%;max-height:230px;object-fit:cover;border-radius:10px;cursor:zoom-in;border:1px solid var(--borde)}
+.ppFoto .tenue{display:block;padding:18px 0;text-align:center;font-size:12px}
 /* Detalle de jornada / reproducción */
 #detalle{position:absolute;left:10px;top:10px;z-index:950;width:min(380px,calc(100% - 20px));max-height:calc(100% - 20px);overflow:auto;border-radius:16px;padding:12px 14px}
 #detalle .cab{display:flex;align-items:center;gap:8px}
@@ -871,7 +874,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261114:1501</div>
+    <div id="lgVer">VERSIÓN 20261114:1518</div>
   </div>
 </div>
 
@@ -966,7 +969,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261114:1501';
+const VERSION='20261114:1518';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1679,11 +1682,28 @@ function htmlDiag(d){const e=estadoDe(d.estado)||{c:'#ccc',n:d.estado_nombre||d.
     ${d.sintomas?`<div><b>Síntomas:</b> ${esc(String(d.sintomas).split('|').join(' / '))}</div>`:''}${d.accion?`<div><b>Acción:</b> ${esc(d.accion)}</div>`:''}
     ${d.observaciones?`<div><b>Observaciones:</b> ${esc(d.observaciones)}</div>`:''}
     <div class="tenue">${esc(d.evaluador||'')} · ${esc(d._j?d._j.fecha:'')} ${esc(hhmm(d.creado))}${d.dist_gps_palma_m!=null?` · GPS a ${num(d.dist_gps_palma_m,1)} m`:''}</div></div>`;}
+/* Primera foto del diagnóstico (del _fotos.zip de la jornada o de la carpeta del formato anterior), con caché. */
+const FOTO1=new Map();
+async function fotoPrincipal(d){const k=d._j&&d._j.id+'|'+d.id;if(FOTO1.has(k))return FOTO1.get(k);
+  const n=String(d.fotos||'').split('|').filter(Boolean)[0];const j=d._j;let url=null;
+  if(n&&j){try{let ab=null;
+    if(j.zipSha){const z=await blobZip(j.zipSha);const f=z.file(n)||z.file(n.replace(/\.jpg$/,''));ab=f?await f.async('arraybuffer'):null;}
+    else if(j.fotosDir){const t=await arbol(j.fotosDir);const x=t.find(y=>y.path===n||y.path===n+'.jpg');ab=x?await (await gh(`/git/blobs/${x.sha}`,'application/vnd.github.raw+json')).arrayBuffer():null;}
+    if(ab)url=URL.createObjectURL(new Blob([ab],{type:'image/jpeg'}));}catch(e){}}
+  FOTO1.set(k,url);return url;}
+/* Descarga anticipada de las fotos de una jornada (para que la foto ya esté cuando la reproducción llegue al diagnóstico). */
+function precargarFotos(j){if(j&&j.zipSha&&j.diags.some(d=>Number(d.n_fotos)>0))blobZip(j.zipSha).catch(()=>{});}
+/* Ficha del diagnóstico en el mapa: la primera foto se ve directamente (tocarla abre todas). */
 function popupDiag(d,ll){
   const n=Number(d.n_fotos)||0;
-  const pp=L.popup({maxWidth:320}).setLatLng(ll||[d.lat,d.lng]).setContent(htmlDiag(d)+`<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-    ${n?`<button class="btn mini nar" id="ppFotos">📷 Ver ${n} foto(s)</button>`:''}<button class="btn mini" id="ppJor">Ver jornada</button></div>`).openOn(mapa);
-  setTimeout(()=>{const f=$('#ppFotos');if(f)f.onclick=()=>verFotos(d);const j=$('#ppJor');if(j)j.onclick=()=>{mapa.closePopup(pp);abrirDetalle(d._j);};},0);
+  const html=foto=>(n?`<div class="ppFoto">${foto}</div>`:'')+htmlDiag(d)+`<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+    ${n?`<button class="btn mini nar ppFotos">📷 Ver ${n} foto(s)</button>`:''}<button class="btn mini ppJor">Ver jornada</button></div>`;
+  const pp=L.popup({maxWidth:340,minWidth:260}).setLatLng(ll||[d.lat,d.lng]).setContent(html('<span class="tenue">Cargando foto…</span>')).openOn(mapa);
+  const enlazar=()=>{const e=pp.getElement();if(!e)return;
+    e.querySelectorAll('.ppFotos,.ppFoto img').forEach(b=>b.onclick=()=>verFotos(d));
+    const j=e.querySelector('.ppJor');if(j)j.onclick=()=>{mapa.closePopup(pp);abrirDetalle(d._j);};};
+  setTimeout(enlazar,0);
+  if(n)fotoPrincipal(d).then(u=>{if(!mapa.hasLayer(pp))return;pp.setContent(html(u?`<img src="${u}" alt="Foto del diagnóstico">`:'<span class="tenue">Foto no disponible</span>'));setTimeout(enlazar,0);});
 }
 function popupLote(l,ll){
   const fil=resumenLotes().find(x=>x.lote===l);
@@ -1793,6 +1813,7 @@ function prepararRep(){
     const diags=j.diags.map(d=>({d,t:Date.parse(d.creado)-o,m:null})).filter(x=>Number.isFinite(x.t)).sort((a,b)=>a.t-b.t);
     const acum=[0];for(let q=1;q<ll.length;q++){const d=dist(ll[q-1][0],ll[q-1][1],ll[q][0],ll[q][1]);acum.push(acum[q-1]+(d<500?d:0));}
     return {j,t,ll,col,estela,marca,k:-1,acum,diags,dN:0,activa:false};});
+  if(REP.modo==='uno')precargarFotos(REP.lista[REP.i]);
   REP.T0=Math.min(...REP.js.map(x=>x.t[0]));REP.T1=Math.max(...REP.js.map(x=>x.t[x.t.length-1]));REP.T=REP.T0;
   const caja=L.latLngBounds(REP.js.flatMap(x=>x.ll));try{mapa.fitBounds(caja,{padding:[40,40],maxZoom:REP.modo==='todos'?17:18});}catch(e){}
   pintarBarraRep();ponerRep(REP.T0);
@@ -1833,7 +1854,7 @@ function ponerRep(T){REP.T=T;let act=0,nd=0,km=0;const uno=REP.modo==='uno';
       q.m.on('click',ev=>{L.DomEvent.stopPropagation(ev);popupDiag({...q.d,_j:x.j},ev.latlng);});nuevos.push(q);k++;}
     while(k>0&&x.diags[k-1].t>T){k--;const q=x.diags[k];if(q.m){REP.capa.removeLayer(q.m);q.m=null;}}
     x.dN=k;nd+=k;
-    if(uno&&REP.run&&nuevos.length&&$('#repDiag')&&$('#repDiag').checked){const q=nuevos[nuevos.length-1];REP.espera=Date.now()+3000;
+    if(uno&&REP.run&&nuevos.length&&$('#repDiag')&&$('#repDiag').checked){const q=nuevos[nuevos.length-1];REP.espera=Date.now()+5000;
       if(mapa.getZoom()<19)mapa.setView([q.d.lat,q.d.lng],19,{animate:true});else mapa.panTo([q.d.lat,q.d.lng]);popupDiag({...q.d,_j:x.j},[q.d.lat,q.d.lng]);}
     if(uno&&REP.run&&x.activa&&!nuevos.length&&$('#repSeg')&&$('#repSeg').checked&&Date.now()>REP.espera)seguirOperario(x.marca.getLatLng());}
   const e=$('#repReloj');if(e)e.textContent=REP.modo==='todos'&&REP.varias?hms(T):(()=>{const d=new Date(T);return [d.getHours(),d.getMinutes(),d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');})();
@@ -1885,14 +1906,14 @@ function seguirOperario(pos){if(mapa.getZoom()<18){mapa.setView(pos,18,{animate:
   if(d&&!d.hidden){const r=d.getBoundingClientRect();if(r.right>mr.left&&r.right<mr.right-120&&r.bottom>mr.top+s.y*.6)x0=r.right-mr.left;}
   const obj=L.point((x0+s.x)/2,s.y/2),c=mapa.latLngToContainerPoint(pos);
   if(c.distanceTo(obj)>Math.min(s.x-x0,s.y)*.15)mapa.panBy(c.subtract(obj),{animate:true,duration:.4});}
-function iniciarPlay(){const tr=SEL&&SEL.track;if(!tr)return;if(PLAY.t>=tr.t[tr.t.length-1])PLAY.t=tr.t[0];PLAY.on=true;$('#pBt').textContent='❚❚';
+function iniciarPlay(){const tr=SEL&&SEL.track;if(!tr)return;precargarFotos(SEL);if(PLAY.t>=tr.t[tr.t.length-1])PLAY.t=tr.t[0];PLAY.on=true;$('#pBt').textContent='❚❚';
   let prev=performance.now();const paso=ahora=>{if(!PLAY.on)return;const dt=ahora-prev;prev=ahora;if(Date.now()<PLAY.espera){PLAY.raf=requestAnimationFrame(paso);return;}const t=Math.min(tr.t[tr.t.length-1],PLAY.t+dt*PLAY.vel);ponerT(t);
     if(t>=tr.t[tr.t.length-1]){pararPlay();return;}PLAY.raf=requestAnimationFrame(paso);};PLAY.raf=requestAnimationFrame(paso);}
-/* Al pasar por un diagnóstico: pausa 3 s, centra la palma y abre su ficha. */
-function mostrarDiagPlay(x){const d=x.d;PLAY.espera=Date.now()+3000;
+/* Al pasar por un diagnóstico: pausa 5 s, centra la palma y abre su ficha. */
+function mostrarDiagPlay(x){const d=x.d;PLAY.espera=Date.now()+5000;
   if(mapa.getZoom()<19)mapa.setView([d.lat,d.lng],19,{animate:true});else mapa.panTo([d.lat,d.lng],{animate:true});
   const anillo=L.circleMarker([d.lat,d.lng],{renderer:rend,radius:16,color:'#ffd54f',weight:3,fill:false,interactive:false,className:'pulso-diag'}).addTo(capaSel);
-  setTimeout(()=>{try{capaSel.removeLayer(anillo);}catch(e){}},3200);
+  setTimeout(()=>{try{capaSel.removeLayer(anillo);}catch(e){}},5200);
   popupDiag(d,[d.lat,d.lng]);}
 /* Tiempo efectivo de la jornada (labor en lotes, sin paradas). */
 function efecJ(j,sq){const m=j.tiempos&&j.tiempos.min_efectivo_labor!=null?Number(j.tiempos.min_efectivo_labor):(sq||[]).filter(x=>x.tipo==='lote').reduce((a,x)=>a+(Number(x.min_efectivo)||0),0);return m?minHM(m):'—';}

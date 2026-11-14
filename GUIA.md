@@ -219,7 +219,7 @@ SanidadData/
 
 **Reproducir todas las jornadas:** botón **▶ Reproducir** (arriba a la derecha del mapa) o, en la pestaña **Jornadas**, «Reproducir todas a la vez» / «Reproducir una a una». Usa las jornadas del filtro actual (fechas, programa, operario, lote).
 - **Todos a la vez:** un reloj común; cada operario es una flecha con su nombre y una estela de su color. Si el rango tiene varias fechas, se superponen por hora del día. Muestra operarios activos, diagnósticos que van apareciendo y km.
-- **Uno a uno:** cada jornada completa en orden de inicio (⏮ anterior, ⏭ siguiente) y pasa sola a la siguiente; sigue al operario y se detiene 3 s en cada diagnóstico mostrando su ficha.
+- **Uno a uno:** cada jornada completa en orden de inicio (⏮ anterior, ⏭ siguiente) y pasa sola a la siguiente; sigue al operario y se detiene 5 s en cada diagnóstico mostrando su ficha con la foto.
 - Velocidad ×60 a ×3600 y barra para adelantar o retroceder. Al cerrar (✕) el mapa vuelve a mostrar los recorridos y diagnósticos.
 
 ## 7.3 Módulo de cirugía

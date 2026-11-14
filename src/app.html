@@ -331,7 +331,8 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 .play-res b{display:block;color:var(--texto);font-family:var(--t);font-size:18px;letter-spacing:.5px}
 #plCard{position:fixed;left:10px;right:10px;top:calc(var(--sup) + var(--hud) + 8px);z-index:1250;border-radius:18px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;max-width:560px;margin:0 auto;animation:plEntra .25s ease-out}
 #plCard[hidden]{display:none}
-#plCard .foto{width:84px;height:84px;border-radius:12px;object-fit:cover;flex:none;background:rgba(255,255,255,.06)}
+#plCard .foto{width:132px;height:132px;border-radius:12px;object-fit:cover;flex:none;background:rgba(255,255,255,.06)}
+@media (max-width:420px){#plCard .foto{width:108px;height:108px}}
 #plCard .txt{flex:1;min-width:0;font-size:13px;line-height:1.35}
 #plCard .txt b.et{display:block;font-family:var(--t);font-size:19px;letter-spacing:.8px}
 #plCard .diag{display:flex;align-items:center;gap:6px;font-weight:700;font-size:14.5px;margin:2px 0}
@@ -2394,19 +2395,19 @@ function pintarPlay(){
   if($('#plSeguir').checked&&PLAY.run&&!mapa.getBounds().pad(-.2).contains([lat,lng]))mapa.panTo([lat,lng],{animate:true});
   if(nuevo&&PLAY.run&&$('#plDiagAuto').checked)mostrarDiagPlay(nuevo,true);
 }
-/* Al pasar por un diagnóstico en la reproducción: pausa 3 s, centra la palma, la resalta y muestra la ficha del diagnóstico. */
+/* Al pasar por un diagnóstico en la reproducción: pausa 5 s, centra la palma, la resalta y muestra la ficha del diagnóstico. */
 async function mostrarDiagPlay(x,auto){
-  const r=x.r;if(!r)return;if(auto)PLAY.espera=Date.now()+3000;
+  const r=x.r;if(!r)return;if(auto)PLAY.espera=Date.now()+5000;
   if(mapa.getZoom()<19)mapa.setView([r.lat,r.lng],19,{animate:true});else mapa.panTo([r.lat,r.lng],{animate:true});
   if(PLAY.capa){const an=L.circleMarker([r.lat,r.lng],{radius:16,color:'#ffd54f',weight:3,fill:false,interactive:false,className:'pulso-diag'}).addTo(PLAY.capa);
-    setTimeout(()=>{try{PLAY.capa&&PLAY.capa.removeLayer(an);}catch(e){}},3200);x.m.bringToFront();}
+    setTimeout(()=>{try{PLAY.capa&&PLAY.capa.removeLayer(an);}catch(e){}},5200);x.m.bringToFront();}
   const e=estadoDe(r.estado)||{n:r.estado||''};const sint=(r.sintomas||[]).join(' / ');
   const c=$('#plCard');c.dataset.id=r.id;
   c.innerHTML=`<img class="foto" alt="" hidden><div class="txt"><b class="et">${esc(etiquetaReg(r))}</b>
     <div class="diag"><span class="dot" style="background:${colorReg(r)}"></span>${esc(textoDiag(r)||e.n||'Diagnóstico')}</div>
     ${sint?`<div><b>Síntomas:</b> ${esc(sint)}</div>`:''}${r.observaciones?`<div class="tenue">${esc(r.observaciones)}</div>`:''}
     <div class="tenue">${esc(fmtHora(x.t).slice(0,5))} · ${esc(r.evaluador||'')}${(r.fotos||[]).length?` · 📷 ${r.fotos.length}`:''}</div></div>`;
-  c.hidden=false;clearTimeout(c._t);c._t=setTimeout(()=>{if(c.dataset.id===r.id)c.hidden=true;},auto?4500:7000);
+  c.hidden=false;clearTimeout(c._t);c._t=setTimeout(()=>{if(c.dataset.id===r.id)c.hidden=true;},auto?6000:8000);
   const fid=(r.fotos||[])[0];if(fid){try{const fo=await dbGet('fotos',fid);const im=c.querySelector('img.foto');
     if(fo&&im&&c.dataset.id===r.id){if(c._url)URL.revokeObjectURL(c._url);c._url=URL.createObjectURL(new Blob([fo.buf],{type:fo.type||'image/jpeg'}));im.src=c._url;im.hidden=false;}}catch(e){}}
 }
