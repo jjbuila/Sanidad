@@ -853,7 +853,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261114:0325</div>
+    <div id="lgVer">VERSIÓN 20261114:0351</div>
   </div>
 </div>
 
@@ -946,7 +946,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261114:0325';
+const VERSION='20261114:0351';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -960,7 +960,7 @@ const ESTADOS=[
   {id:'alta',n:'De alta',c:'#7bed9f'},{id:'erradicada',n:'Erradicada',c:'#9e9e9e'},{id:'novedad',n:'Otra novedad (no fitosanitaria)',c:'#b388ff'},
   {id:'muerta',n:'Muerta',c:'#1a1a1a',leg:1},{id:'faltante',n:'Sitio vacío / faltante',c:'#ffffff',leg:1},{id:'resiembra',n:'Resiembra',c:'#3fa9ff',leg:1}];
 const estadoDe=id=>ESTADOS.find(e=>e.id===id);
-const COLOR_N1={PC:'#e53935',PE:'#8e24aa',DBP:'#fb8c00',AR:'#ad1457',CER:'#795548',DEF:'#c0ca33',ESP:'#00acc1',HP:'#3949ab',MJ:'#f48fb1',ML:'#212121',MS:'#1e88e5',PA:'#827717',PEST:'#26a69a',RAYO:'#ffffff',YAR:'#33691e'};
+const COLOR_N1={PC:'#e53935',PE:'#8e24aa',DBP:'#fb8c00',AR:'#ad1457',CER:'#795548',DEF:'#c0ca33',ESP:'#00acc1',HP:'#3949ab',MJ:'#f48fb1',ML:'#212121',MS:'#1e88e5',PA:'#827717',PEST:'#26a69a',RAYO:'#ffffff',YAR:'#33691e',BORO:'#ffb300',EV:'#cfd8dc'};
 const COLOR_ALTA='#00e676';
 /* Caso de PC para la incidencia: último diagnóstico de la palma con Nivel 1 = PC, excluidos los casos en recuperación
    (y los dados de alta, que ya no son casos). Incidencia PC = casos de PC ÷ palmas totales del lote (existencia 0 y 1). */
@@ -969,7 +969,7 @@ const codN1=d=>d.n1_codigo||String(d.problemas||'').split('|').filter(Boolean)[0
 function colorD(d){if(!d)return '#999';if(d.estado==='alta')return COLOR_ALTA;return COLOR_N1[codN1(d)]||(estadoDe(d.estado)||{c:'#ccc'}).c;}
 const PROBLEMAS={PC:'Pudrición de cogollo (PC)',PE:'Pudrición de estípite (PE)',DBP:'Desprendimiento de bases peciolares (DBP)',AR:'Anillo rojo (AR)',CER:'Cercospora',DEF:'Deficiencias',
   ESP:'Espontánea',HP:'Hoja pequeña',MJ:'Mal de juventud (MJ)',ML:'Marchitez letal (ML)',MS:'Marchitez sorpresiva (MS)',PA:'Palma amarilla',PEST:'Pestalotia',RAYO:'Rayo',YAR:'Yarumo',
-  RP:'Rhynchophorus palmarum (picudo)',SA:'Strategus aloeus',LG:'Leptopharsa / Pestalotiopsis',OC:'Opsiphanes cassina',SV:'Sagalassa valida',DF:'Otros defoliadores',RT:'Daño por roedores',DN:'Deficiencia nutricional',OT:'Otro'};
+  RP:'Rhynchophorus palmarum (picudo)',SA:'Strategus aloeus',LG:'Leptopharsa / Pestalotiopsis',OC:'Opsiphanes cassina',SV:'Sagalassa valida',DF:'Otros defoliadores',RT:'Daño por roedores',DN:'Deficiencia nutricional',OT:'Otro',BORO:'Deficiencia de boro',EV:'Espacio vacío'};
 const PALETA=['#22d39a','#2f93d5','#ee7633','#c77dff','#ffd166','#ef476f','#06d6a0','#90cdf1','#f4a261','#a7c957','#ff8fab','#4cc9f0','#e9c46a','#b5179e','#8ac926','#ff595e'];
 const colorOp=(()=>{const m=new Map();return u=>{if(!m.has(u))m.set(u,PALETA[m.size%PALETA.length]);return m.get(u);};})();
 
