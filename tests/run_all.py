@@ -20,6 +20,12 @@ for p in pruebas:
             print(f'✅ {n}: {oks} verificaciones' + (' (al 2.º intento)' if intento == 2 else ''), flush=True); break
         if intento == 2:
             fallas.append(n); print(f'❌ {n}', flush=True)
-            print('\n'.join(l for l in (r.stdout + r.stderr).splitlines() if l.startswith('FALLA') or 'Error' in l or 'Traceback' in l)[-3000:], flush=True)
-print(f'\n{len(pruebas) - len(fallas)} de {len(pruebas)} pruebas sin fallas en {time.time() - t0:.0f} s.')
+            det = '\n'.join(l for l in (r.stdout + r.stderr).splitlines() if l.startswith('FALLA') or 'Error' in l or l.strip().startswith('File ') or l.startswith('playwright'))[-3000:]
+            print(det, flush=True)
+            if os.environ.get('GITHUB_ACTIONS'):  # anotación visible en la página del flujo
+                print(f"::error title={n}::" + det.replace('%', '%25').replace('\r', '').replace('\n', '%0A')[:4000], flush=True)
+res = f'{len(pruebas) - len(fallas)} de {len(pruebas)} pruebas sin fallas en {time.time() - t0:.0f} s.'
+print('\n' + res)
+if os.environ.get('GITHUB_ACTIONS'):
+    print(f'::notice title=Pruebas::{res}' + (' Fallaron: ' + ', '.join(fallas) if fallas else ''), flush=True)
 sys.exit(1 if fallas else 0)
