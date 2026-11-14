@@ -9,5 +9,7 @@ Aplicación Android (Capacitor 8) que abre la app publicada en https://jjbuila.g
 
 Descarga (última versión): https://github.com/jjbuila/Sanidad/releases/latest/download/SanidadVegetal.apk
 
+La versión (`1.0.N`) se agrega al agente de usuario (`SanidadVegetalAPK/1 v1.0.N`) al compilar; la app la muestra en Menú → App Android y avisa cuando hay una más nueva en Releases.
+
 Compilación: `.github/workflows/apk.yml` (GitHub Actions) en cada cambio dentro de `apk/`, firmada con los secretos
 `SANIDAD_KEYSTORE_B64` y `SANIDAD_KEYSTORE_PASS`. Los cambios de la app web llegan a la APK sin recompilar.

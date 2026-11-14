@@ -267,6 +267,8 @@ SanidadData/
 Mantenga el `ID Palma`, porque es el identificador que vincula los diagnósticos con cada palma.
 
 
+**App Android (APK) desde el menú:** el menú muestra **App Android (APK)** con la versión instalada y la última publicada. Si hay una nueva, aparece **«¡Nueva APK!»** (y un aviso al abrir la app) con el botón para descargarla; se instala **encima de la actual, sin desinstalar**. Desde la APK 1.0.7 la app conoce su número de versión; las anteriores aparecen como «1.0.6 o anterior». La app web se sigue actualizando aparte con «Actualizar versión».
+
 **Límite de la plantación** (restricción para iniciar jornada): la app lo toma de `cartografia/plantacion.geojson` en el repositorio privado **SanidadData** (GeoJSON WGS84; para cambiarlo, reemplace ese archivo). Como alternativa cifrada, en `admin.html` → *Modificar paquete* → **Límite de la plantación**, seleccione el polígono en GeoJSON WGS84 (por ejemplo `plantacion.geojson`, exportado desde QGIS) y pulse **Generar archivos actualizados**. Se descargan `acceso.json` y `plantacion.enc` (cifrado con la misma llave de la cartografía): súbalos a `datos/` del repositorio **Sanidad**. Si existe `datos/plantacion.enc`, tiene prioridad. Los celulares toman el límite al abrir la app con internet y lo guardan para uso sin conexión.
 
 ## 9. Limitaciones conocidas

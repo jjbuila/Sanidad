@@ -38,6 +38,11 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Versión de la APK en el agente de usuario (la app la muestra en el menú)
+        run: |
+          node -e "const fs=require('fs'),f='capacitor.config.json',c=JSON.parse(fs.readFileSync(f,'utf8'));c.android.appendUserAgent='SanidadVegetalAPK/1 v'+process.env.VERSION_NAME;fs.writeFileSync(f,JSON.stringify(c,null,2))"
+          grep appendUserAgent capacitor.config.json
+
       - name: Instalar dependencias y sincronizar Capacitor
         run: |
           npm ci || npm install

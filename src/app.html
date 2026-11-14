@@ -1763,8 +1763,10 @@ const CAM={stream:null,n:0};
 async function abrirCamara(){
   if(!F)return;
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){const i=$('#inFoto');i.value='';i.click();return;}
-  try{CAM.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});}
-  catch(e){toast('No se pudo abrir la cámara dentro de la app; se usará la del celular.',4000);const i=$('#inFoto');i.value='';i.click();return;}
+  // Hasta 3 intentos: al reabrirla enseguida, Android puede tardar en liberar la cámara (NotReadableError).
+  for(let k=0;k<3&&!CAM.stream;k++){try{CAM.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});}
+    catch(e){if(e&&(e.name==='NotAllowedError'||e.name==='SecurityError'))break;await esperar(600);}}
+  if(!CAM.stream){toast('No se pudo abrir la cámara dentro de la app; se usará la del celular.',4000);const i=$('#inFoto');i.value='';i.click();return;}
   CAM.n=0;$('#camN').textContent='0 fotos';const v=$('#camVid');v.srcObject=CAM.stream;$('#camara').hidden=false;try{await v.play();}catch(e){}
 }
 function cerrarCamara(){try{CAM.stream&&CAM.stream.getTracks().forEach(t=>t.stop());}catch(e){}CAM.stream=null;$('#camVid').srcObject=null;$('#camara').hidden=true;}
@@ -2859,6 +2861,40 @@ function ofrecerInstalacion(){
 }
 refrescarInstalar();
 $('#btMenu').onclick=()=>{if(!PLAY.on)menu();};
+/* ---------- APK de Android: versión instalada (va en el agente de usuario desde la 1.0.7) y última publicada en Releases ---------- */
+const APK_URL='https://github.com/jjbuila/Sanidad/releases/latest/download/SanidadVegetal.apk';
+const APK={inst:(navigator.userAgent.match(/SanidadVegetalAPK\/1 v(\d+(?:\.\d+)*)/)||[])[1]||null,ultima:null};
+function cmpVer(a,b){const x=String(a).split('.').map(Number),y=String(b).split('.').map(Number);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d;}return 0;}
+const textoApkInst=()=>EN_APK?(APK.inst||'1.0.6 o anterior'):'No instalada';
+function apkNueva(){if(!EN_APK||!APK.ultima)return false;return cmpVer(APK.ultima,APK.inst||'1.0.6')>0;}
+async function ultimaApk(forzar){
+  let c=null;try{c=JSON.parse(localStorage.getItem('sv_apk_ultima')||'null');}catch(e){}
+  if(c&&c.v&&!forzar&&Date.now()-c.t<6*3600e3){APK.ultima=c.v;return c.v;}
+  if(navigator.onLine)try{const r=await fetch('https://api.github.com/repos/jjbuila/Sanidad/releases/latest',{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
+    if(r.ok){const v=String((await r.json()).tag_name||'').replace(/^apk-/,'');if(/^\d+(\.\d+)*$/.test(v)){APK.ultima=v;try{localStorage.setItem('sv_apk_ultima',JSON.stringify({v,t:Date.now()}));}catch(e){}return v;}}}catch(e){}
+  if(c&&c.v)APK.ultima=c.v;return APK.ultima;
+}
+function descargarApk(){
+  toast('Descargando la APK… Al terminar, ábrala e instálela encima de la actual (sin desinstalar).',8000);
+  abrirExterno(APK_URL);
+}
+/* En la APK, una dirección fuera de la app la abre el navegador del celular (allí se descarga); en el navegador, en otra pestaña. */
+function abrirExterno(u){if(EN_APK)location.href=u;else window.open(u,'_blank');}
+async function panelApk(){
+  const pinta=()=>{const nueva=apkNueva(),al=EN_APK&&APK.ultima&&!nueva;
+    abrirHoja('App Android (APK)',`
+      <div class="stats"><div class="stat"><b style="font-size:20px">${esc(textoApkInst())}</b><span>Instalada</span></div><div class="stat"><b style="font-size:20px">${esc(APK.ultima||'…')}</b><span>Última publicada</span></div></div>
+      ${nueva?`<div class="aviso">📲 Hay una APK nueva (${esc(APK.ultima)}). Descárguela e instálela <b>encima de la actual, sin desinstalar</b>: sus datos y jornadas no se pierden.</div>`
+        :al?`<p style="color:var(--acento)">✅ Tiene la última APK.</p>`
+        :!EN_APK?`<p class="tenue">Está usando la app desde el navegador. Para registrar el recorrido con la pantalla bloqueada y usar el diagnóstico por voz sin internet, instale la APK.</p>`:''}
+      <button class="btn ${nueva||!EN_APK?'prim':''} ancho grande" id="apkDl">${IC.descarga} ${nueva?'DESCARGAR APK '+esc(APK.ultima):'Descargar la APK'+(APK.ultima?' '+esc(APK.ultima):'')}</button>
+      <p class="tenue" style="margin-top:10px">La versión de la app web (${esc(VERSION)}) se actualiza aparte con «Actualizar versión»; la APK solo hay que reinstalarla cuando se publica una nueva.</p>`);
+    $('#apkDl').onclick=descargarApk;};
+  pinta();if(!APK.ultima){await ultimaApk(true);if($('#apkDl'))pinta();}
+}
+async function avisoApk(){if(!EN_APK)return;await ultimaApk();if(!apkNueva())return;
+  const k='sv_apk_aviso_'+APK.ultima;try{if(localStorage.getItem(k)===fechaLocal())return;localStorage.setItem(k,fechaLocal());}catch(e){}
+  toast(`📲 Hay una APK nueva (${APK.ultima}). Menú → App Android para descargarla.`,7000);}
 function menu(){
   const mos=(id,ic,t,s)=>`<button class="mosaico" id="${id}">${IC[ic]}<b>${t}</b><small>${s}</small></button>`;
   abrirHoja('Menú',`
@@ -2875,13 +2911,17 @@ function menu(){
       ${mos('mBg','ubic','Pantalla bloqueada','Batería y segundo plano')}
       ${SES&&(SES.rol==='admin'||SES.rol==='supervisor')?mos('mVisor','mapa','Visor web','Todos los recorridos sincronizados'):''}
       ${mos('mAct','sync',VERSION_NUEVA?'¡Nueva versión!':'Actualizar versión',VERSION_NUEVA?'Instalar '+VERSION_NUEVA:'Actual: '+VERSION)}
+      ${mos('mApk','instalar',apkNueva()?'¡Nueva APK!':'App Android (APK)',`<span id="mApkTxt">Instalada: ${esc(textoApkInst())} · Última: ${esc(APK.ultima||'…')}</span>`)}
       ${mos('mCfg','config','Configuración',SES&&SES.rol==='admin'?'Mapa, voz, cartografía':'Mapa y voz')}
       ${mos('mSalir','candado','Cerrar sesión',SES?esc(SES.nombre):'')}
       ${estaInstalada()?'':mos('mInst','instalar','Instalar app','En este celular')}
     </div>
-    <p class="tenue" style="text-align:center;margin-top:16px">Sanidad Vegetal · versión ${VERSION} · Cartografía ${esc(CARTO.version||'—')}<br>Palmas de Tumaco S.A.S.</p>`);
+    <p class="tenue" style="text-align:center;margin-top:16px">Sanidad Vegetal · versión ${VERSION} · Cartografía ${esc(CARTO.version||'—')}${EN_APK?' · APK '+esc(textoApkInst()):''}<br>Palmas de Tumaco S.A.S.</p>`);
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
-  on('#mJor',()=>S.jornada?panelJornada():abrirPlanificador('nueva'));
+  on('#mJor',()=>{if(S.jornada)panelJornada();else{cerrarHoja();$('#btJornada').click();}}); // pasa por las mismas verificaciones del botón Iniciar
+  on('#mApk',panelApk);
+  if(!APK.ultima)ultimaApk().then(()=>{const e=$('#mApkTxt');if(e){e.textContent=`Instalada: ${textoApkInst()} · Última: ${APK.ultima||'—'}`;
+    if(apkNueva()){const b=$('#mApk');if(b&&b.querySelector('b'))b.querySelector('b').textContent='¡Nueva APK!';}}});
   on('#mBD',()=>{cerrarHoja();abrirBD('diag');});on('#mRec',()=>{cerrarHoja();abrirBD('jor');});on('#mRes',()=>{cerrarHoja();abrirBD('res');});
   on('#mAct',()=>{cerrarHoja();buscarActualizacion(true);});
   on('#mSync',panelSync);on('#mSalir',cerrarSesion);on('#mExp',menuExportar);on('#mHist',panelHistorial);on('#mZona',()=>{cerrarHoja();setTimeout(guardarZona,300);});on('#mCfg',abrirConfig);on('#mBg',()=>{cerrarHoja();setTimeout(()=>revisarSegundoPlano(true),300);});
@@ -3145,6 +3185,7 @@ async function despuesDeIngresar(){
   if(SES)toast(`Bienvenido, ${SES.nombre}.`);
   ofrecerInstalacion();
   setTimeout(()=>buscarActualizacion(false),4000);
+  setTimeout(()=>avisoApk(),7000);
   programarSync(5000);
 }
 </script>
