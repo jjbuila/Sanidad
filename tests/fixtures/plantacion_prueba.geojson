@@ -1,0 +1,1 @@
+{"type": "FeatureCollection", "name": "plantacion_prueba", "features": [{"type": "Feature", "properties": {"nombre": "Plantaci\u00f3n de prueba (ficticia)"}, "geometry": {"type": "MultiPolygon", "coordinates": [[[[-78.8, 1.45], [-78.73, 1.45], [-78.73, 1.583], [-78.77, 1.583], [-78.8, 1.55], [-78.8, 1.45]]]]}}]}

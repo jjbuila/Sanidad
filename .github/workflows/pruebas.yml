@@ -1,0 +1,48 @@
+# Pruebas automáticas de Sanidad Vegetal: compila la app (src/build.py) y ejecuta las pruebas de tests/ con Playwright
+# (app de campo, visor, administración, voz, auditoría, formulario editable…) en cada cambio del código o de las pruebas.
+name: Pruebas
+
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'tests/**', '.github/workflows/pruebas.yml']
+  pull_request:
+    paths: ['src/**', 'tests/**', '.github/workflows/pruebas.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Dependencias
+        run: |
+          npm install --no-save --prefix "$RUNNER_TEMP/deps" leaflet@1.9.4 jszip@3.10.1 @fontsource/rajdhani
+          pip install --quiet playwright pillow
+          python -m playwright install --with-deps chromium
+
+      - name: Compilar la app (solo en esta máquina; no se publica)
+        run: python src/build.py "$RUNNER_TEMP/deps/node_modules" src/marca
+
+      - name: Ejecutar las pruebas
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 > /dev/null 2>&1 &
+          sleep 2
+          python tests/run_all.py

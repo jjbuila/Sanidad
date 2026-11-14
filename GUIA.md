@@ -15,6 +15,10 @@
 - La sesión queda abierta en el dispositivo, protegida con una llave no extraíble, hasta que el operario pulse **Cerrar sesión**. Si la aplicación se cierra durante una jornada, al abrirla continúa sin pedir la contraseña.
 - El token nunca se guarda ni se muestra en texto plano.
 
+**Pruebas automáticas:** cada cambio en `src/` o `tests/` dispara en GitHub Actions el flujo **Pruebas** (`.github/workflows/pruebas.yml`): compila la app y ejecuta las pruebas de `tests/` (unas 200 verificaciones con GitHub simulado y datos ficticios). Si algo falla, el flujo queda en rojo antes de que el cambio llegue a los celulares. Ver `tests/README.md`.
+
+**Gerencia (visor):** botón **📊 GERENCIA** con Tablero, Cirugía, Sincronización, Calidad, Auditoría y Reportes. El reporte semanal (PDF + Excel) lo genera cada lunes a las 6:00 a. m. el flujo `reporte-semanal.yml` del repositorio de datos, en `reportes/AAAA-Snn/`.
+
 ## 2. Preparar el repositorio privado de datos
 
 `SanidadData` ya está creado como privado y con README. La aplicación escribe allí la carpeta `jornadas/`. La carpeta `cartografia/` puede quedar como copia maestra; la aplicación ya no la descarga de allí.
