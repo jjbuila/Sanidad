@@ -137,6 +137,24 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .leaflet-popup-content{margin:10px 12px;font-size:13px;min-width:220px}
 .leaflet-popup-content b.h{font-family:var(--t);font-size:16px;letter-spacing:.8px}
 .leaflet-container a.leaflet-popup-close-button{color:var(--tenue)}
+/* Reproducción de todas las jornadas filtradas */
+.btRep{font-family:var(--t);font-weight:700;letter-spacing:.6px}
+#rep{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:960;width:min(760px,calc(100% - 20px));border-radius:18px;padding:10px 12px;display:grid;gap:8px}
+#rep .r1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#rep .r1 b.t{font-family:var(--t);font-size:17px;letter-spacing:.8px;flex:1;min-width:160px}
+#rep .modo{display:inline-flex;border:1px solid var(--borde);border-radius:999px;overflow:hidden}
+#rep .modo button{border:0;background:transparent;color:var(--tenue);padding:5px 12px;font-family:var(--t);font-weight:700;font-size:13.5px;cursor:pointer}
+#rep .modo button.on{background:var(--acento);color:#032a1d}
+#rep .r2{display:flex;align-items:center;gap:8px}
+#rep .r2 input[type=range]{flex:1}
+#rep .reloj{font-family:var(--t);font-size:22px;font-weight:700;min-width:96px;text-align:right;font-variant-numeric:tabular-nums}
+#rep .r3{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:12.5px;color:var(--tenue);align-items:center}
+#rep .r3 b{color:var(--texto)}
+#rep .ops{display:flex;gap:6px;flex-wrap:wrap;max-height:58px;overflow:auto;font-size:12px}
+#rep .ops span{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--borde);border-radius:999px;padding:1px 8px}
+#rep .ops span.inact{opacity:.4}
+.rep-etq{background:rgba(6,20,15,.82);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;font-family:var(--t);font-weight:700;font-size:12px;padding:0 5px;box-shadow:none}
+.rep-etq::before{display:none}
 /* Detalle de jornada / reproducción */
 #detalle{position:absolute;left:10px;top:10px;z-index:950;width:min(380px,calc(100% - 20px));max-height:calc(100% - 20px);overflow:auto;border-radius:16px;padding:12px 14px}
 #detalle .cab{display:flex;align-items:center;gap:8px}
@@ -237,6 +255,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
     <div class="mapaCaja">
       <div id="mapa"></div>
       <div class="capas glass">
+        <button class="btn mini prim btRep" id="btRep" title="Reproducir todas las jornadas filtradas">▶ Reproducir</button>
         <label><input type="checkbox" id="cLotes" checked> Lotes</label>
         <label><input type="checkbox" id="cVias" checked> Vías y senderos</label>
         <label><input type="checkbox" id="cRec" checked> Recorridos</label>
@@ -247,6 +266,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       </div>
       <div class="leyenda glass" id="leyenda"></div>
       <div id="detalle" class="glass" hidden></div>
+      <div id="rep" class="glass" hidden></div>
     </div>
   </main>
 </div>
@@ -502,7 +522,7 @@ async function cargar(){
   const d1=$('#fDesde').value,d2=$('#fHasta').value;
   if(!d1||!d2||d1>d2){toast('Revise el rango de fechas.');return;}
   if(fechasEntre(d1,d2).length>370){toast('El rango máximo es de un año.');return;}
-  $('#btCargar').disabled=true;cerrarDetalle();
+  $('#btCargar').disabled=true;cerrarDetalle();if(REP.on)detenerRep();
   try{
     progreso(0.02,'Consultando el índice de jornadas en GitHub…');
     let raiz;try{raiz=await (await gh(`/contents/jornadas?ref=${encodeURIComponent(SES.repo.rama)}`)).json();}
@@ -727,6 +747,7 @@ $('#fotos').onclick=e=>{if(e.target.id==='fotos')$('#fotosX').click();};
 /* ---------- Detalle de jornada y reproducción ---------- */
 const PLAY={on:false,raf:0,t:0,vel:60,idx:0,marca:null,estela:null};
 function abrirDetalle(j){
+  if(REP.on)detenerRep();
   SEL=j;pararPlay();capaSel.clearLayers();
   const tr=j.track;let caja=null;
   if(tr&&tr.c.length){const ll=tr.c.map(c=>[c[1],c[0]]);
@@ -776,6 +797,99 @@ function abrirDetalle(j){
     $('#pVel').onchange=e=>{PLAY.vel=Number(e.target.value);};PLAY.vel=Number($('#pVel').value);}
   marcarFila();
 }
+/* =====================================================================
+   REPRODUCCIÓN DE TODAS LAS JORNADAS FILTRADAS
+   · Todos a la vez: un reloj común; cada operario con su flecha y estela de color (varias fechas se superponen por hora del día).
+   · Uno a uno: cada jornada completa, en orden de inicio, y pasa sola a la siguiente (anterior / siguiente).
+   ===================================================================== */
+const REP={on:false,modo:'todos',js:[],T0:0,T1:0,T:0,run:false,raf:0,vel:300,i:0,capa:null,espera:0,ocultas:[]};
+const inicioDia=t=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime();};
+const hms=ms=>{ms=Math.max(0,Math.round(ms/1000));return [Math.floor(ms/3600),Math.floor(ms/60)%60,ms%60].map(x=>String(x).padStart(2,'0')).join(':');};
+function jornadasRep(){return JORF.filter(j=>j.track&&j.track.c.length>1&&j.track.t.length===j.track.c.length&&j.track.t.every(Number.isFinite))
+  .sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));}
+function abrirRep(modo){
+  const lista=jornadasRep();
+  if(!lista.length){toast('No hay jornadas con recorrido para reproducir en el filtro actual. Cargue fechas o ajuste los filtros.');return;}
+  cerrarDetalle();detenerRep(true);REP.on=true;REP.modo=modo||REP.modo;REP.lista=lista;REP.i=0;
+  // Mientras se reproduce, se ocultan los recorridos, diagnósticos y paradas estáticos
+  REP.ocultas=[capaRec,capaDiag,capaPar].filter(c=>mapa.hasLayer(c));REP.ocultas.forEach(c=>mapa.removeLayer(c));
+  REP.capa=L.layerGroup().addTo(mapa);REP.leyenda=!$('#leyenda').hidden;$('#leyenda').hidden=true; // la barra ocupa la parte baja del mapa
+  $('#rep').hidden=false;prepararRep();
+}
+/* Prepara las jornadas del modo actual: «todos» = todas con hora del día; «uno» = la jornada REP.i con su hora real. */
+function prepararRep(){
+  pausarRep();REP.capa.clearLayers();
+  const varias=new Set(REP.lista.map(j=>j.fecha)).size>1;
+  const sel=REP.modo==='todos'?REP.lista:[REP.lista[REP.i]];
+  const off=j=>REP.modo==='todos'&&varias?inicioDia(j.track.t[0]):0; // varias fechas: se alinean por hora del día
+  REP.varias=varias&&REP.modo==='todos';
+  REP.js=sel.map(j=>{const o=off(j),t=j.track.t.map(x=>x-o),ll=j.track.c.map(c=>[c[1],c[0]]),col=colorOp(j.usuario);
+    L.polyline(ll,{renderer:rend,color:col,weight:2,opacity:.25,dashArray:'4 6',interactive:false}).addTo(REP.capa);
+    const estela=L.polyline([],{renderer:rend,color:col,weight:4,opacity:.95,interactive:false}).addTo(REP.capa);
+    const marca=L.marker(ll[0],{icon:iconoFlecha(col),interactive:false,keyboard:false,zIndexOffset:1000}).addTo(REP.capa);
+    if(REP.modo==='todos')marca.bindTooltip(esc(nombreCorto(j.evaluador)),{permanent:true,direction:'right',offset:[16,0],className:'rep-etq'});
+    const diags=j.diags.map(d=>({d,t:Date.parse(d.creado)-o,m:null})).filter(x=>Number.isFinite(x.t)).sort((a,b)=>a.t-b.t);
+    const acum=[0];for(let q=1;q<ll.length;q++){const d=dist(ll[q-1][0],ll[q-1][1],ll[q][0],ll[q][1]);acum.push(acum[q-1]+(d<500?d:0));}
+    return {j,t,ll,col,estela,marca,k:-1,acum,diags,dN:0,activa:false};});
+  REP.T0=Math.min(...REP.js.map(x=>x.t[0]));REP.T1=Math.max(...REP.js.map(x=>x.t[x.t.length-1]));REP.T=REP.T0;
+  const caja=L.latLngBounds(REP.js.flatMap(x=>x.ll));try{mapa.fitBounds(caja,{padding:[40,40],maxZoom:REP.modo==='todos'?17:18});}catch(e){}
+  pintarBarraRep();ponerRep(REP.T0);
+}
+function pintarBarraRep(){
+  const uno=REP.modo==='uno',j=uno?REP.lista[REP.i]:null;
+  $('#rep').innerHTML=`<div class="r1"><b class="t">${uno?`${REP.i+1} de ${REP.lista.length} · ${esc(j.evaluador)} · ${esc(j.fecha)} ${esc(j.hora_inicio)}–${esc(j.hora_fin)}`:`${REP.lista.length} jornadas a la vez${REP.varias?' · '+new Set(REP.lista.map(x=>x.fecha)).size+' fechas superpuestas por hora':''}`}</b>
+      <span class="modo"><button data-m="todos" class="${uno?'':'on'}">Todos a la vez</button><button data-m="uno" class="${uno?'on':''}">Uno a uno</button></span>
+      <button class="btn mini" id="repX" title="Cerrar">✕</button></div>
+    <div class="r2">${uno?'<button class="btn mini" id="repAnt" title="Jornada anterior">⏮</button>':''}<button class="btn mini prim" id="repBt" style="min-width:44px">▶</button>${uno?'<button class="btn mini" id="repSig" title="Jornada siguiente">⏭</button>':''}
+      <input type="range" id="repRg" min="0" max="1000" value="0" aria-label="Avance de la reproducción"><span class="reloj" id="repReloj">--:--:--</span></div>
+    <div class="r3"><label>Velocidad <select id="repVel" style="padding:2px 6px;font-size:12.5px">${[60,180,300,600,1200,3600].map(v=>`<option value="${v}" ${v===REP.vel?'selected':''}>×${v}</option>`).join('')}</select></label>
+      ${uno?'<label><input type="checkbox" id="repSeg" checked> Seguir al operario</label><label><input type="checkbox" id="repDiag" checked> Mostrar diagnósticos</label>':''}
+      <span>Activos <b id="repAct">0</b></span><span>Diagnósticos <b id="repND">0</b></span><span>Km <b id="repKm">0.00</b></span>${uno?'':'<span class="tenue">Las horas son del día; cada color es un operario.</span>'}</div>
+    ${uno?'':`<div class="ops" id="repOps">${REP.js.map((x,k)=>`<span data-k="${k}"><i class="punto" style="background:${x.col}"></i>${esc(nombreCorto(x.j.evaluador))} · ${esc(x.j.hora_inicio)}</span>`).join('')}</div>`}`;
+  $('#repX').onclick=()=>detenerRep();
+  $('#repBt').onclick=()=>REP.run?pausarRep():iniciarRep();
+  $('#repRg').oninput=e=>{pausarRep();ponerRep(REP.T0+(REP.T1-REP.T0)*e.target.value/1000);};
+  $('#repVel').onchange=e=>{REP.vel=Number(e.target.value);};
+  $$('#rep .modo button').forEach(b=>b.onclick=()=>{if(REP.modo===b.dataset.m)return;REP.modo=b.dataset.m;REP.vel=REP.modo==='todos'?Math.max(REP.vel,300):Math.min(REP.vel,300);prepararRep();});
+  if(uno){$('#repAnt').onclick=()=>{if(REP.i>0){REP.i--;prepararRep();iniciarRep();}};$('#repSig').onclick=()=>siguienteRep(true);}
+}
+function idxT(t,T){let lo=0,hi=t.length-1;if(T<t[0])return -1;while(lo<hi){const m=(lo+hi+1)>>1;if(t[m]<=T)lo=m;else hi=m-1;}return lo;}
+function ponerRep(T){REP.T=T;let act=0,nd=0,km=0;const uno=REP.modo==='uno';
+  for(const x of REP.js){const i=idxT(x.t,T);
+    if(i<0){x.estela.setLatLngs([]);x.marca.setOpacity(.35);x.marca.setLatLng(x.ll[0]);x.k=-1;x.activa=false;}
+    else{const a=x.ll[i],b=x.ll[Math.min(i+1,x.ll.length-1)],ta=x.t[i],tb=x.t[Math.min(i+1,x.t.length-1)];const f=tb>ta?Math.min(1,Math.max(0,(T-ta)/(tb-ta))):0;
+      const pos=[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f];
+      if(x.k>=0&&i>=x.k){const L2=x.estela.getLatLngs();L2.pop();for(let q=x.k+1;q<=i;q++)L2.push(L.latLng(x.ll[q]));L2.push(L.latLng(pos));x.estela.setLatLngs(L2);} // avance: solo se agregan los puntos nuevos
+      else x.estela.setLatLngs(x.ll.slice(0,i+1).concat([pos]));                                                                                     // retroceso o inicio: se rehace
+      x.k=i;x.marca.setLatLng(pos);x.activa=T<=x.t[x.t.length-1];x.marca.setOpacity(x.activa?1:.45);if(x.activa)act++;
+      let j2=i;while(j2<x.ll.length-1&&dist(x.ll[j2][0],x.ll[j2][1],x.ll[j2+1][0],x.ll[j2+1][1])<1)j2++;let h0=i;while(h0>0&&dist(x.ll[h0][0],x.ll[h0][1],x.ll[j2][0],x.ll[j2][1])<1)h0--;
+      if(j2>h0)girarFlecha(x.marca,rumbo({lat:x.ll[h0][0],lng:x.ll[h0][1]},{lat:x.ll[j2][0],lng:x.ll[j2][1]}));
+      km+=x.acum[i]/1000;}
+    // Diagnósticos que van apareciendo
+    let k=x.dN;const nuevos=[];
+    while(k<x.diags.length&&x.diags[k].t<=T){const q=x.diags[k];q.m=L.circleMarker([q.d.lat,q.d.lng],{renderer:rend,radius:6,color:'#fff',weight:1.5,fillColor:colorD(q.d),fillOpacity:1}).addTo(REP.capa);
+      q.m.on('click',ev=>{L.DomEvent.stopPropagation(ev);popupDiag({...q.d,_j:x.j},ev.latlng);});nuevos.push(q);k++;}
+    while(k>0&&x.diags[k-1].t>T){k--;const q=x.diags[k];if(q.m){REP.capa.removeLayer(q.m);q.m=null;}}
+    x.dN=k;nd+=k;
+    if(uno&&REP.run&&nuevos.length&&$('#repDiag')&&$('#repDiag').checked){const q=nuevos[nuevos.length-1];REP.espera=Date.now()+3000;
+      if(mapa.getZoom()<19)mapa.setView([q.d.lat,q.d.lng],19,{animate:true});else mapa.panTo([q.d.lat,q.d.lng]);popupDiag({...q.d,_j:x.j},[q.d.lat,q.d.lng]);}
+    if(uno&&REP.run&&x.activa&&!nuevos.length&&$('#repSeg')&&$('#repSeg').checked&&Date.now()>REP.espera)seguirOperario(x.marca.getLatLng());}
+  const e=$('#repReloj');if(e)e.textContent=REP.modo==='todos'&&REP.varias?hms(T):(()=>{const d=new Date(T);return [d.getHours(),d.getMinutes(),d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');})();
+  const rg=$('#repRg');if(rg)rg.value=Math.round(1000*(T-REP.T0)/Math.max(1,REP.T1-REP.T0));
+  if($('#repAct'))$('#repAct').textContent=act;if($('#repND'))$('#repND').textContent=nd;if($('#repKm'))$('#repKm').textContent=km.toFixed(2);
+  $$('#repOps span').forEach(s=>{const x=REP.js[+s.dataset.k];s.classList.toggle('inact',!x||!x.activa);});
+}
+function iniciarRep(){if(!REP.on)return;if(REP.T>=REP.T1)ponerRep(REP.T0);REP.run=true;const b=$('#repBt');if(b)b.textContent='❚❚';
+  let prev=performance.now();const paso=now=>{if(!REP.run)return;const dt=now-prev;prev=now;
+    if(Date.now()<REP.espera){REP.raf=requestAnimationFrame(paso);return;}
+    const T=Math.min(REP.T1,REP.T+dt*REP.vel);ponerRep(T);
+    if(T>=REP.T1){pausarRep();if(REP.modo==='uno')setTimeout(()=>{if(REP.on&&!REP.run&&REP.T>=REP.T1)siguienteRep(false);},1500);return;}
+    REP.raf=requestAnimationFrame(paso);};REP.raf=requestAnimationFrame(paso);}
+function pausarRep(){REP.run=false;cancelAnimationFrame(REP.raf);const b=$('#repBt');if(b)b.textContent='▶';}
+function siguienteRep(manual){if(REP.i<REP.lista.length-1){REP.i++;prepararRep();iniciarRep();}else if(manual)toast('Era la última jornada del filtro.');else toast('✅ Terminó la reproducción de las '+REP.lista.length+' jornadas.');}
+function detenerRep(silencioso){pausarRep();if(REP.capa){mapa.removeLayer(REP.capa);REP.capa=null;}(REP.ocultas||[]).forEach(c=>c.addTo(mapa));REP.ocultas=[];if(REP.on&&REP.leyenda)$('#leyenda').hidden=false;REP.on=false;REP.js=[];
+  if(!silencioso)$('#rep').hidden=true;mapa.closePopup();}
+$('#btRep').onclick=()=>abrirRep(REP.modo);
 /* Palmas visitadas de una jornada con el instante de su primera visita (t_visita, desde la versión con secuencias). */
 async function palmasVisitadasJ(j){
   const h=j.header||{};const t0=Date.parse(h.t0_visita)||null;const out=[];
@@ -890,7 +1004,7 @@ function pintarPanel(){
   }else if(TAB==='jornadas'){
     const filas=JORF.map(j=>({_j:j,_sel:j===SEL,fecha:j.fecha,evaluador:j.evaluador,ini:j.hora_inicio,fin:j.hora_fin,dur:Number(j.duracion_min)||0,km:j.km,ha:j.ha,palmas:j.palmas,diag:j.diags.length,par:j.n_paradas,vel:j.vel,lotes:[...j.lotes].sort(ordenNat).join(', ')}));
     const t=tabla('tJor',[{k:'fecha',t:'Fecha',asc:false},{k:'evaluador',t:'Operario'},{k:'ini',t:'Inicio'},{k:'fin',t:'Fin'},{k:'dur',t:'Duración',n:1,f:x=>esc(minAh(x.dur))},{k:'km',t:'Km',n:1,f:x=>num(x.km,2)},{k:'vel',t:'Vel. km/h',n:1,f:x=>x.vel==null?'—':num(x.vel,1)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'diag',t:'Diag.',n:1},{k:'par',t:'Paradas',n:1},{k:'lotes',t:'Lotes'}],filas,f=>abrirDetalle(f._j));
-    P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque una jornada para verla en el mapa y reproducir el recorrido.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xJor">⬇ CSV jornadas</button></div>`;$('#xJor').onclick=()=>csvJornadas();
+    P.innerHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="btn mini prim btRep" id="btRepT">▶ Reproducir todas a la vez</button><button class="btn mini btRep" id="btRepU">▶ Reproducir una a una</button></div><div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque una jornada para verla en el mapa y reproducir solo ese recorrido.</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xJor">⬇ CSV jornadas</button></div>`;$('#xJor').onclick=()=>csvJornadas();$('#btRepT').onclick=()=>abrirRep('todos');$('#btRepU').onclick=()=>abrirRep('uno');
   }else if(TAB==='lotes'){
     const t=tabla('tLot',[{k:'lote',t:'Lote'},{k:'pc',t:'Casos PC',n:1},{k:'incid_pc',t:'Incid. PC',n:1,f:x=>x.incid_pc==null?'—':'<b>'+num(x.incid_pc,2)+' %</b>'},{k:'tipo',t:'Tipo'},{k:'jornadas',t:'Jornadas',n:1},{k:'operarios',t:'Operarios',n:1},{k:'palmas',t:'Palmas visitadas',n:1,f:x=>num(x.palmas)},{k:'distintas',t:'Palmas distintas',n:1,f:x=>num(x.distintas)},{k:'total_lote',t:'Total lote',n:1,f:x=>x.total_lote?num(x.total_lote):'—'},{k:'avance',t:'Avance',n:1,f:x=>x.avance==null?'—':'<b>'+num(x.avance,1)+' %</b>'},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'diag',t:'Diag.',n:1},{k:'enfermas',t:'Enfermas',n:1},{k:'min_par',t:'Min. paradas',n:1}],
       resumenLotes(),f=>{msSolo('lote',f.lote);aplicarFiltros(true);});
