@@ -138,7 +138,7 @@ table.usuarios td{font-size:13.5px}
         <div class="fila" style="margin:10px 0">
           <input type="text" id="eBuscar" placeholder="Buscar por usuario, nombre, cargo o identificación" style="flex:3;min-width:220px">
           <select id="eFRol"><option value="">Todos los roles</option><option value="operario">Operarios</option><option value="supervisor">Supervisores</option><option value="analista">Analistas de datos</option><option value="admin">Administradores</option><option value="superadmin">Super administradores</option></select>
-          <select id="eFLab"><option value="">Todas las labores</option><option value="censo">Censo</option><option value="cirugia">Cirugía</option><option value="inactivo">Suspendidos</option><option value="cambios">Con cambios</option></select>
+          <select id="eFLab"><option value="">Todas las labores</option><option value="censo">Censo</option><option value="cirugia">Cirugía</option><option value="erradicacion">Erradicación</option><option value="inactivo">Suspendidos</option><option value="cambios">Con cambios</option></select>
         </div>
         <div style="overflow-x:auto"><table class="usuarios"><thead><tr><th>Usuario</th><th>Nombre</th><th>Cargo</th><th>Rol</th><th>Labores</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="eLista"></tbody></table></div>
         <div class="fila" style="margin-top:12px"><button class="btn chico prim" id="eAgregar">＋ Nuevo usuario</button><button class="btn chico" id="eImport">⬆ Cargar desde Excel o CSV</button><button class="btn chico" id="eCsv">⬇ Exportar lista (CSV, sin contraseñas)</button><button class="btn chico" id="eHist">🕘 Historial de cambios</button></div>
@@ -352,13 +352,14 @@ const esSuperYo=()=>!!(ED.yo&&ED.yo.rol==='superadmin');
 const restringido=()=>!!ED.haySuper&&!esSuperYo();
 const rolOrig=x=>{try{return ED.orig[x.u]?JSON.parse(ED.orig[x.u]).rol:x.rol;}catch(e){return x.rol;}};
 const puedeGestionar=x=>!restringido()||(!ROLES_PRIV.includes(rolOrig(x))&&!ROLES_PRIV.includes(x.rol));
-const LAB_TXT={censo:'Censo',cirugia:'Cirugía'};
+const LAB_TXT={censo:'Censo',cirugia:'Cirugía',erradicacion:'Erradicación'};
+const ROL_ERR_TXT={erradicador:'erradicador',auxiliar:'auxiliar de erradicación'};
 /* Labores efectivas (igual que la app): sin labores definidas, admin y supervisor ven todas; el operario, censo. */
-const laboresDe=x=>x.labores&&x.labores.length?x.labores:(ROLES_PRIV.includes(x.rol)||x.rol==='supervisor'?['censo','cirugia']:['censo']);
+const laboresDe=x=>x.labores&&x.labores.length?x.labores:(ROLES_PRIV.includes(x.rol)||x.rol==='supervisor'?['censo','cirugia','erradicacion']:['censo']);
 /* Datos del usuario que viajan cifrados en «meta» (se conservan los campos que no edita esta página). */
 function metaDe(x){const m={...x};for(const k of ['u','clave','nuevo'])delete m[k];
-  for(const k of ['cargo','identificacion','rol_cirugia'])if(!m[k])delete m[k];if(!m.inactivo)delete m.inactivo;
-  if(m.labores&&!m.labores.length)delete m.labores;if(!(m.labores||[]).includes('cirugia'))delete m.rol_cirugia;return m;}
+  for(const k of ['cargo','identificacion','rol_cirugia','rol_erradicacion'])if(!m[k])delete m[k];if(!m.inactivo)delete m.inactivo;
+  if(m.labores&&!m.labores.length)delete m.labores;if(!(m.labores||[]).includes('cirugia'))delete m.rol_cirugia;if(!(m.labores||[]).includes('erradicacion'))delete m.rol_erradicacion;return m;}
 $('#eAbrir').onclick=async()=>{
   const msg=$('#eAbrirMsg');msg.textContent='';
   try{
@@ -386,7 +387,7 @@ function pintarLista(){
   const q=$('#eBuscar').value.trim().toLowerCase(),fr=$('#eFRol').value,fl=$('#eFLab').value;
   const T=todos();const activos=T.filter(x=>!x.inactivo&&!ED.eliminar.has(x.u));
   $('#eResumen').innerHTML=[['Usuarios',T.length],['Activos',activos.length],['Operarios',activos.filter(x=>x.rol==='operario').length],['Supervisores',activos.filter(x=>x.rol==='supervisor').length],['Analistas',activos.filter(x=>x.rol==='analista').length],
-    ['Administradores',activos.filter(x=>x.rol==='admin').length],['Super administradores',activos.filter(x=>x.rol==='superadmin').length],['Censo',activos.filter(x=>laboresDe(x).includes('censo')).length],['Cirugía',activos.filter(x=>laboresDe(x).includes('cirugia')).length],
+    ['Administradores',activos.filter(x=>x.rol==='admin').length],['Super administradores',activos.filter(x=>x.rol==='superadmin').length],['Censo',activos.filter(x=>laboresDe(x).includes('censo')).length],['Cirugía',activos.filter(x=>laboresDe(x).includes('cirugia')).length],['Erradicación',activos.filter(x=>laboresDe(x).includes('erradicacion')).length],
     ['Suspendidos',T.filter(x=>x.inactivo).length]].map(([t,n])=>`<span>${t} <b>${n}</b></span>`).join('');
   const vis=T.filter(x=>(!q||[x.u,x.nombre,x.cargo,x.identificacion].some(v=>String(v||'').toLowerCase().includes(q)))&&(!fr||x.rol===fr)&&
     (!fl||(fl==='inactivo'?x.inactivo:fl==='cambios'?(x.nuevo||ED.cambios.has(x.u)||ED.claves.has(x.u)||ED.eliminar.has(x.u)):laboresDe(x).includes(fl))))
@@ -394,7 +395,7 @@ function pintarLista(){
   $('#eLista').innerHTML=vis.map(x=>{const del=ED.eliminar.has(x.u),nueva=ED.claves.get(x.u);
     const est=del?'<span class="sello sus">SE ELIMINARÁ</span>':x.nuevo?'<span class="sello nuevo">NUEVO</span>':x.inactivo?'<span class="sello sus">SUSPENDIDO</span>':'<span class="sello act">ACTIVO</span>';
     const pend=!x.nuevo&&!del&&(ED.cambios.has(x.u)||nueva)?' <span class="sello cambio">CAMBIOS</span>':'';
-    const lab=laboresDe(x).map(l=>LAB_TXT[l]+(l==='cirugia'&&x.rol_cirugia?` (${x.rol_cirugia})`:'')).join(', ')+(x.labores&&x.labores.length?'':' <span class="tenue">(por defecto)</span>');
+    const lab=laboresDe(x).map(l=>LAB_TXT[l]+(l==='cirugia'&&x.rol_cirugia?` (${x.rol_cirugia})`:'')+(l==='erradicacion'&&x.rol_erradicacion?` (${ROL_ERR_TXT[x.rol_erradicacion]||x.rol_erradicacion})`:'')).join(', ')+(x.labores&&x.labores.length?'':' <span class="tenue">(por defecto)</span>');
     return `<tr style="${del?'opacity:.45;text-decoration:line-through':''}"><td><b>${esc(x.u)}</b></td><td>${esc(x.nombre)}${x.identificacion?`<br><span class="tenue">CC ${esc(x.identificacion)}</span>`:''}</td>
       <td>${esc(x.cargo||'—')}</td><td>${ROL_TXT[x.rol]||esc(x.rol)}</td><td>${lab}</td><td>${est}${pend}</td>
       <td><div class="acciones">${!puedeGestionar(x)?'<span class="tenue">🔒 Solo el super administrador</span>':`${del?'':`<button class="btn chico" data-ed="${esc(x.u)}">Editar</button>`}
@@ -414,7 +415,7 @@ function pintarLista(){
 }
 /* Formulario para crear o editar un usuario (todos sus datos). */
 function formUsuario(x){
-  const nuevo=!x||x.nuevo,d=x||{u:'',nombre:'',cargo:'',identificacion:'',rol:'operario',labores:['censo'],rol_cirugia:'',clave:generarClave(),nuevo:true};
+  const nuevo=!x||x.nuevo,d=x||{u:'',nombre:'',cargo:'',identificacion:'',rol:'operario',labores:['censo'],rol_cirugia:'',rol_erradicacion:'',clave:generarClave(),nuevo:true};
   const lab=laboresDe(d);const f=$('#eForm');f.hidden=false;
   f.innerHTML=`<h2 style="font-size:17px">${nuevo&&!x?'Nuevo usuario':'Editar usuario · '+esc(d.u)}</h2>
     <div class="fila"><div><label>Usuario</label><input type="text" id="fU" value="${esc(d.u)}" ${nuevo?'':'disabled'} autocapitalize="none" placeholder="jperez"></div>
@@ -424,21 +425,24 @@ function formUsuario(x){
       <div><label>Rol</label><select id="fRol">${Object.entries(ROL_TXT).filter(([k])=>!restringido()||!ROLES_PRIV.includes(k)).map(([k,t])=>`<option value="${k}" ${d.rol===k?'selected':''}>${t}${k==='supervisor'?' (visor web)':k==='analista'?' (permisos de administrador)':k==='superadmin'?' (control total)':''}</option>`).join('')}</select></div></div>
     <label>Labores</label><label class="check"><input type="checkbox" id="fCenso" ${lab.includes('censo')?'checked':''}> Censo</label><label class="check"><input type="checkbox" id="fCir" ${lab.includes('cirugia')?'checked':''}> Cirugía</label>
     <div id="fRolCirW" ${lab.includes('cirugia')?'':'hidden'}><label>Rol en cirugía</label><select id="fRolCir"><option value="cirujano" ${d.rol_cirugia==='cirujano'?'selected':''}>Cirujano</option><option value="auxiliar" ${d.rol_cirugia!=='cirujano'?'selected':''}>Auxiliar</option></select></div>
+    <label class="check"><input type="checkbox" id="fErr" ${lab.includes('erradicacion')?'checked':''}> Erradicación</label>
+    <div id="fRolErrW" ${lab.includes('erradicacion')?'':'hidden'}><label>Rol en erradicación</label><select id="fRolErr"><option value="erradicador" ${d.rol_erradicacion!=='auxiliar'?'selected':''}>Erradicador</option><option value="auxiliar" ${d.rol_erradicacion==='auxiliar'?'selected':''}>Auxiliar de erradicación</option></select></div>
     ${nuevo?`<label>Contraseña</label><div class="fila" style="flex-wrap:nowrap"><input type="text" id="fClave" value="${esc(d.clave||generarClave())}"><button class="btn chico" id="fGen" style="flex:none;min-width:0">↻</button></div>`
       :`<label class="check" style="margin-top:12px"><input type="checkbox" id="fSus" ${d.inactivo?'checked':''}> Suspendido (no puede ingresar)</label>`}
     <div class="err" id="fMsg"></div>
     <div class="fila" style="margin-top:8px"><button class="btn prim" id="fOk">${nuevo&&!x?'AGREGAR':'GUARDAR CAMBIOS'}</button><button class="btn" id="fNo">Cancelar</button></div>`;
   $('#fCir').onchange=()=>{$('#fRolCirW').hidden=!$('#fCir').checked;};
+  $('#fErr').onchange=()=>{$('#fRolErrW').hidden=!$('#fErr').checked;};
   if($('#fGen'))$('#fGen').onclick=()=>{$('#fClave').value=generarClave();};
   $('#fNo').onclick=()=>{f.hidden=true;};
   $('#fOk').onclick=()=>{try{
       const u=$('#fU').value.trim().toLowerCase(),nombre=$('#fNombre').value.trim(),rol=$('#fRol').value;
-      const labores=[$('#fCenso').checked&&'censo',$('#fCir').checked&&'cirugia'].filter(Boolean);
+      const labores=[$('#fCenso').checked&&'censo',$('#fCir').checked&&'cirugia',$('#fErr').checked&&'erradicacion'].filter(Boolean);
       if(restringido()&&ROLES_PRIV.includes(rol))throw new Error('Solo el super administrador puede asignar roles de administrador, analista o super administrador.');
       if(nuevo){if(!reUser.test(u))throw new Error('Usuario no válido: minúsculas, números, punto o guion (mín. 3).');
         if(todos().some(y=>y.u===u&&y!==x))throw new Error(`El usuario «${u}» ya existe.`);}
       if(!nombre)throw new Error('Escriba el nombre completo.');if(!labores.length)throw new Error('Marque al menos una labor.');
-      const datos={nombre,cargo:$('#fCargo').value.trim(),identificacion:$('#fId').value.trim(),rol,labores,rol_cirugia:labores.includes('cirugia')?$('#fRolCir').value:''};
+      const datos={nombre,cargo:$('#fCargo').value.trim(),identificacion:$('#fId').value.trim(),rol,labores,rol_cirugia:labores.includes('cirugia')?$('#fRolCir').value:'',rol_erradicacion:labores.includes('erradicacion')?$('#fRolErr').value:''};
       if(nuevo){const clave=$('#fClave').value.trim();const e=validarClave(clave);if(e)throw new Error('Contraseña: '+e+'.');
         if(x)Object.assign(x,datos,{u,clave});else ED.nuevos.push({u,...datos,clave,nuevo:true});}
       else{Object.assign(x,datos,{inactivo:$('#fSus').checked});ED.cambios.add(x.u);}
@@ -625,11 +629,11 @@ $('#iAbrir').onclick=async()=>{const m=$('#iMsg'),b=$('#iAbrir'),E=$('#iEditor')
     E.hidden=false;b.textContent='Cerrar la configuración de la IA';}
   catch(e){m.style.color='var(--rojo)';m.textContent='❌ '+e.message;}finally{b.disabled=false;}};
 /* ---------- Carga masiva de usuarios desde Excel (.xlsx) o CSV ----------
-   Columnas (encabezados en la primera fila, en cualquier orden): usuario, nombre, cargo, identificacion, rol, labores, rol_cirugia, contraseña, estado.
+   Columnas (encabezados en la primera fila, en cualquier orden): usuario, nombre, cargo, identificacion, rol, labores, rol_cirugia, rol_erradicacion, contraseña, estado.
    Usuario existente: se actualizan los datos que traiga la fila. Usuario nuevo: se crea (contraseña de la fila o generada). */
 const normCol=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
 const SINON={usuario:['usuario','user','login'],nombre:['nombre','nombre_completo','nombres'],cargo:['cargo'],identificacion:['identificacion','cedula','documento','cc'],rol:['rol','perfil'],
-  labores:['labores','labor'],rol_cirugia:['rol_cirugia','rol_en_cirugia'],clave:['contrasena','clave','password'],estado:['estado']};
+  labores:['labores','labor'],rol_cirugia:['rol_cirugia','rol_en_cirugia'],rol_erradicacion:['rol_erradicacion','rol_en_erradicacion'],clave:['contrasena','clave','password'],estado:['estado']};
 async function leerTabla(f){
   if(/\.xlsx$/i.test(f.name)){const z=await JSZip.loadAsync(await f.arrayBuffer());const dp=new DOMParser();
     const ss=z.file('xl/sharedStrings.xml')?[...dp.parseFromString(await z.file('xl/sharedStrings.xml').async('string'),'application/xml').getElementsByTagName('si')].map(x=>x.textContent):[];
@@ -646,7 +650,7 @@ async function importarUsuarios(f){
   const cab=filas[0].map(normCol);const col={};for(const [k,syn] of Object.entries(SINON)){const i=cab.findIndex(c=>syn.includes(c));if(i>=0)col[k]=i;}
   if(col.usuario==null)throw new Error('Falta la columna «usuario».');
   const rolDe=v=>{v=normCol(v);return /super.?admin/.test(v)?'superadmin':/admin/.test(v)?'admin':/super/.test(v)?'supervisor':/analis/.test(v)?'analista':v?'operario':null;};
-  const labDe=v=>{v=normCol(v);if(!v)return null;const l=[];if(/censo/.test(v))l.push('censo');if(/cirug/.test(v))l.push('cirugia');return l.length?l:null;};
+  const labDe=v=>{v=normCol(v);if(!v)return null;const l=[];if(/censo/.test(v))l.push('censo');if(/cirug/.test(v))l.push('cirugia');if(/erradic/.test(v))l.push('erradicacion');return l.length?l:null;};
   const res={nuevos:[],act:[],err:[]};const vistos=new Set();
   filas.slice(1).forEach((fl,i)=>{const g=k=>col[k]!=null?String(fl[col[k]]??'').trim():'';const u=g('usuario').toLowerCase();const n=i+2;
     if(!u&&!g('nombre'))return;
@@ -655,6 +659,7 @@ async function importarUsuarios(f){
     const datos={};if(g('nombre'))datos.nombre=g('nombre').toUpperCase();if(g('cargo'))datos.cargo=g('cargo');if(g('identificacion'))datos.identificacion=g('identificacion');
     const ro=rolDe(g('rol'));if(ro)datos.rol=ro;const la=labDe(g('labores'));if(la)datos.labores=la;
     const rc=normCol(g('rol_cirugia'));if(rc)datos.rol_cirugia=/ciruj/.test(rc)?'cirujano':'auxiliar';
+    const re=normCol(g('rol_erradicacion'));if(re)datos.rol_erradicacion=/auxil/.test(re)?'auxiliar':'erradicador';
     const es=normCol(g('estado'));if(es)datos.inactivo=/susp|inact/.test(es);
     const clave=g('clave');if(clave){const e=validarClave(clave);if(e){res.err.push(`Fila ${n} (${u}): contraseña ${e}.`);return;}}
     const ex=todos().find(x=>x.u===u);
@@ -696,8 +701,8 @@ $('#eHist').onclick=async()=>{const B=$('#eHistBox');if(!B.hidden){B.hidden=true
 $('#eAgregar').onclick=()=>formUsuario(null);
 ['#eBuscar','#eFRol','#eFLab'].forEach(s=>$(s).addEventListener('input',pintarLista));
 $('#eCsv').onclick=()=>{const T=todos().filter(x=>!ED.eliminar.has(x.u));
-  const filas=T.map(x=>[x.u,x.nombre,x.cargo||'',x.identificacion||'',ROL_TXT[x.rol]||x.rol,laboresDe(x).map(l=>LAB_TXT[l]).join(' + '),x.rol_cirugia||'',x.inactivo?'Suspendido':'Activo'].map(v=>String(v).replace(/;/g,',')).join(';'));
-  descargar('\ufeffusuario;nombre;cargo;identificacion;rol;labores;rol_cirugia;estado\r\n'+filas.join('\r\n'),'usuarios_sanidad_vegetal.csv','text/csv');};
+  const filas=T.map(x=>[x.u,x.nombre,x.cargo||'',x.identificacion||'',ROL_TXT[x.rol]||x.rol,laboresDe(x).map(l=>LAB_TXT[l]).join(' + '),x.rol_cirugia||'',x.rol_erradicacion||'',x.inactivo?'Suspendido':'Activo'].map(v=>String(v).replace(/;/g,',')).join(';'));
+  descargar('\ufeffusuario;nombre;cargo;identificacion;rol;labores;rol_cirugia;rol_erradicacion;estado\r\n'+filas.join('\r\n'),'usuarios_sanidad_vegetal.csv','text/csv');};
 $('#eProbar').onclick=()=>{const t=$('#eToken').value.trim();if(!t){$('#eTokenMsg').textContent='Escriba el nuevo token para probarlo.';return;}probarToken($('#eOwner').value.trim(),$('#eRepo').value.trim(),t,$('#eTokenMsg'));};
 $('#eGuardar').onclick=async()=>{
   const msg=$('#eMsg');msg.textContent='';$('#eOk').hidden=true;const bt=$('#eGuardar');

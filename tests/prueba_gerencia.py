@@ -102,7 +102,7 @@ with sync_playwright() as p:
     vz.click('#chCalor'); vz.click('#btGer'); time.sleep(.3)
     check('Módulos: Gerencia con Tablero, Reportes y Sincronización', [b.inner_text() for b in vz.query_selector_all('#gerPanel [data-gt]')] == ['TABLERO', 'REPORTES', 'SINCRONIZACIÓN'])
     vz.click('#btCoord'); time.sleep(.3)
-    check('Módulos: Coordinación y supervisión con Planificación, Cirugía, Calidad, Auditoría y Reportes', 'COORDINACIÓN Y SUPERVISIÓN DE LA LABOR' in txt().upper() and [b.inner_text() for b in vz.query_selector_all('#gerPanel [data-gt]')] == ['PROGRAMADOR DE CENSO DE ENFERMEDADES', 'PROGRAMADOR DE CIRUGÍAS', 'CIRUGÍA', 'CALIDAD', 'AUDITORÍA', 'REPORTES'])
+    check('Módulos: Coordinación y supervisión con Planificación, Cirugía, Calidad, Auditoría y Reportes', 'COORDINACIÓN Y SUPERVISIÓN DE LA LABOR' in txt().upper() and [b.inner_text() for b in vz.query_selector_all('#gerPanel [data-gt]')] == ['PROGRAMADOR DE CENSO DE ENFERMEDADES', 'PROGRAMADOR DE CIRUGÍAS', 'PROGRAMADOR DE ERRADICACIÓN', 'CIRUGÍA', 'CALIDAD', 'AUDITORÍA', 'REPORTES'])
     vz.click('[data-gt=progcir]'); time.sleep(.3); vz.click('#gerAbrirCir'); time.sleep(.6)
     check('Coordinación: el programador de cirugías abre el modo de cirugías del mapa', vz.evaluate("CIR.on&&document.body.classList.contains('modo-cir')&&document.querySelector('#gerPanel').hidden"))
     vz.evaluate('alternarCirugia(false)'); vz.click('#btCoord'); time.sleep(.3)

@@ -328,6 +328,44 @@ El servicio solo atiende a quien tenga el token de la App con escritura en el re
 - recorrido y paradas;
 - un ZIP con las fotos.
 
+## 7.5 Módulo de erradicación
+
+**Qué se erradica.** Las palmas cuyo último diagnóstico (del censador, o corregido por un cirujano o un erradicador) es:
+1. **PC cráter**, o «para erradicar» si lo marcó un cirujano.
+2. **Palma espontánea.**
+3. **Yarumo** (en calle, lote o palma).
+
+En ese orden de prioridad. **Plazo:** día hábil siguiente al reporte (lunes a sábado, sin festivos).
+
+**Quién la hace.** En `admin.html` se asigna la labor **Erradicación** con el rol *Erradicador* o *Auxiliar de erradicación*. Los **equipos son mixtos**: un erradicador solo, o con su auxiliar.
+
+**Programación (visor → 🧭 COORDINACIÓN → Programador de erradicación → abrir en el mapa).**
+- Muestra los casos pendientes, los vencidos y los que vencen en la fecha.
+- Se arman los equipos (erradicador y auxiliar opcional) y se fija su eficiencia: 5, 10, 15, 20, 25 o 30 palmas por día.
+- **Generar programación** reparte los casos por cercanía y arma la ruta de cada equipo desde la oficina central. **Enviar a los celulares** escribe `erradicacion/programacion/AAAA-MM-DD.json`.
+- **Editar** cambia la lista de productos químicos (`config/erradicacion.json`, por defecto *Mesa Mate*, dosis en ml).
+
+**App (labor Erradicación).**
+- Al tocar INICIAR se elige la labor, el rol y el compañero (o «Trabajo solo»), y aparece la ruta del día.
+- En cada palma, **CONFIRMA: ERRADICAR** abre el registro:
+  1. Qué se erradica.
+  2. **Método:** *motosierra* o *química*. Si es química, el **producto** y la **dosis (ml por palma)**.
+  3. **Foto antes** y **foto después**, obligatorias y solo con la cámara.
+- **El reporte está mal: corregir** cambia el diagnóstico con evidencia fotográfica. Queda la versión del censador y la del erradicador; PC inicial o avanzada pasa a la programación de cirugía.
+- Con **Caso nuevo** se reporta y erradica una palma que no estaba programada.
+- Si el equipo es una pareja, el auxiliar marca las palmas.
+- Se sincroniza en `erradicacion/jornadas/AAAA-MM-DD/`.
+
+**Aprobación de existencia 0 (solo analista de datos o super administrador).** En el programador, pestaña **APROBACIONES**:
+- Las palmas erradicadas (cráter y espontáneas) se revisan con sus fotos de antes y después.
+- **Aprobar** (una a una o las seleccionadas) las deja con **existencia 0** en `cartografia/ajustes_existencia.json`. Así salen de los casos activos de PC y de la incidencia en la App, el visor y los reportes, sin regenerar el paquete cifrado.
+- **Rechazar** (con motivo) devuelve la palma a pendientes.
+- Los yarumos no cambian ninguna palma.
+
+**Seguimiento y reportes.**
+- La pestaña **SEGUIMIENTO** muestra: erradicadas por tipo y método, producto y dosis total, rendimiento por erradicador (palmas por día), cumplimiento del plazo, fotos, estado de la aprobación y las correcciones. También permite **exportar a CSV**.
+- Los reportes diario y semanal incluyen la página **ERRADICACIÓN** en el PDF, la hoja **Erradicación** en el Excel y el indicador «Palmas erradicadas».
+
 ## 7.2 Ortofoto del dron
 - **Origen:** `ORTHO.tif` (9,2 cm por píxel, 108.480 × 154.151 píxeles, 4 bandas, sin comprimir, **66,9 GB**, MAGNA-SIRGAS Colombia Oeste Oeste EPSG:3114).
 - **Versión liviana (alta definición):**

@@ -10,11 +10,11 @@
    ===================================================================== */
 const GER={on:false,tab:'tablero',sync:null,cargandoSync:false,calor:null,umbralSync:2,umbralCiclo:30,
   cal:{dist:20,prec:15,seg:20,racha:8,tipo:'',op:'',solo:true},revisados:new Set(),aud:{pct:5,min:5,muestra:null,lista:null,sel:null,res:null},reportes:null};
-const TABS_GER=[['tablero','TABLERO'],['plan','PROGRAMADOR DE CENSO DE ENFERMEDADES'],['progcir','PROGRAMADOR DE CIRUGÍAS'],['cirugia','CIRUGÍA'],['sync','SINCRONIZACIÓN'],['calidad','CALIDAD'],['auditoria','AUDITORÍA'],['reportes','REPORTES']];
+const TABS_GER=[['tablero','TABLERO'],['plan','PROGRAMADOR DE CENSO DE ENFERMEDADES'],['progcir','PROGRAMADOR DE CIRUGÍAS'],['progerr','PROGRAMADOR DE ERRADICACIÓN'],['cirugia','CIRUGÍA'],['sync','SINCRONIZACIÓN'],['calidad','CALIDAD'],['auditoria','AUDITORÍA'],['reportes','REPORTES']];
 /* Módulos (comparten el mismo panel): Gerencia; Coordinación y supervisión de la labor (gestión del personal); Análisis de datos (sincronización). */
 const MODS_GER={
   ger:{roles:['superadmin','admin','analista','supervisor'],btn:'btGer',icono:'📊',titulo:'GERENCIA',corto:'GERENCIA',tabs:['tablero','reportes','sync'],ayuda:'Tablero gerencial, reportes y sincronización'},
-  coord:{roles:['superadmin','admin','analista','supervisor'],btn:'btCoord',icono:'🧭',titulo:'COORDINACIÓN Y SUPERVISIÓN DE LA LABOR',corto:'COORDINACIÓN',tabs:['plan','progcir','cirugia','calidad','auditoria','reportes'],ayuda:'Gestión del personal: programador de censo de enfermedades, programador de cirugías, cirugía, calidad, auditoría y reportes'},
+  coord:{roles:['superadmin','admin','analista','supervisor'],btn:'btCoord',icono:'🧭',titulo:'COORDINACIÓN Y SUPERVISIÓN DE LA LABOR',corto:'COORDINACIÓN',tabs:['plan','progcir','progerr','cirugia','calidad','auditoria','reportes'],ayuda:'Gestión del personal: programador de censo de enfermedades, programador de cirugías, programador de erradicación, cirugía, calidad, auditoría y reportes'},
   datos:{roles:['superadmin','admin','supervisor','analista'],btn:'btDatos',icono:'🗄️',titulo:'ANÁLISIS DE DATOS',corto:'DATOS',tabs:['sync'],ayuda:'Analistas de datos: sincronización de los equipos'}};
 GER.mod='ger';GER.tabMod={ger:'tablero',coord:'plan',datos:'sync'};
 /* Módulos permitidos por rol (el analista de datos tiene los permisos de administrador: ve todo). */
@@ -89,7 +89,7 @@ function pintarGer(){
   const cab=`<div class="ger-cab"><h2>${M.icono} ${M.titulo}</h2><div class="ger-tabs">${TABS_GER.filter(([k])=>M.tabs.includes(k)).sort((a,b)=>M.tabs.indexOf(a[0])-M.tabs.indexOf(b[0])).map(([k,t])=>`<button data-gt="${k}" class="${GER.tab===k?'on':''}">${t}</button>`).join('')}</div>
     <button class="btn mini" id="gerX" title="Cerrar y volver al mapa">✕ Cerrar</button></div>`;
   let cuerpo='';
-  try{cuerpo={progcir:pintarProgCir,plan:pintarPlanCenso,tablero:pintarTablero,cirugia:pintarCirGer,sync:pintarSync,calidad:pintarCalidad,auditoria:pintarAuditoria,reportes:pintarReportes}[GER.tab]();}
+  try{cuerpo={progerr:pintarProgErrGer,progcir:pintarProgCir,plan:pintarPlanCenso,tablero:pintarTablero,cirugia:pintarCirGer,sync:pintarSync,calidad:pintarCalidad,auditoria:pintarAuditoria,reportes:pintarReportes}[GER.tab]();}
   catch(e){console.error(e);cuerpo=`<div class="ger-aviso ger-mal">⚠ ${esc(e.message)}</div>`;}
   P.innerHTML=cab+cuerpo;
   $$('#gerPanel [data-gt]').forEach(b=>b.onclick=()=>{GER.tab=b.dataset.gt;pintarGer();});
@@ -160,7 +160,7 @@ ENLACES_GER.tablero=()=>{enlazarRango();montarMapaCalor();
 /* Casos de PC vigentes: último diagnóstico de cada palma (con los filtros), que sigue siendo PC. */
 function casosPCActivos(){
   const ult=new Map();for(const j of JORF)for(const d of j.diags){if(!loteSel(d.lote)||!enProg(d.lote))continue;const k=d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma);const u=ult.get(k);if(!u||String(d.creado)>String(u.creado))ult.set(k,d);}
-  return [...ult.values()].filter(d=>esCasoPC(codN1(d),d.nivel2,d.estado)&&d.lat!=null);
+  return [...ult.values()].filter(d=>esCasoPC(codN1(d),d.nivel2,d.estado)&&d.lat!=null&&!VAJ.has(String(d.palma_id)));   /* sin las palmas erradicadas con existencia 0 aprobada */
 }
 /* Casos nuevos de PC en el periodo: primera vez que cada palma aparece como caso (con su diagnóstico de esa vez). */
 function casosPCNuevos(){

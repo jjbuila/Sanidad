@@ -191,3 +191,30 @@ const CORRECCIONES_CIR=[
   {id:'boro',t:'Deficiencia de boro',n1_codigo:'DEF',n1:'DEFICIENCIAS',n2:'BORO (B)',n3:'',estado:'enferma'},
   {id:'doblamiento',t:'Doblamiento de cogollo',n1_codigo:'DC',n1:'DOBLAMIENTO DE COGOLLO',n2:'',n3:'',estado:'novedad'}
 ];
+
+/* ---------- 4. Reglas de erradicación ----------
+   Se erradican: PC en estado cráter (o marcada «para erradicar» por un cirujano), palmas espontáneas y yarumos.
+   Plazo: día hábil siguiente al reporte. Prioridad: cráter → espontánea → yarumo. */
+const n2De=d=>String(d&&(d.nivel2||d.n2)||'').toUpperCase();
+const codN1De=d=>String(d&&(d.n1_codigo||((d.problemas||[])[0]))||'').toUpperCase();
+function tipoErradicacion(d){
+  if(!d)return null;const c=codN1De(d),n1=String(d.nivel1||d.n1||'').toUpperCase(),n2=n2De(d);
+  if((c==='PC'||/PUDRICI[ÓO]N DE COGOLLO/.test(n1))&&(n2==='CRATER'||n2==='CRÁTER'||n2==='PARA ERRADICAR'))return 'CRATER';
+  if(c==='ESP'||/ESPONT/.test(n1))return 'ESPONTANEA';
+  if(c==='YAR'||/YARUMO/.test(n1))return 'YARUMO';
+  return null;
+}
+const TIPOS_ERR={CRATER:{t:'PC cráter',p:0,existencia:true},ESPONTANEA:{t:'Palma espontánea',p:1,existencia:true},YARUMO:{t:'Yarumo',p:2,existencia:false}};
+const METODOS_ERR=['Motosierra','Química'];
+const PRODUCTOS_ERR=['Mesa Mate'];          // productos químicos por defecto (la lista se amplía en config/erradicacion.json)
+const DOSIS_UNIDAD_ERR='ml';
+const EFICIENCIAS_ERR=[5,10,15,20,25,30];
+/* Correcciones del erradicador: estado real cuando el caso quedó mal reportado (queda la versión del censador y la suya). */
+const CORRECCIONES_ERR=[
+  {id:'crater',t:'Sí es PC cráter',n1_codigo:'PC',n1:'PUDRICIÓN DE COGOLLO (PC)',n2:'CRATER',n3:'SEGUIMIENTO PC',estado:'enferma'},
+  {id:'pc_inicial',t:'PC inicial (pasa a cirugía)',n1_codigo:'PC',n1:'PUDRICIÓN DE COGOLLO (PC)',n2:'PC INICIAL',n3:'SEGUIMIENTO PC',estado:'enferma'},
+  {id:'pc_avanzada',t:'PC avanzada (pasa a cirugía)',n1_codigo:'PC',n1:'PUDRICIÓN DE COGOLLO (PC)',n2:'PC AVANZADA',n3:'SEGUIMIENTO PC',estado:'enferma'},
+  {id:'recuperacion',t:'PC en recuperación',n1_codigo:'PC',n1:'PUDRICIÓN DE COGOLLO (PC)',n2:'PC EN RECUPERACIÓN',n3:'SEGUIMIENTO PC',estado:'tratamiento'},
+  {id:'muerta',t:'Palma muerta',n1_codigo:'MUERTA',n1:'PALMA MUERTA',n2:'',n3:'',estado:'muerta'},
+  {id:'sana',t:'Palma sana / no hay espontánea ni yarumo',n1_codigo:'SN',n1:'SIN NOVEDAD (PALMA SANA)',n2:'',n3:'',estado:'sana'}
+];

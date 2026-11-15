@@ -975,7 +975,7 @@ function resumenLotes(){
   for(const d of DIAGF){const f=fila(d.lote||'—');f.diag++;if(d.estado==='enferma')f.enfermas++;}
   // casos de PC: último diagnóstico de cada palma (todas las jornadas filtradas, sin el filtro de estado)
   const ult=new Map();for(const j of JORF)for(const d of j.diags){if(!loteSel(d.lote)||!enProg(d.lote))continue;const k=d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma);const u=ult.get(k);if(!u||String(d.creado)>String(u.creado))ult.set(k,d);}
-  for(const d of ult.values())if(esCasoPC(codN1(d),d.nivel2,d.estado))fila(d.lote||'—').pc=(fila(d.lote||'—').pc||0)+1;
+  for(const d of ult.values())if(esCasoPC(codN1(d),d.nivel2,d.estado)&&!(typeof VAJ!=='undefined'&&VAJ.has(String(d.palma_id))))fila(d.lote||'—').pc=(fila(d.lote||'—').pc||0)+1;   // sin palmas erradicadas aprobadas
   // Avance = palmas distintas visitadas (sin repetir entre jornadas) ÷ palmas totales del lote
   return [...m.values()].map(f=>{const tl=totalLote(f.lote),vis=Math.min(tl||Infinity,f.ids.size+f.sinIds);return {...f,ids:undefined,operarios:f.operarios.size,ha:+f.ha.toFixed(2),distintas:vis,total_lote:tl,avance:tl?+(vis/tl*100).toFixed(1):null,pc:f.pc||0,incid_pc:tl?+((f.pc||0)/tl*100).toFixed(2):null};});
 }
@@ -1091,11 +1091,13 @@ async function entrar(){
   $('#hdrUsuario').textContent=`${SES.nombre} · ${({admin:'Administrador',superadmin:'Super administrador',supervisor:'Supervisor',analista:'Analista de datos'})[SES.rol]||'Supervisor'}`;
   if(typeof aplicarPermisosGer==='function')aplicarPermisosGer();
   try{await cargarCartografia();}catch(e){toast('No se pudo cargar la cartografía: '+e.message,6000);}
+  try{await cargarAjustesVisor();}catch(e){}
   try{await cargarVias();}catch(e){}
   ponerRango(6);await cargar();
 }
 /*CIRUGIA_VISOR_JS*/
 /*GERENCIA_VISOR_JS*/
+/*ERRADICACION_VISOR_JS*/
 (async()=>{
   ponerBase();pintarLeyenda();
   msOpciones('est',ESTADOS.map(e=>({v:e.id,t:e.n})));

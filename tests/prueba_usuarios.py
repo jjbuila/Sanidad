@@ -66,7 +66,7 @@ with sync_playwright() as p:
     # CSV
     with ad.expect_download() as dl: ad.click('#eCsv')
     csv = open(dl.value.path(), encoding='utf-8-sig').read()
-    check('Exporta CSV sin contraseñas', 'usuario;nombre;cargo;identificacion;rol;labores;rol_cirugia;estado' in csv and 'Clave1234' not in csv and 'Suspendido' in csv, csv.splitlines()[0])
+    check('Exporta CSV sin contraseñas', 'usuario;nombre;cargo;identificacion;rol;labores;rol_cirugia;rol_erradicacion;estado' in csv and 'Clave1234' not in csv and 'Suspendido' in csv, csv.splitlines()[0])
     # Generar
     with ad.expect_download() as dl: ad.click('#eGuardar')
     nuevo = json.load(open(dl.value.path(), encoding='utf-8'))
