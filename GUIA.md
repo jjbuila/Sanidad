@@ -18,7 +18,7 @@
 **Pruebas automáticas:** cada cambio en `src/` o `tests/` dispara en GitHub Actions el flujo **Pruebas** (`.github/workflows/pruebas.yml`): compila la app y ejecuta las pruebas de `tests/` (unas 200 verificaciones con GitHub simulado y datos ficticios). Si algo falla, el flujo queda en rojo antes de que el cambio llegue a los celulares. Ver `tests/README.md`.
 
 **Módulos del visor:**
-- **📊 GERENCIA:** Tablero, Reportes y Sincronización.
+- **📊 GERENCIA:** Tablero, Reportes y Sincronización. El Tablero incluye un **mapa de calor de los casos activos de PC sin ortofoto**: lotes de la plantación sobre fondo oscuro, con radio de influencia ajustable, nombres de lote opcionales, la palma de cada caso al acercar y la lista de lotes con más casos (un clic acerca el lote).
 - **🧭 COORDINACIÓN Y SUPERVISIÓN DE LA LABOR** (gestión del personal): Planificación (ciclo de censo y asignación del personal), **Programador de cirugías** (abre el programador sobre el mapa; también con el botón ✚ CIRUGÍAS), Cirugía (indicadores), Calidad, Auditoría y Reportes.
 - **🗄️ ANÁLISIS DE DATOS** (analistas de datos): Sincronización de los equipos.
 

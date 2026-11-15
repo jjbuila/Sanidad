@@ -874,7 +874,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261115:1108</div>
+    <div id="lgVer">VERSIÓN 20261115:1131</div>
   </div>
 </div>
 
@@ -969,7 +969,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261115:1108';
+const VERSION='20261115:1131';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -2376,7 +2376,9 @@ function aplicarPermisosGer(){
   #gerPanel select option{background:#0b241b}
   .ger-calor td.c{text-align:center;font-variant-numeric:tabular-nums;min-width:38px}
   .ger-barra{display:inline-block;height:8px;border-radius:4px;background:var(--acento);vertical-align:middle;margin-right:6px}
-  #chCalor{cursor:pointer}`;
+  #chCalor{cursor:pointer}
+  .mc-etq{background:transparent;border:0;box-shadow:none;color:#e6f4ee;font-size:10.5px;font-weight:700;text-shadow:0 0 3px #000,0 0 3px #000}.mc-etq::before{display:none}
+  @media (max-width:900px){.mc-grid{grid-template-columns:1fr!important}}`;
   document.head.appendChild(css);
   for(const [k,m] of Object.entries(MODS_GER)){const bt=document.createElement('button');bt.className='btn mini';bt.id=m.btn;bt.innerHTML=`${m.icono} ${m.corto}`;bt.title=m.ayuda;
     $('#chDatos').before(bt);bt.onclick=()=>alternarGerencia(!(GER.on&&GER.mod===k),k);}
@@ -2456,19 +2458,78 @@ function pintarTablero(){
   const tCiclo=tablaGer([{t:'Lote',f:x=>`<b>${esc(x.lote)}</b>`},{t:'Programa',f:x=>esc(x.prog||'—')},{t:'Último censo',f:x=>esc(x.ultimo||'—')},{t:'Desde el último censo',f:chipC},{t:'Avance en el periodo',n:1,f:x=>x.avance==null?'—':num(x.avance,1)+' %'}],ciclo);
   return `<p class="tenue">Datos: ${esc(rangoTxt())} · ${num(JORF.length)} jornadas con los filtros de la izquierda (programa, operario, lote).</p>${kp}
     <div class="ger-sec"><h3>Productividad por operario</h3><p class="tenue">Ha/hora y palmas/hora sobre el tiempo efectivo (sin paradas). Ordenado de mayor a menor rendimiento.</p>${tProd}</div>
+    <div class="ger-sec"><h3>Mapa de calor de casos activos de PC</h3>
+      <p class="tenue">Casos vigentes: palmas cuyo último diagnóstico es PC (sin recuperación, alta ni tratamiento), con los filtros de la izquierda. Sin ortofoto: solo los lotes de la plantación.
+        Azul = pocos casos cerca · rojo = foco con muchos casos. Acerque el mapa para ver cada palma.</p>
+      <div class="ger-par">Radio de influencia <input type="range" id="mcRadio" min="15" max="150" step="5" value="${GER.mcRadio||50}" style="width:160px"> <b id="mcRadioV">${GER.mcRadio||50} m</b>
+        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="mcNombres" ${GER.mcNombres?'checked':''}> Nombres de lote</label>
+        <span style="display:flex;align-items:center;gap:6px">pocos <span style="display:inline-block;width:120px;height:10px;border-radius:5px;background:linear-gradient(90deg,#1d4ed8,#22d3ee,#a3e635,#facc15,#fb923c,#dc2626)"></span> muchos casos</span>
+        <span id="mcResumen"></span></div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:12px" class="mc-grid">
+        <div id="gerMapaCalor" style="height:560px;border-radius:14px;border:1px solid var(--borde);background:#08140f"></div>
+        <div id="mcTop" class="ger-tabla" style="max-height:560px;overflow:auto"></div></div></div>
     <div class="ger-sec"><h3>Casos nuevos de PC por lote y semana</h3><p class="tenue">Primera vez que cada palma aparece como caso de PC en el periodo. Más rojo = más casos. La incidencia actual es casos vigentes ÷ palmas del lote.</p>
       <div class="ger-par"><button class="btn mini ${GER.calor?'prim':''}" id="gerCalor">🔥 ${GER.calor?'Quitar':'Ver'} mapa de calor de PC en el mapa</button></div>${tCalor}</div>
     <div class="ger-sec"><h3>Avance del ciclo de censo</h3>${nMal||nSin?`<div class="ger-aviso ${nMal?'ger-mal':''}">⚠ ${nMal?`<b>${nMal}</b> lote(s) llevan más de ${X} días sin censo`:''}${nMal&&nSin?' · ':''}${nSin?`<b>${nSin}</b> lote(s) sin censo en el periodo cargado (cargue un rango más largo para verlos)`:''}.</div>`:''}
       <div class="ger-par">Alerta si pasan más de <input type="number" id="gerCiclo" min="1" max="365" value="${X}"> días sin censo</div>${tCiclo}</div>`;
 }
-ENLACES_GER.tablero=()=>{enlazarRango();
+ENLACES_GER.tablero=()=>{enlazarRango();montarMapaCalor();
   const c=$('#gerCiclo');if(c)c.onchange=()=>{GER.umbralCiclo=Math.max(1,Number(c.value)||30);pintarGer();};
   const b=$('#gerCalor');if(b)b.onclick=()=>{alternarCalor();pintarGer();if(GER.calor)alternarGerencia(false);};};
-/* Mapa de calor de los casos de PC vigentes (último diagnóstico de cada palma). */
+/* Casos de PC vigentes: último diagnóstico de cada palma (con los filtros), que sigue siendo PC. */
+function casosPCActivos(){
+  const ult=new Map();for(const j of JORF)for(const d of j.diags){if(!loteSel(d.lote)||!enProg(d.lote))continue;const k=d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma);const u=ult.get(k);if(!u||String(d.creado)>String(u.creado))ult.set(k,d);}
+  return [...ult.values()].filter(d=>esCasoPC(codN1(d),d.nivel2,d.estado)&&d.lat!=null);
+}
+/* Capa de calor propia (sin librerías externas): acumula un degradado radial por caso en un lienzo y lo colorea de azul a rojo.
+   El radio está en metros, así el foco se ve igual en cualquier acercamiento. */
+const CapaCalorPC=L.Layer.extend({
+  initialize(pts,radio){this._pts=pts;this._radio=radio;},
+  onAdd(m){this._m=m;const c=this._c=L.DomUtil.create('canvas','leaflet-zoom-hide');c.style.position='absolute';c.style.pointerEvents='none';
+    m.getPanes().overlayPane.appendChild(c);m.on('moveend zoomend resize',this._dibujar,this);this._dibujar();},
+  onRemove(m){L.DomUtil.remove(this._c);m.off('moveend zoomend resize',this._dibujar,this);},
+  setRadio(r){this._radio=r;this._dibujar();},
+  _paleta(){if(this._g)return this._g;const c=document.createElement('canvas');c.width=1;c.height=256;const x=c.getContext('2d');const g=x.createLinearGradient(0,0,0,256);
+    for(const [k,v] of [[0,'#1d4ed8'],[.25,'#22d3ee'],[.45,'#a3e635'],[.62,'#facc15'],[.8,'#fb923c'],[1,'#dc2626']])g.addColorStop(k,v);x.fillStyle=g;x.fillRect(0,0,1,256);return this._g=x.getImageData(0,0,1,256).data;},
+  _dibujar(){const m=this._m,c=this._c;if(!m||!c)return;const s=m.getSize();if(!s.x||!s.y){if((this._re=(this._re||0)+1)<25)setTimeout(()=>this._dibujar(),150);return;}this._re=0;   /* panel aún sin tamaño u oculto: reintenta */L.DomUtil.setPosition(c,m.containerPointToLayerPoint([0,0]));c.width=s.x;c.height=s.y;
+    const x=c.getContext('2d',{willReadFrequently:true});x.clearRect(0,0,s.x,s.y);if(!this._pts.length)return;
+    const mpp=40075016.686*Math.cos(m.getCenter().lat*Math.PI/180)/Math.pow(2,m.getZoom()+8);const r=Math.max(5,Math.min(220,this._radio/mpp));
+    const b=document.createElement('canvas');b.width=b.height=Math.ceil(r*2);const bx=b.getContext('2d');const g=bx.createRadialGradient(r,r,0,r,r,r);
+    g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');bx.fillStyle=g;bx.fillRect(0,0,b.width,b.height);
+    x.globalAlpha=.28;for(const p of this._pts){const q=m.latLngToContainerPoint(p);if(q.x<-r||q.y<-r||q.x>s.x+r||q.y>s.y+r)continue;x.drawImage(b,q.x-r,q.y-r);}
+    const im=x.getImageData(0,0,s.x,s.y),d=im.data,P=this._paleta();
+    for(let i=0;i<d.length;i+=4){const a=d[i+3];if(!a)continue;const j=a*4;d[i]=P[j];d[i+1]=P[j+1];d[i+2]=P[j+2];d[i+3]=Math.min(235,40+a*1.4);}
+    x.putImageData(im,0,0);}
+});
+function montarMapaCalor(){
+  const el=$('#gerMapaCalor');if(!el)return;
+  if(GER.mc){try{GER.mcVista={c:GER.mc.getCenter(),z:GER.mc.getZoom()};GER.mc.off();GER.mc.remove();}catch(e){}GER.mc=null;}
+  const casos=casosPCActivos(),porLote=new Map();for(const d of casos)porLote.set(d.lote,(porLote.get(d.lote)||0)+1);
+  const m=L.map(el,{zoomControl:true,attributionControl:false,preferCanvas:true,minZoom:11,maxZoom:20});GER.mc=m;
+  const feats=LOTES?LOTES.features.filter(f=>f.geometry&&enProg(f.properties._lote)&&loteSel(f.properties._lote)):[];
+  const capaL=L.geoJSON({type:'FeatureCollection',features:feats},{style:f=>({color:'#5f8a78',weight:1,fill:true,fillColor:porLote.get(f.properties._lote)?'#1a2e26':'#11211b',fillOpacity:1})}).addTo(m);
+  capaL.eachLayer(l=>{const lo=l.feature.properties._lote,n=porLote.get(lo)||0,tl=totalLote(lo);
+    if(GER.mcNombres)l.bindTooltip(`${esc(lo)}${n?' · '+n:''}`,{permanent:true,direction:'center',className:'mc-etq'});
+    else l.bindTooltip(`<b>${esc(lo)}</b> · ${num(n)} caso${n===1?'':'s'} activo${n===1?'':'s'}${tl?` · ${num(n/tl*100,2)} %`:''}`,{sticky:true});});
+  const pts=casos.map(d=>[d.lat,d.lng]);GER.mcCapa=new CapaCalorPC(pts,GER.mcRadio||50).addTo(m);
+  // Cada palma con caso al acercarse (zoom 17 o más)
+  const pal=L.layerGroup();for(const d of casos)L.circleMarker([d.lat,d.lng],{radius:3.5,color:'#fff',weight:1,fillColor:'#dc2626',fillOpacity:1})
+    .bindTooltip(`${esc(d.lote)} · L${esc(d.linea??'?')} · P${esc(d.palma??'?')}<br>${esc(d.nivel2||'')} · ${esc(String(d.creado||'').slice(0,10))}`).addTo(pal);
+  const verPal=()=>{if(m.getZoom()>=17)pal.addTo(m);else m.removeLayer(pal);};m.on('zoomend',verPal);
+  if(GER.mcVista)m.setView(GER.mcVista.c,GER.mcVista.z);else{const bb=feats.length?capaL.getBounds():(pts.length?L.latLngBounds(pts):null);   /* vista inicial: toda la plantación */if(bb)m.fitBounds(bb,{padding:[20,20]});else m.setView([1.52,-78.77],13);}
+  verPal();setTimeout(()=>{m.invalidateSize();GER.mcCapa._dibujar();},60);
+  GER.mcCasos=casos.length;
+  $('#mcResumen').innerHTML=`<b>${num(casos.length)}</b> casos activos en <b>${num(porLote.size)}</b> lotes`;
+  const top=[...porLote.entries()].map(([l,n])=>({l,n,i:totalLote(l)?n/totalLote(l)*100:null})).sort((a,b)=>b.n-a.n);
+  $('#mcTop').innerHTML=tablaGer([{t:'Lote',f:x=>`<b>${esc(x.l)}</b>`},{t:'Casos',n:1,f:x=>num(x.n)},{t:'Incid.',n:1,f:x=>x.i==null?'—':num(x.i,2)+' %'}],top,x=>`class="clic" data-mcl="${esc(x.l)}"`);
+  $$('#mcTop [data-mcl]').forEach(tr=>tr.onclick=()=>{const l=tr.dataset.mcl;let bb=null;capaL.eachLayer(y=>{if(y.feature.properties._lote===l)bb=y.getBounds();});if(bb)m.fitBounds(bb,{padding:[30,30],maxZoom:17});});
+  const rr=$('#mcRadio');if(rr)rr.oninput=()=>{GER.mcRadio=Number(rr.value);$('#mcRadioV').textContent=rr.value+' m';GER.mcCapa.setRadio(GER.mcRadio);};
+  const nn=$('#mcNombres');if(nn)nn.onchange=()=>{GER.mcNombres=nn.checked;montarMapaCalor();};
+}
+/* Mapa de calor de los casos de PC vigentes sobre el mapa principal (ortofoto). */
 function alternarCalor(){
   if(GER.calor){mapa.removeLayer(GER.calor);GER.calor=null;const c=$('#chCalor');if(c)c.remove();return;}
-  const ult=new Map();for(const j of JORF)for(const d of j.diags){if(!loteSel(d.lote)||!enProg(d.lote))continue;const k=d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma);const u=ult.get(k);if(!u||String(d.creado)>String(u.creado))ult.set(k,d);}
-  const casos=[...ult.values()].filter(d=>esCasoPC(codN1(d),d.nivel2,d.estado)&&d.lat!=null);
+  const casos=casosPCActivos();
   GER.calor=L.layerGroup();
   for(const d of casos){L.circle([d.lat,d.lng],{radius:45,stroke:false,fillColor:'#ff3d00',fillOpacity:.10,interactive:false}).addTo(GER.calor);
     L.circle([d.lat,d.lng],{radius:18,stroke:false,fillColor:'#ffd600',fillOpacity:.22,interactive:false}).addTo(GER.calor);}
