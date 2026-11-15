@@ -4,6 +4,11 @@
    exportación a CSV y los puntos en el mapa (rojo = con daño, verde = sin daño).
    ===================================================================== */
 GER.plg={dias:30,cargando:false,datos:null,capa:null,sub:'prog'};
+/* Acceso directo en la cabecera, junto a ✚ CIRUGÍAS y ERRADICACIÓN: abre Coordinación → Monitoreo de plagas */
+(function botonPlagas(){const bt=document.createElement('button');bt.className='btn mini';bt.id='btPlg';bt.innerHTML='🐛 PLAGAS';bt.title='Programación y resultados del monitoreo de plagas';
+  const r=$('#btErr')||$('#btCir');if(r)r.after(bt);else $('#chDatos').before(bt);
+  bt.onclick=()=>{if(typeof ERR!=='undefined'&&ERR.on)alternarErr(false);if(typeof CIR!=='undefined'&&CIR.on)alternarCirugia(false);
+    if(GER.on&&GER.mod==='coord'&&GER.tab==='plagas'){alternarGerencia(false);return;}alternarGerencia(true,'coord');GER.tab='plagas';pintarGer();};})();
 async function cargarPlagasVisor(){
   const G=GER.plg;G.cargando=true;pintarGer();
   try{const ini=GER.plgc&&GER.plgc.as&&GER.plgc.as.inicio;const nd=Math.max(G.dias,ini?diasEntre(ini,hoyISO())+1:0);

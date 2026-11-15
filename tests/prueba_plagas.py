@@ -96,7 +96,8 @@ with sync_playwright() as p:
     vz = ctx.new_page(); vz.on('pageerror', lambda e: errores.append('visor: ' + str(e)[:200])); vz.set_viewport_size({'width': 1400, 'height': 950})
     vz.goto('http://127.0.0.1:8765/visor.html'); vz.wait_for_function("typeof pintarPlagasGer==='function'", timeout=30000); time.sleep(1)
     vz.evaluate("()=>{document.querySelector('#login').hidden=true;document.querySelector('#app').hidden=false;SES={u:'admin1',nombre:'Admin',rol:'admin',token:'tok',repo:{owner:'jjbuila',repo:'SanidadData',rama:'main'}};window.cirUsuarios=async()=>[{u:'p1',nombre:'MONITOR UNO',labores:['plagas']},{u:'p2',nombre:'MONITOR DOS',labores:['plagas']},{u:'c1',nombre:'CENSO',labores:['censo']}];}")
-    vz.click('#btCoord'); vz.wait_for_timeout(300); vz.click('[data-gt=plagas]')
+    vz.click('#btPlg'); vz.wait_for_timeout(300)
+    check('Cabecera: botón 🐛 PLAGAS abre Coordinación → Monitoreo de plagas', vz.evaluate("GER.on&&GER.mod==='coord'&&GER.tab==='plagas'"))
     try:
         vz.wait_for_function("GER.plg.datos&&GER.plg.datos.regs.length===2&&GER.plgc.av&&document.querySelector('[data-pfu]')", timeout=15000)
     except Exception:
