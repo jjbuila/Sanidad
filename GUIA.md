@@ -366,6 +366,31 @@ En ese orden de prioridad. **Plazo:** día hábil siguiente al reporte (lunes a 
 - La pestaña **SEGUIMIENTO** muestra: erradicadas por tipo y método, producto y dosis total, rendimiento por erradicador (palmas por día), cumplimiento del plazo, fotos, estado de la aprobación y las correcciones. También permite **exportar a CSV**.
 - Los reportes diario y semanal incluyen la página **ERRADICACIÓN** en el PDF, la hoja **Erradicación** en el Excel y el indicador «Palmas erradicadas».
 
+## 7.6 Monitoreo de plagas
+
+**Quién lo hace.** En `admin.html` se asigna la labor **Monitoreo de plagas**.
+
+**Muestreo por lote.** Al tocar INICIAR → 🐛 MONITOREO DE PLAGAS se agregan los lotes del día. Para cada lote se elige el tipo de muestreo: **10 × 10**, **7 × 7** o **5 × 5**.
+- La App calcula las palmas de la muestra con la cartografía. En 10 × 10 toma las líneas 1, 11, 21…; en cada una parte de la **primera palma viva** y sigue cada 10 palmas. 7 × 7 y 5 × 5 funcionan igual con su número.
+- Si la palma que toca está muerta (existencia 0, incluidas las erradicadas aprobadas), se toma la siguiente palma viva de esa línea.
+- Las palmas de la muestra se ven en el mapa: blanco = pendiente, verde = registrada, rojo = con daño. El panel superior indica la siguiente palma más cercana y el avance.
+
+**Registro por palma.**
+1. **Hoja evaluada:** 9, 17 o 25.
+2. **Plaga:** Opsiphanes cassina, Brassolis sophorae, Hormiga, Sibine fusca o Sagalassa valida.
+3. **Estados**, con botones − y +: LV (larvas), Huevo, Nido, PM (pupas muertas), PV (pupas vivas) y Adulto.
+4. **¿La palma presenta daño?** sí o no.
+
+Si hay más plagas en la misma palma, se usa **＋ Agregar otra plaga en esta palma**. Al final, **foto de la muestra** (obligatoria, solo cámara) y **transitabilidad del lote**. Se sincroniza en `plagas/jornadas/AAAA-MM-DD/`.
+
+**Visor → 🧭 COORDINACIÓN → Monitoreo de plagas.**
+- Indicadores (jornadas, palmas muestreadas, con daño).
+- Resumen **por plaga** (palmas con la plaga, con daño, total de cada estado) y **por lote**.
+- Lista de palmas muestreadas con su foto.
+- **Exportar a CSV** (una fila por palma y plaga) y **Ver en el mapa**.
+
+La programación por bloques de esta labor se diseña después.
+
 ## 7.2 Ortofoto del dron
 - **Origen:** `ORTHO.tif` (9,2 cm por píxel, 108.480 × 154.151 píxeles, 4 bandas, sin comprimir, **66,9 GB**, MAGNA-SIRGAS Colombia Oeste Oeste EPSG:3114).
 - **Versión liviana (alta definición):**

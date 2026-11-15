@@ -46,6 +46,7 @@ html = html.replace('__APPLOGO__', 'data:image/svg+xml;base64,' + b64(os.path.jo
 html = html.replace('__ISO__', 'data:image/png;base64,' + b64(os.path.join(MARCA, 'isotipo_256.png')))
 html = html.replace('/*CIRUGIA_APP_JS*/', leer(os.path.join(RAIZ, 'src', 'cirugia_app.js')), 1)
 html = html.replace('/*ERRADICACION_APP_JS*/', leer(os.path.join(RAIZ, 'src', 'erradicacion_app.js')), 1)
+html = html.replace('/*PLAGAS_APP_JS*/', leer(os.path.join(RAIZ, 'src', 'plagas_app.js')), 1)
 with open(os.path.join(RAIZ, 'index.html'), 'w', encoding='utf-8') as f:
     f.write(html)
 
@@ -59,6 +60,7 @@ vis = vis.replace('__ISO__', 'data:image/png;base64,' + b64(os.path.join(MARCA, 
 vis = vis.replace('/*CIRUGIA_VISOR_JS*/', leer(os.path.join(RAIZ, 'src', 'cirugia_visor.js')), 1)
 vis = vis.replace('/*GERENCIA_VISOR_JS*/', leer(os.path.join(RAIZ, 'src', 'gerencia_visor.js')), 1)
 vis = vis.replace('/*ERRADICACION_VISOR_JS*/', leer(os.path.join(RAIZ, 'src', 'erradicacion_visor.js')), 1)
+vis = vis.replace('/*PLAGAS_VISOR_JS*/', leer(os.path.join(RAIZ, 'src', 'plagas_visor.js')), 1)
 with open(os.path.join(RAIZ, 'visor.html'), 'w', encoding='utf-8') as f:
     f.write(vis)
 

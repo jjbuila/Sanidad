@@ -218,3 +218,26 @@ const CORRECCIONES_ERR=[
   {id:'muerta',t:'Palma muerta',n1_codigo:'MUERTA',n1:'PALMA MUERTA',n2:'',n3:'',estado:'muerta'},
   {id:'sana',t:'Palma sana / no hay espontánea ni yarumo',n1_codigo:'SN',n1:'SIN NOVEDAD (PALMA SANA)',n2:'',n3:'',estado:'sana'}
 ];
+
+/* ---------- 5. Monitoreo de plagas ----------
+   Muestreo por lote (10×10, 7×7, 5×5): líneas 1, 1+k, 1+2k… (desde la primera línea del lote) y, en cada una, la primera palma
+   viva y luego cada k palmas; si la palma que toca está muerta (existencia 0) se toma la siguiente viva de esa línea. */
+const PLAGAS=[{id:'OPS',n:'Opsiphanes cassina'},{id:'BRA',n:'Brassolis sophorae'},{id:'HOR',n:'Hormiga'},{id:'SIB',n:'Sibine fusca'},{id:'SAG',n:'Sagalassa valida'}];
+const ESTADOS_PLAGA=[{k:'lv',t:'LV',d:'Larvas'},{k:'huevo',t:'Huevo',d:'Huevos'},{k:'nido',t:'Nido',d:'Nidos'},{k:'pm',t:'PM',d:'Pupas muertas'},{k:'pv',t:'PV',d:'Pupas vivas'},{k:'adulto',t:'Adulto',d:'Adultos'}];
+const HOJAS_PLAGA=[9,17,25];
+const MUESTREOS=[{id:'10x10',k:10,t:'10 × 10'},{id:'7x7',k:7,t:'7 × 7'},{id:'5x5',k:5,t:'5 × 5'}];
+const TRANSITABILIDAD=['Transitable','Poco transitable','No transitable'];
+/* d: palmas del lote [id,línea,palma,existe,lng,lat]; muerta(id) opcional (p. ej. existencia 0 aprobada). Devuelve las palmas de la muestra. */
+function muestraLote(d,k,muerta){
+  const viva=a=>Number(a[3])!==0&&!(muerta&&muerta(String(a[0])));
+  const porLinea=new Map();for(const a of d||[]){const l=Number(a[1]);if(!(l>0))continue;if(!porLinea.has(l))porLinea.set(l,[]);porLinea.get(l).push(a);}
+  const lineas=[...porLinea.keys()].sort((a,b)=>a-b);if(!lineas.length)return [];
+  const l0=lineas[0],out=[];
+  for(const l of lineas){if((l-l0)%k)continue;
+    const ps=porLinea.get(l).slice().sort((a,b)=>Number(a[2])-Number(b[2]));const pv=ps.find(viva);if(!pv)continue;
+    const usadas=new Set();const max=Number(ps[ps.length-1][2]);
+    for(let t=Number(pv[2]);t<=max;t+=k){const a=ps.find(x=>Number(x[2])>=t&&viva(x)&&!usadas.has(String(x[0])));if(!a)break;
+      if(Number(a[2])>=t+k&&t!==Number(pv[2]))continue;   /* sin palma viva en este tramo: se pasa al siguiente */
+      usadas.add(String(a[0]));out.push({palma_id:String(a[0]),linea:Number(a[1]),palma:Number(a[2]),lng:a[4],lat:a[5]});}}
+  return out;
+}

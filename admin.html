@@ -138,7 +138,7 @@ table.usuarios td{font-size:13.5px}
         <div class="fila" style="margin:10px 0">
           <input type="text" id="eBuscar" placeholder="Buscar por usuario, nombre, cargo o identificación" style="flex:3;min-width:220px">
           <select id="eFRol"><option value="">Todos los roles</option><option value="operario">Operarios</option><option value="supervisor">Supervisores</option><option value="analista">Analistas de datos</option><option value="admin">Administradores</option><option value="superadmin">Super administradores</option></select>
-          <select id="eFLab"><option value="">Todas las labores</option><option value="censo">Censo</option><option value="cirugia">Cirugía</option><option value="erradicacion">Erradicación</option><option value="inactivo">Suspendidos</option><option value="cambios">Con cambios</option></select>
+          <select id="eFLab"><option value="">Todas las labores</option><option value="censo">Censo</option><option value="cirugia">Cirugía</option><option value="erradicacion">Erradicación</option><option value="plagas">Monitoreo de plagas</option><option value="inactivo">Suspendidos</option><option value="cambios">Con cambios</option></select>
         </div>
         <div style="overflow-x:auto"><table class="usuarios"><thead><tr><th>Usuario</th><th>Nombre</th><th>Cargo</th><th>Rol</th><th>Labores</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="eLista"></tbody></table></div>
         <div class="fila" style="margin-top:12px"><button class="btn chico prim" id="eAgregar">＋ Nuevo usuario</button><button class="btn chico" id="eImport">⬆ Cargar desde Excel o CSV</button><button class="btn chico" id="eCsv">⬇ Exportar lista (CSV, sin contraseñas)</button><button class="btn chico" id="eHist">🕘 Historial de cambios</button></div>
@@ -352,10 +352,10 @@ const esSuperYo=()=>!!(ED.yo&&ED.yo.rol==='superadmin');
 const restringido=()=>!!ED.haySuper&&!esSuperYo();
 const rolOrig=x=>{try{return ED.orig[x.u]?JSON.parse(ED.orig[x.u]).rol:x.rol;}catch(e){return x.rol;}};
 const puedeGestionar=x=>!restringido()||(!ROLES_PRIV.includes(rolOrig(x))&&!ROLES_PRIV.includes(x.rol));
-const LAB_TXT={censo:'Censo',cirugia:'Cirugía',erradicacion:'Erradicación'};
+const LAB_TXT={censo:'Censo',cirugia:'Cirugía',erradicacion:'Erradicación',plagas:'Monitoreo de plagas'};
 const ROL_ERR_TXT={erradicador:'erradicador',auxiliar:'auxiliar de erradicación'};
 /* Labores efectivas (igual que la app): sin labores definidas, admin y supervisor ven todas; el operario, censo. */
-const laboresDe=x=>x.labores&&x.labores.length?x.labores:(ROLES_PRIV.includes(x.rol)||x.rol==='supervisor'?['censo','cirugia','erradicacion']:['censo']);
+const laboresDe=x=>x.labores&&x.labores.length?x.labores:(ROLES_PRIV.includes(x.rol)||x.rol==='supervisor'?['censo','cirugia','erradicacion','plagas']:['censo']);
 /* Datos del usuario que viajan cifrados en «meta» (se conservan los campos que no edita esta página). */
 function metaDe(x){const m={...x};for(const k of ['u','clave','nuevo'])delete m[k];
   for(const k of ['cargo','identificacion','rol_cirugia','rol_erradicacion'])if(!m[k])delete m[k];if(!m.inactivo)delete m.inactivo;
@@ -387,7 +387,7 @@ function pintarLista(){
   const q=$('#eBuscar').value.trim().toLowerCase(),fr=$('#eFRol').value,fl=$('#eFLab').value;
   const T=todos();const activos=T.filter(x=>!x.inactivo&&!ED.eliminar.has(x.u));
   $('#eResumen').innerHTML=[['Usuarios',T.length],['Activos',activos.length],['Operarios',activos.filter(x=>x.rol==='operario').length],['Supervisores',activos.filter(x=>x.rol==='supervisor').length],['Analistas',activos.filter(x=>x.rol==='analista').length],
-    ['Administradores',activos.filter(x=>x.rol==='admin').length],['Super administradores',activos.filter(x=>x.rol==='superadmin').length],['Censo',activos.filter(x=>laboresDe(x).includes('censo')).length],['Cirugía',activos.filter(x=>laboresDe(x).includes('cirugia')).length],['Erradicación',activos.filter(x=>laboresDe(x).includes('erradicacion')).length],
+    ['Administradores',activos.filter(x=>x.rol==='admin').length],['Super administradores',activos.filter(x=>x.rol==='superadmin').length],['Censo',activos.filter(x=>laboresDe(x).includes('censo')).length],['Cirugía',activos.filter(x=>laboresDe(x).includes('cirugia')).length],['Erradicación',activos.filter(x=>laboresDe(x).includes('erradicacion')).length],['Plagas',activos.filter(x=>laboresDe(x).includes('plagas')).length],
     ['Suspendidos',T.filter(x=>x.inactivo).length]].map(([t,n])=>`<span>${t} <b>${n}</b></span>`).join('');
   const vis=T.filter(x=>(!q||[x.u,x.nombre,x.cargo,x.identificacion].some(v=>String(v||'').toLowerCase().includes(q)))&&(!fr||x.rol===fr)&&
     (!fl||(fl==='inactivo'?x.inactivo:fl==='cambios'?(x.nuevo||ED.cambios.has(x.u)||ED.claves.has(x.u)||ED.eliminar.has(x.u)):laboresDe(x).includes(fl))))
@@ -427,6 +427,7 @@ function formUsuario(x){
     <div id="fRolCirW" ${lab.includes('cirugia')?'':'hidden'}><label>Rol en cirugía</label><select id="fRolCir"><option value="cirujano" ${d.rol_cirugia==='cirujano'?'selected':''}>Cirujano</option><option value="auxiliar" ${d.rol_cirugia!=='cirujano'?'selected':''}>Auxiliar</option></select></div>
     <label class="check"><input type="checkbox" id="fErr" ${lab.includes('erradicacion')?'checked':''}> Erradicación</label>
     <div id="fRolErrW" ${lab.includes('erradicacion')?'':'hidden'}><label>Rol en erradicación</label><select id="fRolErr"><option value="erradicador" ${d.rol_erradicacion!=='auxiliar'?'selected':''}>Erradicador</option><option value="auxiliar" ${d.rol_erradicacion==='auxiliar'?'selected':''}>Auxiliar de erradicación</option></select></div>
+    <label class="check"><input type="checkbox" id="fPlg" ${lab.includes('plagas')?'checked':''}> Monitoreo de plagas</label>
     ${nuevo?`<label>Contraseña</label><div class="fila" style="flex-wrap:nowrap"><input type="text" id="fClave" value="${esc(d.clave||generarClave())}"><button class="btn chico" id="fGen" style="flex:none;min-width:0">↻</button></div>`
       :`<label class="check" style="margin-top:12px"><input type="checkbox" id="fSus" ${d.inactivo?'checked':''}> Suspendido (no puede ingresar)</label>`}
     <div class="err" id="fMsg"></div>
@@ -437,7 +438,7 @@ function formUsuario(x){
   $('#fNo').onclick=()=>{f.hidden=true;};
   $('#fOk').onclick=()=>{try{
       const u=$('#fU').value.trim().toLowerCase(),nombre=$('#fNombre').value.trim(),rol=$('#fRol').value;
-      const labores=[$('#fCenso').checked&&'censo',$('#fCir').checked&&'cirugia',$('#fErr').checked&&'erradicacion'].filter(Boolean);
+      const labores=[$('#fCenso').checked&&'censo',$('#fCir').checked&&'cirugia',$('#fErr').checked&&'erradicacion',$('#fPlg').checked&&'plagas'].filter(Boolean);
       if(restringido()&&ROLES_PRIV.includes(rol))throw new Error('Solo el super administrador puede asignar roles de administrador, analista o super administrador.');
       if(nuevo){if(!reUser.test(u))throw new Error('Usuario no válido: minúsculas, números, punto o guion (mín. 3).');
         if(todos().some(y=>y.u===u&&y!==x))throw new Error(`El usuario «${u}» ya existe.`);}
@@ -650,7 +651,7 @@ async function importarUsuarios(f){
   const cab=filas[0].map(normCol);const col={};for(const [k,syn] of Object.entries(SINON)){const i=cab.findIndex(c=>syn.includes(c));if(i>=0)col[k]=i;}
   if(col.usuario==null)throw new Error('Falta la columna «usuario».');
   const rolDe=v=>{v=normCol(v);return /super.?admin/.test(v)?'superadmin':/admin/.test(v)?'admin':/super/.test(v)?'supervisor':/analis/.test(v)?'analista':v?'operario':null;};
-  const labDe=v=>{v=normCol(v);if(!v)return null;const l=[];if(/censo/.test(v))l.push('censo');if(/cirug/.test(v))l.push('cirugia');if(/erradic/.test(v))l.push('erradicacion');return l.length?l:null;};
+  const labDe=v=>{v=normCol(v);if(!v)return null;const l=[];if(/censo/.test(v))l.push('censo');if(/cirug/.test(v))l.push('cirugia');if(/erradic/.test(v))l.push('erradicacion');if(/plaga/.test(v))l.push('plagas');return l.length?l:null;};
   const res={nuevos:[],act:[],err:[]};const vistos=new Set();
   filas.slice(1).forEach((fl,i)=>{const g=k=>col[k]!=null?String(fl[col[k]]??'').trim():'';const u=g('usuario').toLowerCase();const n=i+2;
     if(!u&&!g('nombre'))return;

@@ -817,7 +817,7 @@ function estiloPalma(f){
   if(h)return {fillColor:colorReg(h),fillOpacity:1,color:'#ffffff',weight:2};
   if(VIS&&VIS.set.has(f.properties._id))return f.properties._existe===false?{fillColor:'#4dd0e1',fillOpacity:.25,color:'#4dd0e1',weight:1}:{fillColor:'#4dd0e1',fillOpacity:.95,color:'#0b3d44',weight:1};
   if(f.properties._existe===false)return {fillColor:'#ffffff',fillOpacity:.12,color:'#b0bec5',weight:1};
-  if(S.jornada&&(S.jornada.labor==='cirugia'||S.jornada.labor==='erradicacion'))return {fillColor:'#a5b8ae',fillOpacity:.45,color:'#3d5248',weight:1}; // cirugía y erradicación: palmas en gris suave; resaltan las de la ruta
+  if(S.jornada&&esLaborRuta(S.jornada))return {fillColor:'#a5b8ae',fillOpacity:.45,color:'#3d5248',weight:1}; // cirugía y erradicación: palmas en gris suave; resaltan las de la ruta
   return {fillColor:SIN_EVALUAR,fillOpacity:.95,color:'#3a2a00',weight:1};
 }
 function zMinPalmas(){return (S.palmas&&S.palmas.features.length>8000)?17:0;}
@@ -892,7 +892,7 @@ async function cargarAjustesExistencia(){let a=null;
   if(!a)try{const c=await dbGet('config','ajustes_existencia');if(c)a=c.v;}catch(e){}
   AJ_EXIST=new Set(((a&&a.ajustes)||[]).filter(x=>Number(x.existe)===0).map(x=>String(x.palma_id)));}
 /* Labores con ruta programada (cirugía y erradicación): no usan el panel de censo. */
-const esLaborRuta=j=>!!j&&(j.labor==='cirugia'||j.labor==='erradicacion');
+const esLaborRuta=j=>!!j&&(j.labor==='cirugia'||j.labor==='erradicacion'||j.labor==='plagas');
 function featPalma(a,lote){return {type:'Feature',geometry:{type:'Point',coordinates:[a[4],a[5]]},properties:{_id:String(a[0]),_lote:lote,_linea:a[1]==null?'':String(a[1]),_num:a[2]==null?'':String(a[2]),_existe:a[3]!==0&&!AJ_EXIST.has(String(a[0]))}};}
 async function procesarCartografia(lotesTxt,zipBuf,extra){
   avance('Procesando lotes…');
@@ -2370,7 +2370,7 @@ async function pintarJornadas(){
     const dur=(j.fin?Date.parse(j.fin):Date.now())-Date.parse(j.inicio);
     const est=j.estado==='activa'?'<span class="sello pend" style="color:#bff5df;border-color:var(--acento)">● EN CURSO</span>':(j.sync==='sincronizado'?'<span class="sello ok">🔒 SINCRONIZADA</span>':'<span class="sello pend">⏳ PENDIENTE</span>');
     const res0=j.visita&&j.visita.ha_recorridas!=null?j.visita:(S.jornada&&S.jornada.id===j.id&&VIS?resumenVisita(VIS,regs):null);const res=res0?{...res0,ha_recorridas:Number(res0.ha_recorridas)||0,por_lote:res0.por_lote||[]}:null;const rp=j.resumen_paradas&&j.resumen_paradas.n_paradas!=null?j.resumen_paradas:null;
-    cards.push(`<div class="jor-card"><div class="cab"><b>${j.labor==='cirugia'?'Cirugía · ':j.labor==='erradicacion'?'Erradicación · ':''}${esc(fmtFecha(j.inicio).slice(0,10))} · ${hhmm(j.inicio)} – ${j.fin?hhmm(j.fin):'en curso'}</b>${est}</div>
+    cards.push(`<div class="jor-card"><div class="cab"><b>${j.labor==='cirugia'?'Cirugía · ':j.labor==='erradicacion'?'Erradicación · ':j.labor==='plagas'?'Plagas · ':''}${esc(fmtFecha(j.inicio).slice(0,10))} · ${hhmm(j.inicio)} – ${j.fin?hhmm(j.fin):'en curso'}</b>${est}</div>
       <div class="met"><span>Evaluador <b>${esc(j.evaluador)}</b></span><span>Duración <b>${fmtDur(dur).slice(0,5)}</b></span><span>Recorrido <b>${(j.km||0).toFixed(2)} km</b></span>
       ${res?`<span>Ha recorridas <b>${res.ha_recorridas.toFixed(2)}</b></span><span>Palmas visitadas <b>${num(res.palmas_visitadas)}</b></span>`:''}
       <span>Diagnósticos <b>${num(regs.length)}</b></span><span>Puntos GPS <b>${num(n)}</b></span>
@@ -2638,12 +2638,12 @@ async function sincronizar(manual){
       if(!j.paradas){j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);}
       if(!j.visita||!j.secuencias||!j.tiempos){const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion,j.bufferTerraza);if(!j.visita||!j.tiempos)j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);
         j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin||new Date().toISOString()),paradas:j.paradas||[],regs,densidad:j.densidad,visitas:E.conf});j.tiempos=tiemposJornada(j.secuencias,j);}
-      const ahora=new Date().toISOString();const esC=j.labor==='cirugia',esE=j.labor==='erradicacion',raiz=esC?'cirugia/jornadas':esE?'erradicacion/jornadas':'jornadas';const base=`${raiz}/${fechaLocal(j.inicio)}/${j.id}`;
+      const ahora=new Date().toISOString();const esC=j.labor==='cirugia',esE=j.labor==='erradicacion',esP=j.labor==='plagas',raiz=esC?'cirugia/jornadas':esE?'erradicacion/jornadas':esP?'plagas/jornadas':'jornadas';const base=`${raiz}/${fechaLocal(j.inicio)}/${j.id}`;
       const archivos=[];let nombreZip=null;
       const ids=regs.flatMap(r=>r.fotos||[]);
       if(ids.length){const z=new JSZip();for(const fid of ids){const f=await dbGet('fotos',fid);if(f)z.file(fid+'.jpg',f.buf);}
         nombreZip=j.id+'_fotos.zip';archivos.push({path:`${raiz}/${fechaLocal(j.inicio)}/${nombreZip}`,b64:aB64(await z.generateAsync({type:'uint8array',compression:'STORE'}))});}
-      archivos.unshift({path:base+'.geojson',texto:JSON.stringify(esE?geoErradicacion(j,regs,pts,ahora,nombreZip):esC?geoCirugia(j,regs,pts,ahora,nombreZip):geoJornada(j,regs,pts,ahora,nombreZip))});
+      archivos.unshift({path:base+'.geojson',texto:JSON.stringify(esP?geoPlagas(j,regs,pts,ahora,nombreZip):esE?geoErradicacion(j,regs,pts,ahora,nombreZip):esC?geoCirugia(j,regs,pts,ahora,nombreZip):geoJornada(j,regs,pts,ahora,nombreZip))});
       const sha=await ghCommit(archivos,esC?`Sanidad Vegetal · Cirugía · ${j.evaluador} · ${fechaLocal(j.inicio)} · ${regs.filter(r=>r.tipo==='cirugia').length} cirugía(s) · u:${j.usuario||''}`:`Sanidad Vegetal · ${j.evaluador} · jornada ${fechaLocal(j.inicio)} · ${regs.length} diagnóstico(s) · u:${j.usuario||''}`);
       regs.forEach(r=>{r.sync='sincronizado';r.sync_fecha=ahora;r.sync_commit=sha;});if(regs.length)await dbPutVarios('registros',regs);
       pts.forEach(p=>p.s=1);if(pts.length)await dbPutVarios('track',pts);
@@ -3350,6 +3350,7 @@ function avisarFueraPlantacion(m){
 /*NUCLEO_JS*/
 /*CIRUGIA_APP_JS*/
 /*ERRADICACION_APP_JS*/
+/*PLAGAS_APP_JS*/
 /* =====================================================================
    ARRANQUE
    ===================================================================== */
@@ -3401,6 +3402,7 @@ async function despuesDeIngresar(){
         if(cerrar){const ahora=new Date().toISOString();j.fin=ahora;j.estado='finalizada';j.sync='pendiente';j.cierre={modo:'administrador',usuario:SES.u,fecha:ahora};
           await dbPut('jornadas',j);S.cfg.jornadaActiva=null;await guardarCfg();toast(`Jornada de ${j.evaluador} cerrada por el administrador.`,4000);mostrarSplash();}
         else{await dbDel('config','sesion');SES=null;S.cfg.gh={...S.cfg.gh,token:''};await mostrarLogin('Ingrese con el usuario '+j.usuario+' para continuar o finalizar su jornada.');return despuesDeIngresar();}
+      }else if(j.labor==='plagas'){await restaurarPlg(j);
       }else if(j.labor==='erradicacion'){await restaurarErr(j);
       }else if(j.labor==='cirugia'){await restaurarCirugia(j);
       }else{S.jornada=j;const pts=await puntosTrack(j.id);TRACK.ultimo=pts[pts.length-1]||null;TRACK.n=pts.length;prepararTrack(pts.map(p=>[p.lat,p.lng]));
@@ -3409,7 +3411,7 @@ async function despuesDeIngresar(){
     else{S.cfg.jornadaActiva=null;await guardarCfg();}}
   actualizarJornadaUI();estadoSync();dibujarLotes();
   S.seguir=S.jornada?S.cfg.seguir!==false:!!S.cfg.seguir;pintarSeguir();if(S.seguir)S.pausaSeguir=Date.now()+8000;
-  if(S.jornada&&!esLaborRuta(S.jornada))encuadrar(S.jornada.seleccion.map(s=>s.lote));else if(S.jornada&&S.jornada.labor==='erradicacion')dibujarRutaErr(true);else if(S.jornada)dibujarRutaCir(true);else encuadrar();
+  if(S.jornada&&!esLaborRuta(S.jornada))encuadrar(S.jornada.seleccion.map(s=>s.lote));else if(S.jornada&&S.jornada.labor==='plagas')dibujarPlg(true);else if(S.jornada&&S.jornada.labor==='erradicacion')dibujarRutaErr(true);else if(S.jornada)dibujarRutaCir(true);else encuadrar();
   iniciarGPS();ocultarSplash();
   if(SES)toast(`Bienvenido, ${SES.nombre}.`);
   ofrecerInstalacion();
