@@ -9,7 +9,7 @@ const CIRA={capa:L.layerGroup().addTo(mapa),linea:null,usuarios:null,prog:null,u
 const esCir=()=>!!(S.jornada&&S.jornada.labor==='cirugia');
 /* Labores disponibles en la App. El administrador entra a todos los módulos, sin importar su rol o sus labores. */
 const LABORES_TODAS=['censo','cirugia'];
-const laboresSES=()=>{if(!SES)return ['censo'];if(SES.rol==='admin')return LABORES_TODAS;
+const laboresSES=()=>{if(!SES)return ['censo'];if(SES.rol==='admin'||SES.rol==='analista')return LABORES_TODAS;
   if(SES.labores&&SES.labores.length)return SES.labores;return SES.rol==='supervisor'?LABORES_TODAS:['censo'];};
 const nomBonito=n=>String(n||'').toLowerCase().replace(/(^|[\s-])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase());
 const etqOrden=o=>`${o.lote} · L${o.linea??'?'} · P${o.palma??'?'}`;

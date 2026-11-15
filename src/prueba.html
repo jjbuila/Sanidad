@@ -695,7 +695,7 @@ let TJ=null,TC=null,TCsha=null,PREV={},tSondeo=null,LIDER=null;
 async function iniciarTablero(){
   document.body.classList.add('tablero');
   if(!(await restaurar())){$('#vTabIngreso').hidden=false;return;}
-  if(!['admin','supervisor'].includes(YO.rol)){$('#vTabIngreso').hidden=false;$('#mTab').textContent='El marcador lo abre un administrador o supervisor.';return;}
+  if(!['admin','analista','supervisor'].includes(YO.rol)){$('#vTabIngreso').hidden=false;$('#mTab').textContent='El marcador lo abre un administrador o supervisor.';return;}
   $('#vTabIngreso').hidden=true;$('#vTablero').hidden=false;
   pintarKm();document.documentElement.style.setProperty('--n',PREGUNTAS.length);
   $('#tMusica').onclick=()=>musica(!MUS.on);

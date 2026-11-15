@@ -133,7 +133,7 @@ table.usuarios td{font-size:13.5px}
         <div class="chips-res" id="eResumen"></div>
         <div class="fila" style="margin:10px 0">
           <input type="text" id="eBuscar" placeholder="Buscar por usuario, nombre, cargo o identificación" style="flex:3;min-width:220px">
-          <select id="eFRol"><option value="">Todos los roles</option><option value="operario">Operarios</option><option value="supervisor">Supervisores</option><option value="admin">Administradores</option></select>
+          <select id="eFRol"><option value="">Todos los roles</option><option value="operario">Operarios</option><option value="supervisor">Supervisores</option><option value="analista">Analistas de datos</option><option value="admin">Administradores</option></select>
           <select id="eFLab"><option value="">Todas las labores</option><option value="censo">Censo</option><option value="cirugia">Cirugía</option><option value="inactivo">Suspendidos</option><option value="cambios">Con cambios</option></select>
         </div>
         <div style="overflow-x:auto"><table class="usuarios"><thead><tr><th>Usuario</th><th>Nombre</th><th>Cargo</th><th>Rol</th><th>Labores</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="eLista"></tbody></table></div>
@@ -258,7 +258,7 @@ function filaUsuario(tbody,datos={}){
   const tr=document.createElement('tr');
   tr.innerHTML=`<td><input type="text" data-k="u" placeholder="jperez" value="${esc(datos.u||'')}" autocapitalize="none"></td>
     <td><input type="text" data-k="nombre" placeholder="Juan Pérez" value="${esc(datos.nombre||'')}"></td>
-    <td><select data-k="rol"><option value="operario">Operario</option><option value="admin" ${datos.rol==='admin'?'selected':''}>Administrador</option><option value="supervisor" ${datos.rol==='supervisor'?'selected':''}>Supervisor (visor web)</option></select></td>
+    <td><select data-k="rol"><option value="operario">Operario</option><option value="admin" ${datos.rol==='admin'?'selected':''}>Administrador</option><option value="supervisor" ${datos.rol==='supervisor'?'selected':''}>Supervisor (visor web)</option><option value="analista" ${datos.rol==='analista'?'selected':''}>Analista de datos (permisos de administrador)</option></select></td>
     <td><div class="fila" style="flex-wrap:nowrap;gap:6px"><input type="text" data-k="clave" value="${esc(datos.clave||generarClave())}" style="min-width:110px;flex:1"><button class="btn chico" data-gen title="Generar contraseña" style="flex:none;min-width:0">🎲</button></div></td>
     <td><button class="btn chico peligro" data-x title="Quitar">✕</button></td>`;
   tr.querySelector('[data-gen]').onclick=()=>{tr.querySelector('[data-k=clave]').value=generarClave();};
@@ -327,10 +327,10 @@ $('#cGenerar').onclick=async()=>{
 
 /* ---------- Modificar paquete ---------- */
 const ED={acceso:null,dk:null,dkRaw:null,lista:[],nuevos:[],eliminar:new Set(),claves:new Map(),cambios:new Set()};
-const ROL_TXT={operario:'Operario',supervisor:'Supervisor',admin:'Administrador'};
+const ROL_TXT={operario:'Operario',supervisor:'Supervisor',analista:'Analista de datos',admin:'Administrador'};
 const LAB_TXT={censo:'Censo',cirugia:'Cirugía'};
 /* Labores efectivas (igual que la app): sin labores definidas, admin y supervisor ven todas; el operario, censo. */
-const laboresDe=x=>x.labores&&x.labores.length?x.labores:(x.rol==='admin'||x.rol==='supervisor'?['censo','cirugia']:['censo']);
+const laboresDe=x=>x.labores&&x.labores.length?x.labores:(x.rol==='admin'||x.rol==='analista'||x.rol==='supervisor'?['censo','cirugia']:['censo']);
 /* Datos del usuario que viajan cifrados en «meta» (se conservan los campos que no edita esta página). */
 function metaDe(x){const m={...x};for(const k of ['u','clave','nuevo'])delete m[k];
   for(const k of ['cargo','identificacion','rol_cirugia'])if(!m[k])delete m[k];if(!m.inactivo)delete m.inactivo;
@@ -345,7 +345,7 @@ $('#eAbrir').onclick=async()=>{
     const k=await kek($('#eClave').value,deB64(e.salt));let dkRaw;
     try{dkRaw=await descifrar(k,{iv:e.iv,ct:e.ct});}catch(_){throw new Error('Usuario o contraseña incorrectos.');}
     const dk=await llaveDatos(dkRaw);const meta=JSON.parse(dec.decode(await descifrar(dk,e.meta)));
-    if(meta.rol!=='admin')throw new Error('Este usuario no es administrador.');
+    if(meta.rol!=='admin'&&meta.rol!=='analista')throw new Error('Este usuario no es administrador.');   // el analista de datos tiene los permisos de administrador
     ED.acceso=a;ED.dk=dk;ED.dkRaw=dkRaw;ED.eliminar.clear();ED.claves.clear();ED.cambios.clear();ED.nuevos=[];$('#eForm').hidden=true;
     ED.lista=[];ED.orig={};for(const x of a.usuarios){const m=JSON.parse(dec.decode(await descifrar(dk,x.meta)));ED.lista.push({u:x.u,...m});ED.orig[x.u]=JSON.stringify(metaDe({u:x.u,...m}));}
     $('#eOwner').value=a.repo.owner;$('#eRepo').value=a.repo.repo;$('#eRama').value=a.repo.rama;$('#eCartoVer').textContent=a.carto.version;$('#ePlantVer').textContent=a.plantacion?a.plantacion.version:'sin cargar';
@@ -358,7 +358,7 @@ function todos(){return ED.lista.concat(ED.nuevos);}
 function pintarLista(){
   const q=$('#eBuscar').value.trim().toLowerCase(),fr=$('#eFRol').value,fl=$('#eFLab').value;
   const T=todos();const activos=T.filter(x=>!x.inactivo&&!ED.eliminar.has(x.u));
-  $('#eResumen').innerHTML=[['Usuarios',T.length],['Activos',activos.length],['Operarios',activos.filter(x=>x.rol==='operario').length],['Supervisores',activos.filter(x=>x.rol==='supervisor').length],
+  $('#eResumen').innerHTML=[['Usuarios',T.length],['Activos',activos.length],['Operarios',activos.filter(x=>x.rol==='operario').length],['Supervisores',activos.filter(x=>x.rol==='supervisor').length],['Analistas',activos.filter(x=>x.rol==='analista').length],
     ['Administradores',activos.filter(x=>x.rol==='admin').length],['Censo',activos.filter(x=>laboresDe(x).includes('censo')).length],['Cirugía',activos.filter(x=>laboresDe(x).includes('cirugia')).length],
     ['Suspendidos',T.filter(x=>x.inactivo).length]].map(([t,n])=>`<span>${t} <b>${n}</b></span>`).join('');
   const vis=T.filter(x=>(!q||[x.u,x.nombre,x.cargo,x.identificacion].some(v=>String(v||'').toLowerCase().includes(q)))&&(!fr||x.rol===fr)&&
@@ -394,7 +394,7 @@ function formUsuario(x){
       <div style="flex:2"><label>Nombre completo</label><input type="text" id="fNombre" value="${esc(d.nombre)}"></div></div>
     <div class="fila"><div><label>Cargo</label><input type="text" id="fCargo" value="${esc(d.cargo||'')}" placeholder="Auxiliar de censo"></div>
       <div><label>Identificación</label><input type="text" id="fId" value="${esc(d.identificacion||'')}" placeholder="Cédula"></div>
-      <div><label>Rol</label><select id="fRol">${Object.entries(ROL_TXT).map(([k,t])=>`<option value="${k}" ${d.rol===k?'selected':''}>${t}${k==='supervisor'?' (visor web)':''}</option>`).join('')}</select></div></div>
+      <div><label>Rol</label><select id="fRol">${Object.entries(ROL_TXT).map(([k,t])=>`<option value="${k}" ${d.rol===k?'selected':''}>${t}${k==='supervisor'?' (visor web)':k==='analista'?' (permisos de administrador)':''}</option>`).join('')}</select></div></div>
     <label>Labores</label><label class="check"><input type="checkbox" id="fCenso" ${lab.includes('censo')?'checked':''}> Censo</label><label class="check"><input type="checkbox" id="fCir" ${lab.includes('cirugia')?'checked':''}> Cirugía</label>
     <div id="fRolCirW" ${lab.includes('cirugia')?'':'hidden'}><label>Rol en cirugía</label><select id="fRolCir"><option value="cirujano" ${d.rol_cirugia==='cirujano'?'selected':''}>Cirujano</option><option value="auxiliar" ${d.rol_cirugia!=='cirujano'?'selected':''}>Auxiliar</option></select></div>
     ${nuevo?`<label>Contraseña</label><div class="fila" style="flex-wrap:nowrap"><input type="text" id="fClave" value="${esc(d.clave||generarClave())}"><button class="btn chico" id="fGen" style="flex:none;min-width:0">↻</button></div>`
@@ -617,7 +617,7 @@ async function importarUsuarios(f){
   const filas=await leerTabla(f);if(filas.length<2)throw new Error('El archivo no tiene filas de usuarios.');
   const cab=filas[0].map(normCol);const col={};for(const [k,syn] of Object.entries(SINON)){const i=cab.findIndex(c=>syn.includes(c));if(i>=0)col[k]=i;}
   if(col.usuario==null)throw new Error('Falta la columna «usuario».');
-  const rolDe=v=>{v=normCol(v);return /admin/.test(v)?'admin':/super/.test(v)?'supervisor':v?'operario':null;};
+  const rolDe=v=>{v=normCol(v);return /admin/.test(v)?'admin':/super/.test(v)?'supervisor':/analis/.test(v)?'analista':v?'operario':null;};
   const labDe=v=>{v=normCol(v);if(!v)return null;const l=[];if(/censo/.test(v))l.push('censo');if(/cirug/.test(v))l.push('cirugia');return l.length?l:null;};
   const res={nuevos:[],act:[],err:[]};const vistos=new Set();
   filas.slice(1).forEach((fl,i)=>{const g=k=>col[k]!=null?String(fl[col[k]]??'').trim():'';const u=g('usuario').toLowerCase();const n=i+2;

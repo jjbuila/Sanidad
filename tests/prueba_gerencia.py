@@ -153,6 +153,11 @@ with sync_playwright() as p:
     check('App: el diagnóstico queda marcado con la muestra (también al sincronizar)', r['tag'] == EST['guardado']['id'] and r['plano'] == EST['guardado']['id'], r)
     op = pg.evaluate("async()=>{SES={u:'op',nombre:'Op',rol:'operario'};AUD.m=null;await cargarAuditoria();menu();return !!document.querySelector('#mAud')}")
     check('App: un operario no ve la auditoría', not op)
+    # Rol analista de datos: tiene los permisos de administrador (ve todos los módulos y Cirugías)
+    rv = vz.evaluate("""()=>{SES={...SES,rol:'analista'};aplicarPermisosGer();const vis=['btGer','btCoord','btDatos','btCir'].filter(i=>!document.getElementById(i).hidden);
+      alternarGerencia(true,'coord');const ab=GER.on&&GER.mod;alternarGerencia(false);SES={...SES,rol:'admin'};aplicarPermisosGer();
+      return {vis,ab,vis2:['btGer','btCoord','btDatos','btCir'].filter(i=>!document.getElementById(i).hidden)};}""")
+    check('Rol analista: ve todo, como administrador', rv['vis'] == ['btGer', 'btCoord', 'btDatos', 'btCir'] and rv['ab'] == 'coord' and rv['vis2'] == ['btGer', 'btCoord', 'btDatos', 'btCir'], rv)
     check('Sin errores de JavaScript', not errores, errores[:4])
     nav.close()
 print('\nRESULTADO:', 'TODO OK' if ok else 'HAY FALLAS'); sys.exit(0 if ok else 1)

@@ -874,7 +874,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261115:0823</div>
+    <div id="lgVer">VERSIÓN 20261115:0906</div>
   </div>
 </div>
 
@@ -969,7 +969,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261115:0823';
+const VERSION='20261115:0906';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1019,7 +1019,7 @@ async function abrirSesion(u,dkRaw,recordar){
   const dk=await crypto.subtle.importKey('raw',dkRaw,{name:'AES-GCM'},false,['decrypt']);
   const meta=JSON.parse(DEC.decode(await desObj(dk,e.meta)));
   if(meta.inactivo)throw new Error('Su usuario está suspendido. Comuníquese con el administrador.');
-  if(meta.rol!=='admin'&&meta.rol!=='supervisor')throw new Error('Su usuario es de operario. El visor web es solo para administradores y supervisores.');
+  if(!['admin','supervisor','analista'].includes(meta.rol))throw new Error('Su usuario es de operario. El visor web es solo para administradores, supervisores y analistas de datos.');
   const token=DEC.decode(await desObj(dk,ACCESO.token));
   SES={u,nombre:meta.nombre,rol:meta.rol,dk,token,repo:ACCESO.repo};
   if(recordar){const k=await llaveEquipo();const iv=crypto.getRandomValues(new Uint8Array(12));
@@ -2050,7 +2050,8 @@ $('#btCargar').onclick=cargar;
 /* ---------- Arranque ---------- */
 async function entrar(){
   $('#login').hidden=true;$('#app').hidden=false;mapa.invalidateSize();cargarRamasVisor();
-  $('#hdrUsuario').textContent=`${SES.nombre} · ${SES.rol==='admin'?'Administrador':'Supervisor'}`;
+  $('#hdrUsuario').textContent=`${SES.nombre} · ${({admin:'Administrador',supervisor:'Supervisor',analista:'Analista de datos'})[SES.rol]||'Supervisor'}`;
+  if(typeof aplicarPermisosGer==='function')aplicarPermisosGer();
   try{await cargarCartografia();}catch(e){toast('No se pudo cargar la cartografía: '+e.message,6000);}
   try{await cargarVias();}catch(e){}
   ponerRango(6);await cargar();
@@ -2333,10 +2334,17 @@ const GER={on:false,tab:'tablero',sync:null,cargandoSync:false,calor:null,umbral
 const TABS_GER=[['tablero','TABLERO'],['plan','PLANIFICACIÓN'],['cirugia','CIRUGÍA'],['sync','SINCRONIZACIÓN'],['calidad','CALIDAD'],['auditoria','AUDITORÍA'],['reportes','REPORTES']];
 /* Módulos (comparten el mismo panel): Gerencia; Coordinación y supervisión de la labor (gestión del personal); Análisis de datos (sincronización). */
 const MODS_GER={
-  ger:{btn:'btGer',icono:'📊',titulo:'GERENCIA',corto:'GERENCIA',tabs:['tablero','reportes','sync'],ayuda:'Tablero gerencial, reportes y sincronización'},
-  coord:{btn:'btCoord',icono:'🧭',titulo:'COORDINACIÓN Y SUPERVISIÓN DE LA LABOR',corto:'COORDINACIÓN',tabs:['plan','cirugia','calidad','auditoria','reportes'],ayuda:'Gestión del personal: planificación del censo, cirugía, calidad, auditoría y reportes'},
-  datos:{btn:'btDatos',icono:'🗄️',titulo:'ANÁLISIS DE DATOS',corto:'DATOS',tabs:['sync'],ayuda:'Analistas de datos: sincronización de los equipos'}};
+  ger:{roles:['admin','analista','supervisor'],btn:'btGer',icono:'📊',titulo:'GERENCIA',corto:'GERENCIA',tabs:['tablero','reportes','sync'],ayuda:'Tablero gerencial, reportes y sincronización'},
+  coord:{roles:['admin','analista','supervisor'],btn:'btCoord',icono:'🧭',titulo:'COORDINACIÓN Y SUPERVISIÓN DE LA LABOR',corto:'COORDINACIÓN',tabs:['plan','cirugia','calidad','auditoria','reportes'],ayuda:'Gestión del personal: planificación del censo, cirugía, calidad, auditoría y reportes'},
+  datos:{roles:['admin','supervisor','analista'],btn:'btDatos',icono:'🗄️',titulo:'ANÁLISIS DE DATOS',corto:'DATOS',tabs:['sync'],ayuda:'Analistas de datos: sincronización de los equipos'}};
 GER.mod='ger';GER.tabMod={ger:'tablero',coord:'plan',datos:'sync'};
+/* Módulos permitidos por rol (el analista de datos tiene los permisos de administrador: ve todo). */
+const modPermitido=k=>!SES||MODS_GER[k].roles.includes(SES.rol);
+function aplicarPermisosGer(){
+  for(const [k,m] of Object.entries(MODS_GER)){const b=$('#'+m.btn);if(b)b.hidden=!modPermitido(k);}
+  if(!modPermitido(GER.mod)){GER.mod=Object.keys(MODS_GER).find(modPermitido)||'datos';GER.tab=GER.tabMod[GER.mod];}
+  if(GER.on&&!modPermitido(GER.mod))alternarGerencia(false);
+}
 (function montarGerencia(){
   const css=document.createElement('style');css.textContent=`
   #gerPanel{position:fixed;left:0;right:0;bottom:0;z-index:1150;background:radial-gradient(120% 60% at 50% 0%,#0d3a2a 0%,#06140f 60%);overflow:auto;padding:12px 16px 40px}
@@ -2375,6 +2383,7 @@ GER.mod='ger';GER.tabMod={ger:'tablero',coord:'plan',datos:'sync'};
   const p=document.createElement('div');p.id='gerPanel';p.hidden=true;document.body.appendChild(p);
 })();
 function alternarGerencia(on,mod){
+  if(mod&&!modPermitido(mod))return;
   if(mod&&MODS_GER[mod]&&mod!==GER.mod){GER.tabMod[GER.mod]=GER.tab;GER.mod=mod;GER.tab=GER.tabMod[mod];}
   if(!MODS_GER[GER.mod].tabs.includes(GER.tab))GER.tab=MODS_GER[GER.mod].tabs[0];
   GER.on=on==null?!GER.on:on;const p=$('#gerPanel');for(const [k,m] of Object.entries(MODS_GER))$('#'+m.btn).classList.toggle('prim',GER.on&&GER.mod===k);
@@ -2524,7 +2533,7 @@ async function cargarSync(){
     for(const e of envios){const u=e.u||porNombre.get(normN(e.ev))||('?'+normN(e.ev));let f=ult.get(u);if(!f)ult.set(u,f={t:0,fecha:null,n7:0,n30:0,cir:0});
       if(e.t>f.t){f.t=e.t;f.fecha=e.fecha;}f.n30++;if(Date.now()-e.t<=7*86400000)f.n7++;if(e.cir)f.cir++;}
     const filas=[];
-    for(const x of us){if(x.inactivo)continue;const lab=x.labores&&x.labores.length?x.labores:(x.rol==='admin'||x.rol==='supervisor'?['censo','cirugia']:['censo']);
+    for(const x of us){if(x.inactivo)continue;const lab=x.labores&&x.labores.length?x.labores:(x.rol==='admin'||x.rol==='analista'||x.rol==='supervisor'?['censo','cirugia']:['censo']);
       if(x.rol!=='operario')continue; // solo operarios de campo
       const f=ult.get(x.u)||null;filas.push({u:x.u,nombre:x.nombre,cargo:x.cargo||'',lab,ult:f&&f.t||null,fecha:f&&f.fecha,n7:f?f.n7:0,n30:f?f.n30:0});}
     GER.sync={filas,cuando:Date.now(),envios:envios.length};

@@ -41,6 +41,9 @@ with sync_playwright() as p:
     ad.fill('#eBuscar', ''); ad.select_option('#eFLab', 'cirugia'); time.sleep(.2)
     check('Filtro por labor (cirugía)', set(r.split(' ')[0] for r in filas()) == {'admin1', 'op2', 'sup1'}, [r.split(' ')[0] for r in filas()])
     ad.select_option('#eFLab', '')
+    ad.click('[data-ed="op1"]'); time.sleep(.2)
+    check('Admin: el rol «Analista de datos (visor web)» está disponible', 'Analista de datos (permisos de administrador)' in ad.inner_text('#fRol') and 'Analistas de datos' in ad.inner_text('#eFRol'))
+    ad.keyboard.press('Escape'); ad.evaluate("document.querySelector('#eForm').hidden=true")
     # Editar op1: cargo, identificación, labores + cirujano
     ad.click('[data-ed="op1"]'); ad.fill('#fCargo', 'Cirujano de campo'); ad.fill('#fId', '1000000099'); ad.check('#fCir'); ad.select_option('#fRolCir', 'cirujano'); ad.click('#fOk')
     check('Edición marcada como cambio pendiente', any('op1' in r and 'CAMBIOS' in r and 'Cirugía (cirujano)' in r for r in filas()), [r for r in filas() if 'op1' in r])

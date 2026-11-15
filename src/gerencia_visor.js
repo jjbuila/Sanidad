@@ -13,10 +13,17 @@ const GER={on:false,tab:'tablero',sync:null,cargandoSync:false,calor:null,umbral
 const TABS_GER=[['tablero','TABLERO'],['plan','PLANIFICACIÓN'],['cirugia','CIRUGÍA'],['sync','SINCRONIZACIÓN'],['calidad','CALIDAD'],['auditoria','AUDITORÍA'],['reportes','REPORTES']];
 /* Módulos (comparten el mismo panel): Gerencia; Coordinación y supervisión de la labor (gestión del personal); Análisis de datos (sincronización). */
 const MODS_GER={
-  ger:{btn:'btGer',icono:'📊',titulo:'GERENCIA',corto:'GERENCIA',tabs:['tablero','reportes','sync'],ayuda:'Tablero gerencial, reportes y sincronización'},
-  coord:{btn:'btCoord',icono:'🧭',titulo:'COORDINACIÓN Y SUPERVISIÓN DE LA LABOR',corto:'COORDINACIÓN',tabs:['plan','cirugia','calidad','auditoria','reportes'],ayuda:'Gestión del personal: planificación del censo, cirugía, calidad, auditoría y reportes'},
-  datos:{btn:'btDatos',icono:'🗄️',titulo:'ANÁLISIS DE DATOS',corto:'DATOS',tabs:['sync'],ayuda:'Analistas de datos: sincronización de los equipos'}};
+  ger:{roles:['admin','analista','supervisor'],btn:'btGer',icono:'📊',titulo:'GERENCIA',corto:'GERENCIA',tabs:['tablero','reportes','sync'],ayuda:'Tablero gerencial, reportes y sincronización'},
+  coord:{roles:['admin','analista','supervisor'],btn:'btCoord',icono:'🧭',titulo:'COORDINACIÓN Y SUPERVISIÓN DE LA LABOR',corto:'COORDINACIÓN',tabs:['plan','cirugia','calidad','auditoria','reportes'],ayuda:'Gestión del personal: planificación del censo, cirugía, calidad, auditoría y reportes'},
+  datos:{roles:['admin','supervisor','analista'],btn:'btDatos',icono:'🗄️',titulo:'ANÁLISIS DE DATOS',corto:'DATOS',tabs:['sync'],ayuda:'Analistas de datos: sincronización de los equipos'}};
 GER.mod='ger';GER.tabMod={ger:'tablero',coord:'plan',datos:'sync'};
+/* Módulos permitidos por rol (el analista de datos tiene los permisos de administrador: ve todo). */
+const modPermitido=k=>!SES||MODS_GER[k].roles.includes(SES.rol);
+function aplicarPermisosGer(){
+  for(const [k,m] of Object.entries(MODS_GER)){const b=$('#'+m.btn);if(b)b.hidden=!modPermitido(k);}
+  if(!modPermitido(GER.mod)){GER.mod=Object.keys(MODS_GER).find(modPermitido)||'datos';GER.tab=GER.tabMod[GER.mod];}
+  if(GER.on&&!modPermitido(GER.mod))alternarGerencia(false);
+}
 (function montarGerencia(){
   const css=document.createElement('style');css.textContent=`
   #gerPanel{position:fixed;left:0;right:0;bottom:0;z-index:1150;background:radial-gradient(120% 60% at 50% 0%,#0d3a2a 0%,#06140f 60%);overflow:auto;padding:12px 16px 40px}
@@ -55,6 +62,7 @@ GER.mod='ger';GER.tabMod={ger:'tablero',coord:'plan',datos:'sync'};
   const p=document.createElement('div');p.id='gerPanel';p.hidden=true;document.body.appendChild(p);
 })();
 function alternarGerencia(on,mod){
+  if(mod&&!modPermitido(mod))return;
   if(mod&&MODS_GER[mod]&&mod!==GER.mod){GER.tabMod[GER.mod]=GER.tab;GER.mod=mod;GER.tab=GER.tabMod[mod];}
   if(!MODS_GER[GER.mod].tabs.includes(GER.tab))GER.tab=MODS_GER[GER.mod].tabs[0];
   GER.on=on==null?!GER.on:on;const p=$('#gerPanel');for(const [k,m] of Object.entries(MODS_GER))$('#'+m.btn).classList.toggle('prim',GER.on&&GER.mod===k);
@@ -204,7 +212,7 @@ async function cargarSync(){
     for(const e of envios){const u=e.u||porNombre.get(normN(e.ev))||('?'+normN(e.ev));let f=ult.get(u);if(!f)ult.set(u,f={t:0,fecha:null,n7:0,n30:0,cir:0});
       if(e.t>f.t){f.t=e.t;f.fecha=e.fecha;}f.n30++;if(Date.now()-e.t<=7*86400000)f.n7++;if(e.cir)f.cir++;}
     const filas=[];
-    for(const x of us){if(x.inactivo)continue;const lab=x.labores&&x.labores.length?x.labores:(x.rol==='admin'||x.rol==='supervisor'?['censo','cirugia']:['censo']);
+    for(const x of us){if(x.inactivo)continue;const lab=x.labores&&x.labores.length?x.labores:(x.rol==='admin'||x.rol==='analista'||x.rol==='supervisor'?['censo','cirugia']:['censo']);
       if(x.rol!=='operario')continue; // solo operarios de campo
       const f=ult.get(x.u)||null;filas.push({u:x.u,nombre:x.nombre,cargo:x.cargo||'',lab,ult:f&&f.t||null,fecha:f&&f.fecha,n7:f?f.n7:0,n30:f?f.n30:0});}
     GER.sync={filas,cuando:Date.now(),envios:envios.length};
