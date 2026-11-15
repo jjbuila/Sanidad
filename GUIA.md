@@ -383,6 +383,13 @@ En ese orden de prioridad. **Plazo:** día hábil siguiente al reporte (lunes a 
 
 Si hay más plagas en la misma palma, se usa **＋ Agregar otra plaga en esta palma**. Al final, **foto de la muestra** (obligatoria, solo cámara) y **transitabilidad del lote**. Se sincroniza en `plagas/jornadas/AAAA-MM-DD/`.
 
+**Visor → botón 🐛 PLAGAS (cabecera).** Muestra los datos del monitoreo en el mapa, como el censo:
+- el recorrido de cada jornada y las palmas muestreadas (rojo = con daño, verde = sin daño), con su detalle y foto al tocarlas;
+- filtros por periodo, plaga, auxiliar, lote y «solo con daño»;
+- la lista de jornadas (un clic resalta su recorrido y sus palmas) y la tabla de palmas.
+
+La **programación** está en 🧭 COORDINACIÓN → Monitoreo de plagas.
+
 **Visor → 🧭 COORDINACIÓN → Monitoreo de plagas.**
 - Indicadores (jornadas, palmas muestreadas, con daño).
 - Resumen **por plaga** (palmas con la plaga, con daño, total de cada estado) y **por lote**.

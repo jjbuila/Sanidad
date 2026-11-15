@@ -4,11 +4,10 @@
    exportación a CSV y los puntos en el mapa (rojo = con daño, verde = sin daño).
    ===================================================================== */
 GER.plg={dias:30,cargando:false,datos:null,capa:null,sub:'prog'};
-/* Acceso directo en la cabecera, junto a ✚ CIRUGÍAS y ERRADICACIÓN: abre Coordinación → Monitoreo de plagas */
+/* Acceso directo en la cabecera, junto a ✚ CIRUGÍAS y ERRADICACIÓN: datos del monitoreo en el mapa (como el censo) */
 (function botonPlagas(){const bt=document.createElement('button');bt.className='btn mini';bt.id='btPlg';bt.innerHTML='🐛 PLAGAS';bt.title='Programación y resultados del monitoreo de plagas';
   const r=$('#btErr')||$('#btCir');if(r)r.after(bt);else $('#chDatos').before(bt);
-  bt.onclick=()=>{if(typeof ERR!=='undefined'&&ERR.on)alternarErr(false);if(typeof CIR!=='undefined'&&CIR.on)alternarCirugia(false);
-    if(GER.on&&GER.mod==='coord'&&GER.tab==='plagas'){alternarGerencia(false);return;}alternarGerencia(true,'coord');GER.tab='plagas';pintarGer();};})();
+  bt.onclick=()=>alternarPlgMapa();})();
 async function cargarPlagasVisor(){
   const G=GER.plg;G.cargando=true;pintarGer();
   try{const ini=GER.plgc&&GER.plgc.as&&GER.plgc.as.inicio;const nd=Math.max(G.dias,ini?diasEntre(ini,hoyISO())+1:0);
@@ -19,7 +18,9 @@ async function cargarPlagasVisor(){
     const regs=[],jors=[];
     await enParalelo(arch.filter(f=>f.path.endsWith('.geojson')),6,async f=>{try{const g=JSON.parse(await blobTexto(f.sha));const h=g.jornada||{};
       const j={...h,zipSha:zips.get(f.dia+'/'+f.path.replace(/\.geojson$/,'_fotos.zip')),ruta:f.dia+'/'+f.path};jors.push(j);
-      for(const ft of g.features||[]){const p=ft.properties||{};if(p.tipo!=='monitoreo')continue;const c=ft.geometry&&ft.geometry.coordinates;
+      for(const ft of g.features||[]){const p=ft.properties||{};
+        if(p.tipo==='recorrido'&&ft.geometry){j.track=ft.geometry.type==='LineString'?ft.geometry.coordinates:[ft.geometry.coordinates];continue;}
+        if(p.tipo!=='monitoreo')continue;const c=ft.geometry&&ft.geometry.coordinates;
         let pl=p.plagas;if(typeof pl==='string')try{pl=JSON.parse(pl);}catch(e){pl=[];}
         regs.push({...p,plagas:Array.isArray(pl)?pl:[],lng:c?c[0]:p.lng,lat:c?c[1]:p.lat,_j:j});}}catch(e){console.warn('archivo ilegible',f.path,e);}});
     regs.sort((a,b)=>String(b.creado).localeCompare(String(a.creado)));G.datos={regs,jors,desde:d1,hasta:hoy};}
@@ -205,3 +206,75 @@ function enlazarProgPlagas(){
       C.planes=C.planes.filter(p=>p.fecha!==P.fecha).concat([plan]).sort((a,b)=>a.fecha.localeCompare(b.fecha));C.dia.enviado=true;C.guardado=true;
       toast(`✅ Plan del ${P.fecha} enviado: cada auxiliar verá su bloque al iniciar el monitoreo.`,7000);}catch(e){toast(e.message,6000);}pintarGer();};
 }
+
+/* =====================================================================
+   MODO PLAGAS EN EL MAPA (botón 🐛 PLAGAS de la cabecera), como el censo de enfermedades:
+   recorrido de cada jornada, palmas muestreadas (rojo = con daño, verde = sin daño), filtros, lista de jornadas,
+   tabla de palmas y fotos. La programación sigue en 🧭 COORDINACIÓN → Monitoreo de plagas.
+   ===================================================================== */
+const PLM={on:false,capa:L.layerGroup(),f:{plaga:'',op:'',lote:'',dano:false},sel:null};
+(function montarModoPlagas(){
+  const css=document.createElement('style');css.textContent=`
+  body.modo-plg #filtros,body.modo-plg nav.tabs,body.modo-plg #panel,body.modo-plg #leyenda{display:none!important}
+  #plgPanel input#plmLote{width:100%;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.06);color:var(--texto);border:1px solid var(--borde)}
+  .plg-ley{display:flex;gap:12px;font-size:12.5px;margin:4px 0 8px}.plg-ley i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle;border:1px solid #fff}
+  #plgPanel{flex:1;overflow:auto;padding:12px 14px 30px;display:none}
+  body.modo-plg #plgPanel{display:block}
+  .plg-j{border:1px solid var(--borde);border-radius:10px;padding:7px 9px;margin:5px 0;cursor:pointer;font-size:12.8px}
+  .plg-j.on{border-color:var(--acento);background:rgba(34,211,154,.08)}`;
+  document.head.appendChild(css);
+  const p=document.createElement('div');p.id='plgPanel';$('aside').appendChild(p);
+})();
+function alternarPlgMapa(on){
+  PLM.on=on==null?!PLM.on:on;
+  if(PLM.on){if(typeof ERR!=='undefined'&&ERR.on)alternarErr(false);if(typeof CIR!=='undefined'&&CIR.on)alternarCirugia(false);if(GER.on)alternarGerencia(false);}
+  document.body.classList.toggle('modo-plg',PLM.on);{const b=$('#btPlg');if(b)b.classList.toggle('prim',PLM.on);}
+  for(const c of [capaRec,capaDiag,capaPar])PLM.on?mapa.removeLayer(c):(c.addTo(mapa));
+  if(PLM.on){PLM.capa.addTo(mapa);if(!GER.plg.datos&&!GER.plg.cargando)cargarPlagasVisor().then(()=>{pintarPlgMapa(true);});pintarPlgMapa(true);}
+  else mapa.removeLayer(PLM.capa);
+}
+const esSi=v=>v===true||v==='true';
+function regsFiltrados(){const R=(GER.plg.datos&&GER.plg.datos.regs)||[],f=PLM.f;
+  return R.filter(r=>(!f.plaga||r.plagas.some(p=>p.plaga===f.plaga))&&(!f.op||r.evaluador===f.op)&&(!f.lote||String(r.lote).toUpperCase().includes(f.lote.toUpperCase()))&&(!f.dano||esSi(r.dano))&&(!PLM.sel||r._j===PLM.sel));}
+function popupPlg(r){return `<b>${esc(r.lote)} · L${esc(r.linea)} · P${esc(r.palma)}</b><br>Hoja ${esc(r.hoja)} · muestreo ${esc((MUESTREOS.find(y=>y.id===r.muestreo)||{}).t||r.muestreo||'')}${r.unidad?' · '+esc(r.unidad):''}
+  <br>${r.plagas.map(p=>`<b>${esc(p.plaga_nombre||p.plaga)}</b>: ${esc(estTxtV(p))}${esSi(p.dano)?' · <span style="color:#ff8a80">daño</span>':''}`).join('<br>')||'Sin plagas'}
+  <br><span class="tenue">${esc(r.transitabilidad||'')} · ${esc(r.evaluador||'')} · ${esc(String(r.fecha||r.creado||'').slice(0,16).replace('T',' '))}</span>
+  ${String(r.fotos||'').split('|').filter(Boolean).length?`<br><button class="btn mini" data-pfp="${esc(r.id)}" style="margin-top:6px">📷 Ver foto</button>`:''}`;}
+function pintarPlgMapa(encuadrar){
+  const P=$('#plgPanel');if(!P)return;const G=GER.plg;
+  const salir='<button class="btn mini" id="plmSalir" title="Volver al visor">✕ Salir</button>';
+  if(!G.datos){P.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><h3>Monitoreo de plagas</h3>${salir}</div><div class="tenue">Leyendo las jornadas de monitoreo de plagas…</div>`;$('#plmSalir').onclick=()=>alternarPlgMapa(false);return;}
+  const R=regsFiltrados(),todos=G.datos.regs,jors=[...new Set(todos.map(r=>r._j))].sort((a,b)=>String(b.inicio||b.fecha).localeCompare(String(a.inicio||a.fecha)));
+  const ops=[...new Set(todos.map(r=>r.evaluador).filter(Boolean))].sort();const conD=R.filter(r=>esSi(r.dano)).length;
+  const porP=PLAGAS.map(p=>({p,n:R.filter(r=>r.plagas.some(x=>x.plaga===p.id)).length})).filter(x=>x.n);
+  // mapa: recorridos de las jornadas y palmas
+  PLM.capa.clearLayers();const jsVis=new Set(R.map(r=>r._j));
+  for(const j of jsVis){if(j.track&&j.track.length>1){const on=PLM.sel===j;L.polyline(j.track.map(([x,y])=>[y,x]),{renderer:rend,color:on?'#ffd166':'#4fb3ff',weight:on?4:2.5,opacity:.85,interactive:false}).addTo(PLM.capa);}}
+  for(const r of R){if(r.lat==null)continue;L.circleMarker([r.lat,r.lng],{renderer:rend,radius:6.5,color:'#fff',weight:1.3,fillColor:esSi(r.dano)?'#e53935':'#22d39a',fillOpacity:.95}).bindPopup(popupPlg(r),{maxWidth:320}).addTo(PLM.capa);}
+  if(encuadrar){const ll=R.filter(r=>r.lat!=null).map(r=>[r.lat,r.lng]);if(ll.length)mapa.fitBounds(L.latLngBounds(ll),{padding:[40,40],maxZoom:17});}
+  P.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:0">🐛 Monitoreo de plagas</h3>${salir}</div>
+    <div class="cir-par" style="margin-top:8px">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">Últimos <select id="plmDias">${[7,15,30,60,90].map(d=>`<option value="${d}" ${G.dias===d?'selected':''}>${d} días</option>`).join('')}</select><button class="btn mini" id="plmRec">↻</button></div>
+      <label class="campo" for="plmPlaga">Plaga</label><select id="plmPlaga"><option value="">Todas</option>${PLAGAS.map(p=>`<option value="${p.id}" ${PLM.f.plaga===p.id?'selected':''}>${esc(p.n)}</option>`).join('')}</select>
+      <label class="campo" for="plmOp">Auxiliar</label><select id="plmOp"><option value="">Todos</option>${ops.map(o=>`<option ${PLM.f.op===o?'selected':''}>${esc(o)}</option>`).join('')}</select>
+      <label class="campo" for="plmLote">Lote</label><input id="plmLote" value="${esc(PLM.f.lote)}" placeholder="IT05" autocapitalize="characters">
+      <label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="plmDano" ${PLM.f.dano?'checked':''}> Solo palmas con daño</label></div>
+    <div class="kpis"><div class="kpi"><b>${num(jsVis.size)}</b><span>Jornadas</span></div><div class="kpi"><b>${num(R.length)}</b><span>Palmas muestreadas</span></div><div class="kpi"><b class="${conD?'venc':''}">${num(conD)}</b><span>Con daño</span></div></div>
+    <div class="plg-ley"><span><i style="background:#e53935"></i>Con daño</span><span><i style="background:#22d39a"></i>Sin daño</span><span><i style="background:#4fb3ff;border-radius:2px;height:4px"></i>Recorrido</span></div>
+    ${porP.length?`<div class="tenue" style="font-size:12.5px;margin:4px 0 8px">${porP.map(x=>`${esc(x.p.n)}: <b>${num(x.n)}</b>`).join(' · ')}</div>`:''}
+    <h3>Jornadas</h3>${jors.length?jors.map((j,i)=>{const rs=todos.filter(r=>r._j===j);return `<div class="plg-j ${PLM.sel===j?'on':''}" data-pj="${i}"><b>${esc(j.fecha||String(j.inicio||'').slice(0,10))}</b> · ${esc(j.evaluador||'')}<br><span class="tenue">${esc([...new Set(rs.map(r=>r.lote))].join(', '))} · ${num(rs.length)} palmas · ${num(rs.filter(r=>esSi(r.dano)).length)} con daño${j.hora_inicio?' · '+esc(j.hora_inicio)+'–'+esc(j.hora_fin||''):''}</span></div>`;}).join(''):'<div class="tenue">Sin jornadas en el periodo.</div>'}
+    ${PLM.sel?'<button class="btn mini" id="plmTodas" style="margin:4px 0">Ver todas las jornadas</button>':''}
+    <h3>Palmas (${num(R.length)})</h3>${R.length?`<table class="t"><thead><tr><th>Palma</th><th>Plagas</th><th>Daño</th></tr></thead><tbody>${R.slice(0,400).map(r=>`<tr data-pll="${r.lat},${r.lng}"><td>${esc(r.lote)} · L${esc(r.linea)} · P${esc(r.palma)}<br><span class="tenue">hoja ${esc(r.hoja)} · ${esc(String(r.fecha||r.creado||'').slice(5,16).replace('T',' '))}</span></td><td>${r.plagas.map(p=>`${esc(p.plaga_nombre||p.plaga)}<br><span class="tenue">${esc(estTxtV(p))}</span>`).join('<br>')}</td><td>${esSi(r.dano)?'<span class="venc">Sí</span>':'No'}</td></tr>`).join('')}</tbody></table>`:'<div class="tenue">Ninguna palma coincide con los filtros.</div>'}`;
+  $('#plmSalir').onclick=()=>alternarPlgMapa(false);
+  $('#plmDias').onchange=e=>{G.dias=Number(e.target.value)||30;G.datos=null;PLM.sel=null;pintarPlgMapa();cargarPlagasVisor().then(()=>pintarPlgMapa(true));};
+  $('#plmRec').onclick=()=>{G.datos=null;PLM.sel=null;pintarPlgMapa();cargarPlagasVisor().then(()=>pintarPlgMapa(true));};
+  $('#plmPlaga').onchange=e=>{PLM.f.plaga=e.target.value;pintarPlgMapa(true);};
+  $('#plmOp').onchange=e=>{PLM.f.op=e.target.value;pintarPlgMapa(true);};
+  $('#plmLote').onchange=e=>{PLM.f.lote=e.target.value.trim();pintarPlgMapa(true);};
+  $('#plmDano').onchange=e=>{PLM.f.dano=e.target.checked;pintarPlgMapa(true);};
+  P.querySelectorAll('[data-pj]').forEach(d=>d.onclick=()=>{const j=jors[+d.dataset.pj];PLM.sel=PLM.sel===j?null:j;pintarPlgMapa(true);});
+  const t=$('#plmTodas');if(t)t.onclick=()=>{PLM.sel=null;pintarPlgMapa(true);};
+  P.querySelectorAll('tr[data-pll]').forEach(tr=>tr.onclick=()=>{const [a,b]=tr.dataset.pll.split(',').map(Number);if(isFinite(a)&&isFinite(b))mapa.setView([a,b],19);});
+}
+mapa.on('popupopen',e=>{const b=e.popup.getElement()&&e.popup.getElement().querySelector('[data-pfp]');if(!b)return;
+  b.onclick=()=>{const r=((GER.plg.datos&&GER.plg.datos.regs)||[]).find(x=>String(x.id)===b.dataset.pfp);if(r)verFotos({...r,_j:r._j});};});
