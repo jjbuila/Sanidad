@@ -28,7 +28,7 @@ def gh(route):
         return route.fulfill(status=200, content_type='application/json', body=json.dumps(l))
     if u.endswith('/git/blobs/audsha'): return route.fulfill(status=200, body=json.dumps(EST['guardado']), content_type='application/json')
     if '/contents/auditoria/' in u and m == 'GET': return route.fulfill(status=200, body=json.dumps(EST['guardado']), content_type='application/json')
-    if '/contents/jornadas?' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps([{'type': 'dir', 'name': AHORA.strftime('%Y-%m-%d'), 'sha': 'dia1'}]))
+    if '/contents/jornadas?' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps([{'type': 'dir', 'name': (AHORA - timedelta(hours=5)).strftime('%Y-%m-%d'), 'sha': 'dia1'}]))
     if u.endswith('/git/trees/dia1'): return route.fulfill(status=200, content_type='application/json', body=json.dumps({'tree': [{'path': 'JSUP.geojson', 'type': 'blob', 'sha': 'gsup'}]}))
     if u.endswith('/git/blobs/gsup'):
         g = EST['guardado']; feats = []

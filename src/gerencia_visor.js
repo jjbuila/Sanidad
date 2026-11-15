@@ -97,7 +97,7 @@ function pintarTablero(){
   // Incidencia de PC por lote y semana: casos nuevos de PC (primera vez que la palma aparece como caso en el periodo)
   const primera=new Map();
   for(const j of JORF)for(const d of j.diags){if(!esCasoPC(codN1(d),d.nivel2,d.estado))continue;if(!loteSel(d.lote)||!enProg(d.lote))continue;
-    const k=d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma);const f=String(d.creado||j.fecha).slice(0,10);const u=primera.get(k);if(!u||f<u.f)primera.set(k,{f,lote:d.lote});}
+    const k=d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma);const f=d.creado?hoyISO(new Date(d.creado)):String(j.fecha).slice(0,10);const u=primera.get(k);if(!u||f<u.f)primera.set(k,{f,lote:d.lote});}
   const semanas=[...new Set([...primera.values()].map(x=>semanaISO(x.f)))].sort();
   const porLote=new Map();for(const x of primera.values()){const s=semanaISO(x.f);if(!porLote.has(x.lote))porLote.set(x.lote,new Map());const m=porLote.get(x.lote);m.set(s,(m.get(s)||0)+1);}
   const lotesPC=[...porLote.entries()].map(([l,m])=>({lote:l,m,tot:[...m.values()].reduce((a,b)=>a+b,0),incid:(L.find(x=>x.lote===l)||{}).incid_pc})).sort((a,b)=>b.tot-a.tot);
@@ -300,7 +300,7 @@ async function generarMuestra(){
   A.muestra={id,formato:'sanidad-auditoria-1',creado:z.toISOString(),creado_por:SES.u,rango:rangoTxt(),pct:A.pct,min_por_operario:A.min,
     palmas:sel.sort((a,b)=>ordenNat(a.d.lote,b.d.lote)||(Number(a.d.linea)||0)-(Number(b.d.linea)||0)||(Number(a.d.palma)||0)-(Number(b.d.palma)||0)).map(({d,j})=>({
       palma_id:String(d.palma_id),lote:d.lote,linea:d.linea,palma:d.palma,lat:d.lat,lng:d.lng,
-      original:{diag_id:d.id,jornada_id:j.id,usuario:j.usuario,evaluador:j.evaluador,fecha:String(d.creado||j.fecha).slice(0,10),
+      original:{diag_id:d.id,jornada_id:j.id,usuario:j.usuario,evaluador:j.evaluador,fecha:d.creado?hoyISO(new Date(d.creado)):String(j.fecha).slice(0,10),
         n1_codigo:codN1(d),nivel1:d.nivel1||'',nivel2:d.nivel2||'',nivel3:d.nivel3||'',estado:d.estado||''}}))};
   A.guardada=false;
 }
@@ -311,7 +311,7 @@ async function listarMuestras(){
 }
 /* Resultados: diagnósticos de auditoría desde la fecha de la muestra (en jornadas/ y pruebas/jornadas/). */
 async function resultadosMuestra(m){
-  const um=await mapaUsuarios();const ids=new Map(m.palmas.map(x=>[x.palma_id,x]));const d1=m.creado.slice(0,10),hoy=hoyISO();const hall=[];
+  const um=await mapaUsuarios();const ids=new Map(m.palmas.map(x=>[x.palma_id,x]));const d1=hoyISO(new Date(m.creado)),hoy=hoyISO();/* fecha local (Colombia): en UTC, después de las 7 p. m. ya sería el día siguiente */const hall=[];
   for(const raiz of ['jornadas','pruebas/jornadas']){
     const dias=await listarDias(raiz,d1,hoy);const arch=[];
     await enParalelo(dias,6,async d=>{for(const f of await arbol(d.sha))if(f.type==='blob'&&f.path.endsWith('.geojson'))arch.push(f);});
@@ -321,7 +321,7 @@ async function resultadosMuestra(m){
         if(aud)hall.push({o,p,h,t});}}catch(e){}});}
   const porPalma=new Map();for(const x of hall){const u=porPalma.get(x.o.palma_id);if(!u||x.t>u.t)porPalma.set(x.o.palma_id,x);}
   const filas=m.palmas.map(o=>{const x=porPalma.get(o.palma_id);if(!x)return {o,hecha:false};
-    const a={n1:x.p.n1_codigo||String(x.p.problemas||'').split('|')[0]||'',nivel1:x.p.nivel1||'',nivel2:x.p.nivel2||'',auditor:x.h.evaluador||x.h.usuario,fecha:String(x.p.creado).slice(0,10)};
+    const a={n1:x.p.n1_codigo||String(x.p.problemas||'').split('|')[0]||'',nivel1:x.p.nivel1||'',nivel2:x.p.nivel2||'',auditor:x.h.evaluador||x.h.usuario,fecha:x.p.creado?hoyISO(new Date(x.p.creado)):''};
     return {o,hecha:true,a,c1:(a.n1||'')===(o.original.n1_codigo||''),c2:(a.n1||'')===(o.original.n1_codigo||'')&&(a.nivel2||'')===(o.original.nivel2||'')};});
   GER.aud.res={id:m.id,filas,cuando:Date.now()};
 }
@@ -390,12 +390,71 @@ function proponerPlan(ops){
     out.push({...o,lotes:sel.map(x=>({lote:x.lote,ha:x.ha,dias:x.dias}))});}
   return out;
 }
+/* ---- Ciclo de censo aprobado (censo/programacion/ciclo.json): bloque general por día y bloque de cada persona (18 ha, calles completas).
+   Cada día se asigna un operario a cada bloque (P1…P11) y se envía a los celulares en censo/plan/AAAA-MM-DD.json con lotes y calles. ---- */
+GER.cic={c:null,cargando:false,err:null,dia:null,asig:{},guardado:false};
+async function cargarCiclo(){
+  const C=GER.cic,rama=encodeURIComponent(SES.repo.rama);
+  try{C.c=JSON.parse(await (await gh(`/contents/censo/programacion/ciclo.json?ref=${rama}`,'application/vnd.github.raw+json')).text());}
+  catch(e){C.c=false;if(e.status!==404)C.err=e.message;return;}
+  // El último plan enviado indica en qué día del ciclo vamos y qué operario tenía cada bloque
+  try{const l=await (await gh(`/contents/censo/plan?ref=${rama}`)).json();
+    const fs=(Array.isArray(l)?l:[]).filter(x=>/^\d{4}-\d{2}-\d{2}\.json$/.test(x.name)).map(x=>x.name).sort().reverse();
+    for(const n of fs.slice(0,6)){const p=JSON.parse(await (await gh(`/contents/censo/plan/${n}?ref=${rama}`,'application/vnd.github.raw+json')).text());
+      if(p.ciclo_dia){C.ultimo={fecha:n.slice(0,10),dia:p.ciclo_dia};C.dia=p.ciclo_dia%C.c.dias.length+1;for(const a of p.asignaciones||[])if(a.persona)C.asig[a.persona]=a.usuario;break;}}}
+  catch(e){}
+  if(!C.dia)C.dia=1;
+}
+function pintarCiclo(){
+  const C=GER.cic,P=GER.plan;
+  if(C.c==null&&!C.cargando){C.cargando=true;cargarCiclo().finally(()=>{C.cargando=false;pintarGer();});}
+  if(C.c==null)return '<p class="tenue">Consultando el ciclo de censo aprobado…</p>';
+  if(C.c===false)return `<p class="tenue">${C.err?'❌ '+esc(C.err):'Aún no hay un ciclo de censo aprobado (censo/programacion/ciclo.json).'}</p>`;
+  const c=C.c,D=c.dias.find(x=>x.dia===C.dia)||c.dias[0],R=c.reglas;
+  const ops=P.ops||[];const usados={};for(const k in C.asig)if(C.asig[k])usados[C.asig[k]]=(usados[C.asig[k]]||0)+1;
+  const sel=p=>`<select data-cp="${p.persona}" style="min-width:180px"><option value="">— Operario —</option>${ops.map(o=>`<option value="${esc(o.usuario)}" ${C.asig[p.persona]===o.usuario?'selected':''}>${esc(o.nombre)}</option>`).join('')}</select>${C.asig[p.persona]&&usados[C.asig[p.persona]]>1?' <b style="color:var(--rojo,#e53935)">repetido</b>':''}`;
+  return `<div class="ger-sec"><h3>Ciclo de censo aprobado</h3>
+    <p class="tenue">Aprobado el ${esc(c.aprobado)} · ${c.dias.length} días · ${R.personas_dia} personas por día · ${R.ha_persona} ha (${num(R.palmas_persona)} palmas, ${esc(R.conteo)}) por persona · calles completas · bloques continuos · inicio en ${esc(R.inicio)}.
+    ${C.ultimo?` Último plan enviado: día ${C.ultimo.dia} del ciclo (${esc(C.ultimo.fecha)}).`:''}</p>
+    <div class="ger-par">Fecha <input type="date" id="cFecha" value="${esc(P.fecha)}"> Día del ciclo <select id="cDia">${c.dias.map(x=>`<option value="${x.dia}" ${x.dia===D.dia?'selected':''}>Día ${x.dia} · ${esc(x.programas.join(', '))} · ${num(x.palmas)} palmas</option>`).join('')}</select>
+      <button class="btn mini nar" id="cGuardar">${C.guardado?'✅ Enviado · enviar de nuevo':'Guardar y enviar a los celulares'}</button> <button class="btn mini" id="cPdf">📄 PDF del ciclo</button></div>
+    ${P.ops==null?'<p class="tenue">Cargando operarios…</p>':tablaGer([{t:'Bloque',f:p=>`<b>D${D.dia}·P${p.persona}</b>`},{t:'Lotes y calles',f:p=>esc(p.detalle)},{t:'Palmas',n:1,f:p=>num(p.palmas)},{t:'Ha',n:1,f:p=>num(p.ha,1)},{t:'Operario',f:sel}],D.personas)}</div>`;
+}
+function enlazarCiclo(){
+  const C=GER.cic,P=GER.plan;if(!C.c)return;
+  const f=$('#cFecha');if(f)f.onchange=()=>{P.fecha=f.value;C.guardado=false;};
+  const d=$('#cDia');if(d)d.onchange=()=>{C.dia=Number(d.value);C.guardado=false;pintarGer();};
+  $$('#gerPanel [data-cp]').forEach(s=>s.onchange=()=>{C.asig[s.dataset.cp]=s.value;C.guardado=false;pintarGer();});
+  const pdf=$('#cPdf');if(pdf)pdf.onclick=async()=>{pdf.disabled=true;const w=window.open('','_blank');
+    try{const b=await (await gh(`/contents/censo/programacion/programacion_censo.pdf?ref=${encodeURIComponent(SES.repo.rama)}`,'application/vnd.github.raw+json')).arrayBuffer();
+      const u=URL.createObjectURL(new Blob([b],{type:'application/pdf'}));if(w)w.location.href=u;else window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),300000);}
+    catch(e){if(w)w.close();toast(e.message,6000);}pdf.disabled=false;};
+  const g=$('#cGuardar');if(g)g.onclick=async()=>{
+    const D=C.c.dias.find(x=>x.dia===C.dia);const falta=D.personas.filter(p=>!C.asig[p.persona]);
+    if(falta.length){toast(`Asigne un operario a: ${falta.map(p=>'P'+p.persona).join(', ')}.`,6000);return;}
+    const us=D.personas.map(p=>C.asig[p.persona]);if(new Set(us).size!==us.length){toast('Hay un operario asignado a dos bloques.',6000);return;}
+    g.disabled=true;g.textContent='Guardando…';
+    const ruta=`censo/plan/${P.fecha}.json`;let sha=null;try{sha=(await (await gh(`/contents/${ruta}?ref=${encodeURIComponent(SES.repo.rama)}`)).json()).sha;}catch(e){}
+    const nom=u=>(P.ops.find(o=>o.usuario===u)||{}).nombre||u;
+    const plan={formato:'sanidad-plan-censo-1',fecha:P.fecha,ciclo_version:C.c.version,ciclo_dia:D.dia,creado:new Date().toISOString(),creado_por:SES.u,
+      asignaciones:D.personas.map(p=>({usuario:C.asig[p.persona],nombre:nom(C.asig[p.persona]),persona:p.persona,bloque:`D${D.dia}·P${p.persona}`,palmas:p.palmas,
+        lotes:p.tramos.map(t=>({lote:t.lote,ha:+(t.palmas/115).toFixed(1),palmas:t.palmas,desde:t.desde,hasta:t.hasta,lineas_calculadas:!!t.lineas_calculadas}))}))};
+    try{await ghPut(ruta,JSON.stringify(plan,null,1),`Plan de censo ${P.fecha} · día ${D.dia} del ciclo`,sha);C.guardado=true;C.ultimo={fecha:P.fecha,dia:D.dia};
+      toast(`✅ Día ${D.dia} enviado: cada operario verá su bloque (lotes y calles) al planificar la jornada del ${P.fecha}.`,7000);}
+    catch(e){toast(e.message,6000);}pintarGer();};
+}
 function pintarPlanCenso(){
   const P=GER.plan;if(!P.fecha)P.fecha=(()=>{const h=new Date();const f=hoyISO();return h.getHours()<10&&esHabil(f)?f:habilMas(f);})();
   if(P.ops==null&&!P.cargandoOps){P.cargandoOps=true;cirUsuarios().then(us=>{const O=resumenOperarios();
       P.ops=us.filter(x=>!x.inactivo&&x.rol==='operario'&&(!x.labores||!x.labores.length||x.labores.includes('censo'))).map(x=>{const r=O.find(o=>o.usuario===x.u);return {usuario:x.u,nombre:x.nombre,activo:true,meta:r&&r.ha_dia>0?+r.ha_dia.toFixed(1):15};});})
     .catch(e=>toast(e.message,6000)).finally(()=>{P.cargandoOps=false;pintarGer();});}
-  if(!JOR.length)return sinDatos().replace('No hay jornadas cargadas.','Para planificar se usa el avance del ciclo de censo: cargue al menos 60 a 90 días.');
+  const ciclo=pintarCiclo();
+  if(GER.cic.c)return ciclo+`<details class="ger-sec"><summary style="cursor:pointer"><b>Propuesta automática por días sin censo</b> (alternativa al ciclo aprobado)</summary>${pintarPropuesta()}</details>`;
+  return ciclo+pintarPropuesta();
+}
+function pintarPropuesta(){
+  const P=GER.plan;
+  if(!JOR.length)return sinDatos().replace('No hay jornadas cargadas.','Para la propuesta automática se usa el avance del ciclo de censo: cargue al menos 60 a 90 días.');
   const tOps=P.ops==null?'<p class="tenue">Cargando operarios…</p>':tablaGer([{t:'',f:o=>`<input type="checkbox" data-pa="${esc(o.usuario)}" ${o.activo?'checked':''}>`},{t:'Operario disponible',f:o=>esc(o.nombre)},
     {t:'Meta ha/día',f:o=>`<input type="number" data-pm="${esc(o.usuario)}" value="${o.meta}" min="1" max="80" step="0.5" style="width:80px">`}],P.ops);
   const tRes=P.res?tablaGer([{t:'Operario',f:a=>`<b>${esc(a.nombre)}</b>`},{t:'Lotes asignados (puede editarlos, separados por coma)',f:a=>`<input type="text" data-pl="${esc(a.usuario)}" value="${esc(a.lotes.map(x=>x.lote).join(', '))}" style="width:100%;min-width:260px">`},
@@ -408,7 +467,7 @@ function pintarPlanCenso(){
 function leerPlanEditado(){const P=GER.plan;if(!P.res)return;const cand=new Map(candidatosPlan().map(x=>[x.lote,x]));
   for(const a of P.res){const e=document.querySelector(`#gerPanel [data-pl="${CSS.escape(a.usuario)}"]`);if(!e)continue;
     a.lotes=e.value.split(/[,;\s]+/).map(x=>x.trim().toUpperCase()).filter(Boolean).map(l=>{const c=cand.get(l);return {lote:l,ha:c?c.ha:+haLote(l).toFixed(1),dias:c?c.dias:null};});}}
-ENLACES_GER.plan=()=>{enlazarRango();const P=GER.plan;
+ENLACES_GER.plan=()=>{enlazarRango();enlazarCiclo();const P=GER.plan;
   const f=$('#plFecha');if(f)f.onchange=()=>{P.fecha=f.value;P.guardado=false;};
   $$('#gerPanel [data-pa]').forEach(c=>c.onchange=()=>{const o=P.ops.find(x=>x.usuario===c.dataset.pa);if(o)o.activo=c.checked;});
   $$('#gerPanel [data-pm]').forEach(c=>c.onchange=()=>{const o=P.ops.find(x=>x.usuario===c.dataset.pm);if(o)o.meta=Number(c.value)||15;});

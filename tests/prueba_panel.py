@@ -73,7 +73,7 @@ with sync_playwright() as p:
       CARTO.lotes={IT01:{},IT05:{}};bannerPlan();const b=document.querySelector('#plAsig');const t=b?b.innerText:'';
       try{document.querySelector('#plUsar').click();}catch(e){}return {ls,t,sel};}""")
     check('App: lee los lotes asignados al operario', r['ls'] == ['IT01', 'IT05'], r['ls'])
-    check('App: aviso «Lotes asignados para hoy» con hectáreas', 'IT01, IT05' in r['t'] and '15,6' in r['t'], r['t'])
+    check('App: aviso «Lotes asignados para hoy» con hectáreas', 'IT01 · IT05' in r['t'] and '15,6' in r['t'], r['t'])
     check('App: «Usar los lotes asignados» los selecciona', r['sel'] == ['IT01', 'IT05'], r['sel'])
     t = pg.evaluate("""()=>{const d=n=>new Date(Date.now()-n*86400000).toISOString();
       return lineaTiempoPalma([{creado:d(60),n1:'PC',n2:'PC INICIAL',estado:'enferma'},{creado:d(40),n1:'PC',n2:'EN RECUPERACIÓN',estado:'tratamiento'}]);}""")

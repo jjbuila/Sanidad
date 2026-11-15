@@ -3069,10 +3069,16 @@ async function cargarPlanCenso(){
 const misLotesPlan=()=>{const a=PLANC.p&&SES&&(PLANC.p.asignaciones||[]).find(x=>x.usuario===SES.u);return a?a.lotes:[];};
 function bannerPlan(){
   const ls=misLotesPlan();if(!ls.length||!$('#plLista'))return;
-  const ha=ls.reduce((t,x)=>t+(Number(x.ha)||0),0);
-  $('#plLista').insertAdjacentHTML('beforebegin',`<div class="aviso" id="plAsig">📋 <b>Lotes asignados para hoy:</b> ${ls.map(x=>esc(x.lote)).join(', ')} <span class="tenue">(${String(ha.toFixed(1)).replace('.',',')} ha aprox.)</span>
-    <button class="btn prim ancho" id="plUsar" style="margin-top:8px">Usar los lotes asignados</button></div>`);
-  $('#plUsar').onclick=()=>{for(const x of ls)if(CARTO.lotes[x.lote]&&!enPlan(x.lote))alternarPlan(x.lote);pintarPlanLista();pintarPlanSel();
+  const ha=ls.reduce((t,x)=>t+(Number(x.ha)||0),0),pal=ls.reduce((t,x)=>t+(Number(x.palmas)||0),0);
+  const a=PLANC.p&&SES&&(PLANC.p.asignaciones||[]).find(x=>x.usuario===SES.u)||{};
+  // Ciclo aprobado: cada lote con su rango de calles (desde–hasta); «Lc» = lote sin numeración de líneas en la cartografía (se censa completo)
+  const rango=x=>x.desde!=null&&x.hasta!=null?` L${x.desde}–L${x.hasta}`:(x.lineas_calculadas?` (lote sin líneas en la cartografía: su parte ≈ ${num(x.palmas)} palmas, ver mapa del bloque)`:'');
+  $('#plLista').insertAdjacentHTML('beforebegin',`<div class="aviso" id="plAsig">📋 <b>${a.bloque?'Su bloque de hoy '+esc(a.bloque):'Lotes asignados para hoy'}:</b> ${ls.map(x=>`<b>${esc(x.lote)}</b>${esc(rango(x))}`).join(' · ')}
+    <span class="tenue">(${pal?num(pal)+' palmas · ':''}${String(ha.toFixed(1)).replace('.',',')} ha aprox.)</span>
+    <button class="btn prim ancho" id="plUsar" style="margin-top:8px">Usar ${a.bloque?'mi bloque':'los lotes asignados'}</button></div>`);
+  $('#plUsar').onclick=()=>{for(const x of ls){if(!CARTO.lotes[x.lote])continue;if(!enPlan(x.lote))alternarPlan(x.lote);
+      const it=S.plan.find(p=>p.lote===x.lote);if(it&&x.desde!=null&&x.hasta!=null){it.desde=Number(x.desde);it.hasta=Number(x.hasta);}}   // solo las calles del bloque
+    pintarPlanLista();pintarPlanSel();
     const fs=(S.lotes?S.lotes.features:[]).filter(f=>ls.some(x=>x.lote===f.properties._lote));const k=cajaDe(fs);if(k)mapa.fitBounds(k,{padding:[40,40],maxZoom:17});toast('Lotes asignados seleccionados. Revise y toque INICIAR JORNADA.');};
 }
 /* ---------- Línea de tiempo de la palma (registros de este celular, del más antiguo al más reciente) ---------- */
