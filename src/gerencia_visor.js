@@ -10,11 +10,11 @@
    ===================================================================== */
 const GER={on:false,tab:'tablero',sync:null,cargandoSync:false,calor:null,umbralSync:2,umbralCiclo:30,
   cal:{dist:20,prec:15,seg:20,racha:8,tipo:'',op:'',solo:true},revisados:new Set(),aud:{pct:5,min:5,muestra:null,lista:null,sel:null,res:null},reportes:null};
-const TABS_GER=[['tablero','TABLERO'],['plan','PLANIFICACIÓN'],['progcir','PROGRAMADOR DE CIRUGÍAS'],['cirugia','CIRUGÍA'],['sync','SINCRONIZACIÓN'],['calidad','CALIDAD'],['auditoria','AUDITORÍA'],['reportes','REPORTES']];
+const TABS_GER=[['tablero','TABLERO'],['plan','PROGRAMADOR DE CENSO DE ENFERMEDADES'],['progcir','PROGRAMADOR DE CIRUGÍAS'],['cirugia','CIRUGÍA'],['sync','SINCRONIZACIÓN'],['calidad','CALIDAD'],['auditoria','AUDITORÍA'],['reportes','REPORTES']];
 /* Módulos (comparten el mismo panel): Gerencia; Coordinación y supervisión de la labor (gestión del personal); Análisis de datos (sincronización). */
 const MODS_GER={
   ger:{roles:['superadmin','admin','analista','supervisor'],btn:'btGer',icono:'📊',titulo:'GERENCIA',corto:'GERENCIA',tabs:['tablero','reportes','sync'],ayuda:'Tablero gerencial, reportes y sincronización'},
-  coord:{roles:['superadmin','admin','analista','supervisor'],btn:'btCoord',icono:'🧭',titulo:'COORDINACIÓN Y SUPERVISIÓN DE LA LABOR',corto:'COORDINACIÓN',tabs:['plan','progcir','cirugia','calidad','auditoria','reportes'],ayuda:'Gestión del personal: planificación del censo, programador de cirugías, cirugía, calidad, auditoría y reportes'},
+  coord:{roles:['superadmin','admin','analista','supervisor'],btn:'btCoord',icono:'🧭',titulo:'COORDINACIÓN Y SUPERVISIÓN DE LA LABOR',corto:'COORDINACIÓN',tabs:['plan','progcir','cirugia','calidad','auditoria','reportes'],ayuda:'Gestión del personal: programador de censo de enfermedades, programador de cirugías, cirugía, calidad, auditoría y reportes'},
   datos:{roles:['superadmin','admin','supervisor','analista'],btn:'btDatos',icono:'🗄️',titulo:'ANÁLISIS DE DATOS',corto:'DATOS',tabs:['sync'],ayuda:'Analistas de datos: sincronización de los equipos'}};
 GER.mod='ger';GER.tabMod={ger:'tablero',coord:'plan',datos:'sync'};
 /* Módulos permitidos por rol (el analista de datos tiene los permisos de administrador: ve todo). */

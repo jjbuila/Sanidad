@@ -24,7 +24,7 @@
   - Es una superficie interpolada (IDW) a partir del valor de cada lote, pintada sobre toda la plantación (límite de `cartografia/plantacion.geojson`), con los lotes y sus nombres encima, escala y norte.
   - **Convenciones:** en incidencia, solo el color y el rango. En casos nuevos, el color, el rango y el número de casos de los lotes de cada rango.
   - Al lado aparece la lista de lotes ordenada de mayor a menor (un clic acerca el lote). Al acercar el mapa aparece cada palma con caso.
-- **🧭 COORDINACIÓN Y SUPERVISIÓN DE LA LABOR** (gestión del personal): Planificación (ciclo de censo y asignación del personal), **Programador de cirugías** (abre el programador sobre el mapa; también con el botón ✚ CIRUGÍAS), Cirugía (indicadores), Calidad, Auditoría y Reportes.
+- **🧭 COORDINACIÓN Y SUPERVISIÓN DE LA LABOR** (gestión del personal): **Programador de censo de enfermedades** (ciclo de censo y asignación del personal), **Programador de cirugías** (abre el programador sobre el mapa; también con el botón ✚ CIRUGÍAS), Cirugía (indicadores), Calidad, Auditoría y Reportes.
 - **🗄️ ANÁLISIS DE DATOS** (analistas de datos): Sincronización de los equipos.
 
 Ver la sección 7.4 (reportes diarios, alertas, planificación, panel del día e IA).
@@ -269,7 +269,7 @@ Llega en 3 a 5 minutos y queda en la lista de reportes.
 
 **Panel del día (App).** Menú → *Panel del día* (supervisores y administradores): jornadas recibidas hoy, hectáreas, diagnósticos, casos de PC, alertas, operarios y lotes con PC del último reporte diario. Al ingresar, si el reporte de hoy trae alertas, aparece un aviso.
 
-**Planificación del censo — ciclo aprobado (visor → 🧭 COORDINACIÓN → Planificación).** La plantación está dividida en un **ciclo de 16 días** aprobado (`censo/programacion/ciclo.json`, con su PDF, Excel y mapa en la misma carpeta del repositorio de datos), de lo general a lo particular:
+**Planificación del censo — ciclo aprobado (visor → 🧭 COORDINACIÓN → Programador de censo de enfermedades).** La plantación está dividida en un **ciclo de 16 días** aprobado (`censo/programacion/ciclo.json`, con su PDF, Excel y mapa en la misma carpeta del repositorio de datos), de lo general a lo particular:
 - **Bloque general por día:** zona de lotes vecinos, de sur a norte empezando en IT, para **11 personas**; los lotes se cierran en el mismo día salvo unos pocos que continúan al día siguiente.
 - **Bloque de cada persona:** **18 ha (2.070 palmas, contando existentes 1 y no existentes 0) o más, preferiblemente 18–19 ha**, por **calles completas** (línea impar + par) y **continuo** (solo lotes vecinos).
 - **Asignación del personal por bloque (P):**
