@@ -338,7 +338,7 @@ async function abrirSesion(u,dkRaw,recordar){
   const dk=await crypto.subtle.importKey('raw',dkRaw,{name:'AES-GCM'},false,['decrypt']);
   const meta=JSON.parse(DEC.decode(await desObj(dk,e.meta)));
   if(meta.inactivo)throw new Error('Su usuario está suspendido. Comuníquese con el administrador.');
-  if(!['admin','supervisor','analista'].includes(meta.rol))throw new Error('Su usuario es de operario. El visor web es solo para administradores, supervisores y analistas de datos.');
+  if(!['admin','superadmin','supervisor','analista'].includes(meta.rol))throw new Error('Su usuario es de operario. El visor web es solo para administradores, supervisores y analistas de datos.');
   const token=DEC.decode(await desObj(dk,ACCESO.token));
   SES={u,nombre:meta.nombre,rol:meta.rol,dk,token,repo:ACCESO.repo};
   if(recordar){const k=await llaveEquipo();const iv=crypto.getRandomValues(new Uint8Array(12));
@@ -1088,7 +1088,7 @@ $('#btCargar').onclick=cargar;
 /* ---------- Arranque ---------- */
 async function entrar(){
   $('#login').hidden=true;$('#app').hidden=false;mapa.invalidateSize();cargarRamasVisor();
-  $('#hdrUsuario').textContent=`${SES.nombre} · ${({admin:'Administrador',supervisor:'Supervisor',analista:'Analista de datos'})[SES.rol]||'Supervisor'}`;
+  $('#hdrUsuario').textContent=`${SES.nombre} · ${({admin:'Administrador',superadmin:'Super administrador',supervisor:'Supervisor',analista:'Analista de datos'})[SES.rol]||'Supervisor'}`;
   if(typeof aplicarPermisosGer==='function')aplicarPermisosGer();
   try{await cargarCartografia();}catch(e){toast('No se pudo cargar la cartografía: '+e.message,6000);}
   try{await cargarVias();}catch(e){}

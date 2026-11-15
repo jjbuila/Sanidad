@@ -2982,7 +2982,7 @@ async function avisoApk(){if(!EN_APK)return;await ultimaApk();if(!apkNueva())ret
    El visor guarda la muestra en el repositorio de datos (auditoria/AUD-*.json). Aquí se lista sin el diagnóstico original
    (auditoría a ciegas) y los diagnósticos que el supervisor registre en esas palmas quedan marcados con «auditoria». */
 const AUD={m:null,ids:new Set(),capa:null};
-const esAdminSES=()=>!!SES&&(SES.rol==='admin'||SES.rol==='analista');   // el analista de datos tiene los permisos de administrador
+const esAdminSES=()=>!!SES&&['admin','analista','superadmin'].includes(SES.rol);   // analista de datos y super administrador tienen los permisos de administrador
 const puedeAuditar=()=>!!SES&&(esAdminSES()||SES.rol==='supervisor');
 async function cargarAuditoria(){
   if(!puedeAuditar())return;let m=null;
@@ -3222,7 +3222,7 @@ async function abrirSesion(u,dkRaw,guardar){
   const meta=JSON.parse(DEC.decode(await desObj(dk,e.meta)));
   if(meta.inactivo)throw new Error('Su usuario está suspendido. Comuníquese con el administrador.');
   const token=DEC.decode(await desObj(dk,ACCESO.token));
-  const rolTxt={admin:'Administrador',analista:'Analista de datos',supervisor:'Supervisor',operario:'Operario'}[meta.rol||'operario']||'Operario';
+  const rolTxt={admin:'Administrador',superadmin:'Super administrador',analista:'Analista de datos',supervisor:'Supervisor',operario:'Operario'}[meta.rol||'operario']||'Operario';
   SES={u,nombre:meta.nombre,rol:meta.rol||'operario',cargo:meta.cargo||rolTxt,identificacion:meta.identificacion||'',dk,labores:meta.labores||null,rol_cirugia:meta.rol_cirugia||null};
   S.cfg.gh={...ACCESO.repo,token};S.cfg.evaluador=meta.nombre;
   if(guardar){const k=await llaveDispositivo();const iv=crypto.getRandomValues(new Uint8Array(12));

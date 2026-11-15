@@ -212,9 +212,12 @@ SanidadData/
 
 - **Filtros de selección múltiple:** Programa, Operario, Lote, Estado y **Enfermedad principal, Opción de la enfermedad (si aplica) y Tipo de seguimiento**. Cada filtro abre una lista con buscador, botón *Todos* (quita el filtro), *Marcar los visibles* (marca lo que muestra la búsqueda), casillas para elegir varias opciones y *solo este* para una sola. Sin nada marcado = Todos. Los lotes se limitan al programa elegido; Opción de la enfermedad muestra las de la enfermedad principal elegida y Tipo de seguimiento las de la opción elegida. Los filtros de enfermedad y estado aplican a los diagnósticos; los demás, a jornadas, recorridos, secuencias y diagnósticos.
 - **Dirección:** `https://jjbuila.github.io/Sanidad/visor.html` (también desde el menú de la app: **Visor web**, visible para administradores y supervisores).
-- **Acceso:** mismo usuario y contraseña de la app. Solo ingresan usuarios con rol **Administrador**, **Supervisor** o **Analista de datos**; los operarios reciben un aviso. Los roles se asignan en `admin.html`.
+- **Acceso:** mismo usuario y contraseña de la app. Solo ingresan usuarios con rol **Super administrador**, **Administrador**, **Analista de datos** o **Supervisor**; los operarios reciben un aviso. Los roles se asignan en `admin.html`.
   - *Administrador*, *Analista de datos* y *Supervisor* ven los tres módulos (📊 Gerencia, 🧭 Coordinación y 🗄️ Datos) y ✚ Cirugías. En la app de campo, el supervisor funciona como operario.
   - El *Analista de datos* tiene los **mismos permisos que el administrador** en el visor, en la app y en `admin.html`.
+  - El *Super administrador* tiene el **control total**: todos los permisos del administrador y, además, es el único que puede crear, editar, suspender o eliminar las cuentas privilegiadas (administradores, analistas de datos y super administradores), cambiarles la contraseña o asignar esos roles, y cambiar el token o el repositorio.
+    - Mientras no exista un super administrador, cualquier administrador puede asignar ese rol, para crear el primero.
+    - Siempre debe quedar al menos uno activo. Se recomienda tener **dos**, para no perder el control si uno olvida su contraseña.
 - **Qué muestra:** todas las jornadas sincronizadas en el rango de fechas elegido (Hoy, 7 días, 30 días, Este mes o fechas libres, máximo un año):
   - **Mapa:** lotes, recorridos (un color por operario), diagnósticos por estado, paradas y, desde zoom 17, las palmas de la cartografía coloreadas con su último diagnóstico.
   - **Resumen:** jornadas, operarios, lotes, ha recorridas, palmas visitadas, km, diagnósticos, enfermas, fotos, tiempo en paradas, ha por operario-día, diagnósticos por estado, problemas más frecuentes y comparativo *por calle frente a buffer*.

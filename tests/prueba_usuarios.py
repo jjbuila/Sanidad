@@ -44,6 +44,15 @@ with sync_playwright() as p:
     ad.click('[data-ed="op1"]'); time.sleep(.2)
     check('Admin: el rol «Analista de datos (visor web)» está disponible', 'Analista de datos (permisos de administrador)' in ad.inner_text('#fRol') and 'Analistas de datos' in ad.inner_text('#eFRol'))
     ad.keyboard.press('Escape'); ad.evaluate("document.querySelector('#eForm').hidden=true")
+    # Super administrador: con uno en el paquete, un administrador no gestiona cuentas privilegiadas ni el token; el super administrador sí
+    sa = ad.evaluate("""()=>{const bak={yo:ED.yo,hay:ED.haySuper,lista:ED.lista};const fila=u=>[...document.querySelectorAll('#eLista tr')].find(t=>t.innerText.includes(u))?.innerText||'';
+      ED.lista=ED.lista.concat([{u:'jefe',nombre:'Jefe Total',rol:'superadmin',labores:['censo']}]);ED.haySuper=true;
+      ED.yo={u:'admin1',rol:'admin'};pintarLista();formUsuario(ED.lista.find(x=>x.u==='op1'));const opcA=document.querySelector('#fRol').innerText;
+      const r={adminJefe:fila('jefe'),adminOp:fila('op1'),opcA,restr:restringido()};
+      ED.yo={u:'jefe',rol:'superadmin'};pintarLista();formUsuario(ED.lista.find(x=>x.u==='op1'));r.opcS=document.querySelector('#fRol').innerText;r.superJefe=fila('jefe');r.restrS=restringido();
+      document.querySelector('#eForm').hidden=true;ED.yo=bak.yo;ED.haySuper=bak.hay;ED.lista=bak.lista;pintarLista();return r;}""")
+    check('Super admin: un administrador no gestiona cuentas privilegiadas ni asigna esos roles', '🔒' in sa['adminJefe'] and 'Editar' in sa['adminOp'] and 'Super administrador' not in sa['opcA'] and 'Administrador' not in sa['opcA'] and sa['restr'], sa)
+    check('Super admin: el super administrador gestiona todo y asigna cualquier rol', 'Editar' in sa['superJefe'] and 'Super administrador (control total)' in sa['opcS'] and not sa['restrS'], sa)
     # Editar op1: cargo, identificación, labores + cirujano
     ad.click('[data-ed="op1"]'); ad.fill('#fCargo', 'Cirujano de campo'); ad.fill('#fId', '1000000099'); ad.check('#fCir'); ad.select_option('#fRolCir', 'cirujano'); ad.click('#fOk')
     check('Edición marcada como cambio pendiente', any('op1' in r and 'CAMBIOS' in r and 'Cirugía (cirujano)' in r for r in filas()), [r for r in filas() if 'op1' in r])
