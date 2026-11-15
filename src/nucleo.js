@@ -227,6 +227,8 @@ const ESTADOS_PLAGA=[{k:'lv',t:'LV',d:'Larvas'},{k:'huevo',t:'Huevo',d:'Huevos'}
 const HOJAS_PLAGA=[9,17,25];
 const MUESTREOS=[{id:'10x10',k:10,t:'10 × 10'},{id:'7x7',k:7,t:'7 × 7'},{id:'5x5',k:5,t:'5 × 5'}];
 const TRANSITABILIDAD=['Transitable','Poco transitable','No transitable'];
+/* Palmas de una unidad de la programación de plagas: rangos de ids [[desde, hasta], …] */
+const enRangos=(id,rs)=>{const x=Number(id);for(const [a,b] of rs)if(x>=a&&x<=b)return true;return false;};
 /* d: palmas del lote [id,línea,palma,existe,lng,lat]; muerta(id) opcional (p. ej. existencia 0 aprobada). Devuelve las palmas de la muestra. */
 function muestraLote(d,k,muerta){
   const viva=a=>Number(a[3])!==0&&!(muerta&&muerta(String(a[0])));

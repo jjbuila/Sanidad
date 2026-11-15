@@ -19,8 +19,23 @@ GEO = {'type': 'FeatureCollection', 'jornada': {'id': 'JP1', 'labor': 'plagas', 
     {'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [-78.7, 1.501]}, 'properties': {'tipo': 'monitoreo', 'id': 'm2', 'palma_id': '102', 'lote': 'IT06', 'linea': 1, 'palma': 1, 'muestreo': '7x7', 'en_muestra': True,
      'hoja': 9, 'dano': False, 'transitabilidad': 'Poco transitable', 'evaluador': 'MONITOR UNO', 'creado': HOY + 'T14:00:00Z', 'fotos': 'f2.jpg',
      'plagas': [{'plaga': 'SIB', 'plaga_nombre': 'Sibine fusca', 'lv': 4, 'huevo': 0, 'nido': 0, 'pm': 0, 'pv': 0, 'adulto': 0, 'dano': False}]}}]}
+import base64
+CICLO = {'formato': 'sanidad-ciclo-plagas-1', 'version': 'v1', 'reglas': {'unidades_dia': 6, 'muestreo_defecto': '10x10'}, 'resumen': {'dias': 2, 'unidades': 3, 'palmas': 750},
+         'dias': [{'dia': 1, 'palmas': 450, 'unidades': [{'unidad': 'D01_02-P1-1', 'bloque': 'P1', 'mitad': 1, 'posicion': 1, 'palmas': 300, 'ha': 2.6, 'lotes': [{'lote': 'IT05', 'palmas': 300, 'rangos': [[1, 300]]}]},
+                                                         {'unidad': 'D01_02-P1-2', 'bloque': 'P1', 'mitad': 2, 'posicion': 2, 'palmas': 150, 'ha': 1.3, 'lotes': [{'lote': 'IT05', 'palmas': 150, 'rangos': [[301, 450]]}]}]},
+                  {'dia': 2, 'palmas': 300, 'unidades': [{'unidad': 'D01_02-P4-1', 'bloque': 'P4', 'mitad': 1, 'posicion': 1, 'palmas': 300, 'ha': 2.6, 'lotes': [{'lote': 'IT05', 'palmas': 300, 'rangos': [[451, 750]]}]}]}]}
+PLAN_APP = {'formato': 'sanidad-plan-plagas-1', 'fecha': HOY, 'asignaciones': [{'usuario': 'p1', 'nombre': 'MONITOR UNO', 'unidad': 'D01_02-P1-1', 'dia': 1, 'posicion': 1, 'tipo': 'titular', 'palmas': 300, 'ha': 2.6, 'muestreo': '10x10',
+                                                                                'lotes': [{'lote': 'IT05', 'palmas': 300, 'rangos': [[1, 300]]}]}]}
+EST = {'plan': None, 'asig': None}
 def gh(route):
-    u = route.request.url
+    u = route.request.url; req = route.request
+    if req.method == 'PUT':
+        c = json.loads(base64.b64decode(json.loads(req.post_data)['content']).decode('utf-8'))
+        if '/plagas/plan/' in u: EST['plan'] = c
+        if 'asignacion.json' in u: EST['asig'] = c
+        return route.fulfill(status=200, content_type='application/json', body=json.dumps({'content': {'sha': 'x'}}))
+    if '/contents/plagas/programacion/ciclo.json' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps(CICLO))
+    if f'/contents/plagas/plan/{HOY}.json' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps(PLAN_APP))
     if re.search(r'/contents/plagas/jornadas\?', u): return route.fulfill(status=200, content_type='application/json', body=json.dumps([{'type': 'dir', 'name': HOY, 'sha': 'tdir'}]))
     if '/git/trees/tdir' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps({'tree': [{'path': 'JP1.geojson', 'sha': 'bgeo', 'type': 'blob'}]}))
     if '/git/blobs/bgeo' in u: return route.fulfill(status=200, content_type='application/json', body=json.dumps(GEO))
@@ -43,7 +58,11 @@ with sync_playwright() as p:
     check('Muestra: empieza en la primera palma viva (L1 empieza en P2)', m['l1'] == [2, 12, 22], m['l1'])
     check('Muestra: si la palma que toca está muerta, toma la siguiente viva (L11 P21 → P22)', m['l11'] == [1, 11, 22], m['l11'])
     check('Muestra 7×7 y 5×5', m['lin7'] == [1, 8, 15, 22] and m['n5'] == 30, m)
-    pg.evaluate("elegirLabor()"); pg.wait_for_selector('#plgIni', timeout=5000)
+    pg.evaluate("S.cfg.gh={...S.cfg.gh,token:'tok',owner:'jjbuila',repo:'SanidadData',rama:'main'};PLG.sel=[];elegirLabor()"); pg.wait_for_selector('#plgIni', timeout=5000)
+    pg.wait_for_selector('#plgUsar', timeout=8000); tb = pg.inner_text('#plgBloque'); pg.click('#plgUsar'); time.sleep(.8)
+    tu = pg.inner_text('#plgSel')
+    check('App: «Su bloque de hoy» con su unidad y la muestra solo dentro de sus palmas', 'D01_02-P1-1' in tb and 'IT05' in tb and '3 palmas en la muestra' in tu and 'D01_02-P1-1' in tu, (tb[:80], tu[:80]))
+    pg.click('[data-qp="IT05"]'); time.sleep(.4)
     pg.fill('#plgLote', 'it05'); pg.click('#plgAg'); time.sleep(.8)
     t1 = pg.inner_text('#plgSel')
     pg.check('input[name="m_IT05"][value="7x7"]', force=True); time.sleep(.8)
@@ -53,7 +72,7 @@ with sync_playwright() as p:
     pg.evaluate("window.motivoNoIniciar=()=>null;window.iniciarGPS=()=>{};window.revisarSegundoPlano=()=>{};S.gps={lat:1.5002,lng:-78.6999,acc:4,t:Date.now()}")
     pg.click('#plgIni'); time.sleep(1.2)
     j = pg.evaluate("({l:S.jornada&&S.jornada.labor,n:S.jornada&&S.jornada.muestra.length,lm:S.jornada&&S.jornada.lotes_muestreo,panel:!document.querySelector('#pp').hidden,txt:document.querySelector('#pp').innerText})")
-    check('Jornada de monitoreo con la muestra en el mapa', j['l'] == 'plagas' and j['n'] == 9 and j['lm'] == [{'lote': 'IT05', 'muestreo': '10x10'}] and j['panel'] and 'SIGUIENTE' in j['txt'], j)
+    check('Jornada de monitoreo con la muestra en el mapa', j['l'] == 'plagas' and j['n'] == 9 and j['lm'] == [{'lote': 'IT05', 'muestreo': '10x10', 'unidad': None}] and j['panel'] and 'SIGUIENTE' in j['txt'], j)
     marcar = lambda sel: pg.evaluate("s=>{const e=document.querySelector(s);e.checked=true;e.dispatchEvent(new Event('change',{bubbles:true}));}", sel)
     pulsar = lambda sel: pg.evaluate("s=>document.querySelector(s).click()", sel)
     pid = pg.evaluate("S.jornada.muestra[0].palma_id")
@@ -76,9 +95,24 @@ with sync_playwright() as p:
     # ---------------- Visor ----------------
     vz = ctx.new_page(); vz.on('pageerror', lambda e: errores.append('visor: ' + str(e)[:200])); vz.set_viewport_size({'width': 1400, 'height': 950})
     vz.goto('http://127.0.0.1:8765/visor.html'); vz.wait_for_function("typeof pintarPlagasGer==='function'", timeout=30000); time.sleep(1)
-    vz.evaluate("()=>{document.querySelector('#login').hidden=true;document.querySelector('#app').hidden=false;SES={u:'admin1',nombre:'Admin',rol:'admin',token:'tok',repo:{owner:'jjbuila',repo:'SanidadData',rama:'main'}};}")
+    vz.evaluate("()=>{document.querySelector('#login').hidden=true;document.querySelector('#app').hidden=false;SES={u:'admin1',nombre:'Admin',rol:'admin',token:'tok',repo:{owner:'jjbuila',repo:'SanidadData',rama:'main'}};window.cirUsuarios=async()=>[{u:'p1',nombre:'MONITOR UNO',labores:['plagas']},{u:'p2',nombre:'MONITOR DOS',labores:['plagas']},{u:'c1',nombre:'CENSO',labores:['censo']}];}")
     vz.click('#btCoord'); vz.wait_for_timeout(300); vz.click('[data-gt=plagas]')
-    vz.wait_for_function("GER.plg.datos&&GER.plg.datos.regs.length===2", timeout=10000); vz.wait_for_timeout(300)
+    try:
+        vz.wait_for_function("GER.plg.datos&&GER.plg.datos.regs.length===2&&GER.plgc.av&&document.querySelector('[data-pfu]')", timeout=15000)
+    except Exception:
+        print('ESTADO', vz.evaluate("({datos:!!GER.plg.datos,n:GER.plg.datos&&GER.plg.datos.regs.length,c:GER.plgc.c===null?'null':typeof GER.plgc.c,err:GER.plgc.err,av:!!GER.plgc.av,calc:GER.plgc.calc,ops:GER.plg.ops,txt:document.querySelector('#gerPanel').innerText.slice(0,400)})"), errores[:3])
+        raise
+    vz.wait_for_timeout(300)
+    TP = vz.inner_text('#gerPanel')
+    check('Visor: programación de plagas con posiciones, plan del día y avance', 'PROGRAMACIÓN DEL MONITOREO' in TP.upper() and vz.evaluate("GER.plgc.dia.filas.map(f=>f.unidad).join(',')") == 'D01_02-P1-1,D01_02-P1-2', TP[:200])
+    vz.select_option('[data-ptit="1"]', 'p1'); vz.wait_for_timeout(300); vz.select_option('[data-pfu="1"]', 'p2'); vz.wait_for_timeout(200)
+    vz.click('#pEnv')
+    for _ in range(40):
+        if EST['plan']: break
+        vz.wait_for_timeout(200)
+    pl = EST['plan'] or {}; A = pl.get('asignaciones', [])
+    check('Visor: envía el plan con la unidad, sus lotes y palmas (rangos) a plagas/plan/', len(A) == 2 and A[0]['usuario'] == 'p1' and A[0]['tipo'] == 'titular' and A[0]['lotes'][0]['rangos'] == [[1, 300]] and A[1]['tipo'] == 'apoyo' and pl.get('formato') == 'sanidad-plan-plagas-1', A)
+    vz.click('[data-psub=res]'); vz.wait_for_timeout(400)
     T = vz.inner_text('#gerPanel')
     check('Visor: pestaña Monitoreo de plagas con resumen por plaga y por lote', 'Palmas muestreadas' in T and 'Opsiphanes cassina' in T and 'Sibine fusca' in T and 'IT05' in T and 'IT06' in T and '50,0 %' in T, T[:300])
     vz.click('#plgMapa'); vz.wait_for_timeout(400)

@@ -47,7 +47,11 @@ const txtEstados=x=>ESTADOS_PLAGA.filter(e=>Number(x[e.k])>0).map(e=>`${e.t} ${x
   $('#lbPlg').onclick=()=>abrirInicioPlg();};}
 
 /* ---------- Inicio: lotes del día y tipo de muestreo por lote ---------- */
-async function muestraDe(lote,k){const d=await leerChunk(lote);return muestraLote(d,k,id=>AJ_EXIST.has(id)).map(m=>({...m,lote}));}
+async function muestraDe(lote,k,rangos){const d=await leerChunk(lote);let m=muestraLote(d,k,id=>AJ_EXIST.has(id));if(rangos)m=m.filter(x=>enRangos(x.palma_id,rangos));return m.map(x=>({...x,lote}));}
+/* Plan del día enviado desde el visor (plagas/plan/AAAA-MM-DD.json): unidades asignadas a cada auxiliar */
+async function planPlg(fecha){const clave='plg_plan_'+fecha;
+  try{const p=await (await ghRaw(`plagas/plan/${fecha}.json`)).json();await dbPut('config',{clave,v:p});return p;}
+  catch(e){try{const c=await dbGet('config',clave);if(c&&c.v)return c.v;}catch(_){}return null;}}
 function abrirInicioPlg(){
   if(S.jornada){toast('Ya hay una jornada en curso.');return;}
   if(!PLG.sel.length&&S.gps){const l=loteDe(S.gps.lat,S.gps.lng);if(l&&CARTO.lotes[l])PLG.sel=[{lote:l,muestreo:'10x10'}];}
@@ -57,12 +61,13 @@ function abrirInicioPlg(){
     <div style="display:flex;gap:8px"><input id="plgLote" list="plgLotes" placeholder="Escriba el lote (ej. IT05)" autocapitalize="characters" style="flex:1;padding:12px;border-radius:12px;background:#0a1d16;color:var(--texto);border:1px solid var(--borde)">
       <button class="btn" id="plgAg" style="margin:0">Agregar</button></div>
     <datalist id="plgLotes">${lotes.map(l=>`<option value="${esc(l)}">`).join('')}</datalist>
+    <div id="plgBloque"></div>
     <div id="plgSel"></div>
     <p class="tenue" style="font-size:12.5px">10 × 10: líneas 1, 11, 21… y en cada una la primera palma viva, luego cada 10 palmas (7 × 7 y 5 × 5 igual con su número). Si la palma que toca está muerta, se toma la siguiente viva.</p>
     <button class="btn prim ancho grande" id="plgIni" style="margin-top:10px">${IC.play} INICIAR MONITOREO</button>`);
   const pintar=async()=>{const c=$('#plgSel');if(!c)return;
-    const filas=[];for(const s of PLG.sel){const m=MUESTREOS.find(x=>x.id===s.muestreo)||MUESTREOS[0];const n=(await muestraDe(s.lote,m.k)).length;
-      filas.push(`<div class="plg-lote"><div style="display:flex;justify-content:space-between;align-items:center"><b>${esc(s.lote)}</b><span class="tenue" style="font-size:12.5px">${n?num(n)+' palmas en la muestra':'⚠ lote sin numeración de líneas: toque las palmas en el mapa'}</span><button class="btn mini" data-qp="${esc(s.lote)}" style="margin:0">✕</button></div>
+    const filas=[];for(const s of PLG.sel){const m=MUESTREOS.find(x=>x.id===s.muestreo)||MUESTREOS[0];const n=(await muestraDe(s.lote,m.k,s.rangos)).length;
+      filas.push(`<div class="plg-lote"><div style="display:flex;justify-content:space-between;align-items:center"><b>${esc(s.lote)}</b>${s.unidad?`<span class="tenue" style="font-size:11.5px">${esc(s.unidad)}</span>`:''}<span class="tenue" style="font-size:12.5px">${n?num(n)+' palmas en la muestra':'⚠ lote sin numeración de líneas: toque las palmas en el mapa'}</span><button class="btn mini" data-qp="${esc(s.lote)}" style="margin:0">✕</button></div>
         <div class="seg2" style="margin:6px 0 0">${MUESTREOS.map(x=>`<label><input type="radio" name="m_${esc(s.lote)}" value="${x.id}" ${x.id===s.muestreo?'checked':''} data-lm="${esc(s.lote)}"><span>${x.t}</span></label>`).join('')}</div></div>`);}
     c.innerHTML=filas.join('')||'<p class="tenue">Agregue los lotes que va a monitorear hoy.</p>';
     c.querySelectorAll('[data-qp]').forEach(b=>b.onclick=()=>{PLG.sel=PLG.sel.filter(x=>x.lote!==b.dataset.qp);pintar();});
@@ -71,13 +76,19 @@ function abrirInicioPlg(){
     if(!CARTO.lotes[l]){toast('El lote '+l+' no está en la cartografía.');return;}
     if(!PLG.sel.some(x=>x.lote===l))PLG.sel.push({lote:l,muestreo:'10x10'});$('#plgLote').value='';pintar();};
   $('#plgAg').onclick=agregar;$('#plgLote').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();agregar();}};pintar();
+  // «Su bloque de hoy»: unidades de la programación asignadas a este auxiliar
+  planPlg(fechaISO(new Date())).then(p=>{const mias=p?(p.asignaciones||[]).filter(a=>a.usuario===SES.u):[];const c=$('#plgBloque');if(!c||!mias.length)return;
+    c.innerHTML=`<div class="aviso">📋 <b>${mias.length>1?'Sus bloques de hoy':'Su bloque de hoy'}: ${mias.map(a=>esc(a.unidad)+(a.tipo==='apoyo'?' (apoyo)':'')).join(' + ')}</b><br>
+      ${mias.map(a=>`${a.lotes.map(l=>esc(l.lote)).join(', ')} · ${num(a.palmas)} palmas (~${num(a.ha,0)} ha)`).join('<br>')}
+      <button class="btn prim ancho" id="plgUsar" style="margin-top:8px">Usar ${mias.length>1?'mis bloques':'mi bloque'}</button></div>`;
+    $('#plgUsar').onclick=()=>{PLG.sel=mias.flatMap(a=>a.lotes.map(l=>({lote:l.lote,muestreo:a.muestreo||'10x10',rangos:l.rangos,unidad:a.unidad})));pintar();toast('Bloque seleccionado: la muestra se calcula solo dentro de sus palmas.',3500);};});
   $('#plgIni').onclick=async()=>{if(!PLG.sel.length){alert('Agregue al menos un lote.');return;}await iniciarPlg(PLG.sel.map(x=>({...x})));};
 }
 async function iniciarPlg(sel){
   {const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}}
   const muestra=[];for(const s of sel){const m=MUESTREOS.find(x=>x.id===s.muestreo)||MUESTREOS[0];
-    (await muestraDe(s.lote,m.k)).forEach((x,i)=>muestra.push({...x,muestreo:s.muestreo,orden:i+1,estado:'pendiente'}));}
-  const j={id:idJornada(),labor:'plagas',lotes_muestreo:sel,muestra,inicio:new Date().toISOString(),fin:null,evaluador:SES.nombre,usuario:SES.u,dispositivo:S.cfg.dispositivo,
+    (await muestraDe(s.lote,m.k,s.rangos)).forEach((x,i)=>muestra.push({...x,muestreo:s.muestreo,unidad:s.unidad||null,orden:i+1,estado:'pendiente'}));}
+  const j={id:idJornada(),labor:'plagas',lotes_muestreo:sel.map(s=>({lote:s.lote,muestreo:s.muestreo,unidad:s.unidad||null})),unidades:[...new Set(sel.map(s=>s.unidad).filter(Boolean))],muestra,inicio:new Date().toISOString(),fin:null,evaluador:SES.nombre,usuario:SES.u,dispositivo:S.cfg.dispositivo,
     seleccion:sel.map(s=>({lote:s.lote,desde:null,hasta:null})),estado:'activa',km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=SES.nombre;await guardarCfg();
   TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=null;PAR.lista=[];capaParadas.clearLayers();
@@ -190,7 +201,7 @@ async function guardarPlg({m,palma,muestreo,hoja,plagas,trans,obs}){
   try{await dbPut('fotos',{id:a.id,registro_id:null,buf:a.buf,type:'image/jpeg'});
     const pl=plagas.map(x=>({plaga:x.plaga,plaga_nombre:plagaNom(x.plaga),...Object.fromEntries(ESTADOS_PLAGA.map(e=>[e.k,Number(x[e.k])||0])),dano:x.dano==='si'}));
     const r={id:uid(),tipo:'monitoreo',jornada_id:j.id,palma_id:palma.id,lote:palma.lote,linea:palma.linea||'',numero:palma.num||'',lat:palma.lat,lng:palma.lng,
-      muestreo,en_muestra:!!m,hoja,plagas:pl,dano:pl.some(x=>x.dano),transitabilidad:trans,observaciones:obs,fotos:[a.id],
+      muestreo,en_muestra:!!m,unidad:m&&m.unidad||null,hoja,plagas:pl,dano:pl.some(x=>x.dano),transitabilidad:trans,observaciones:obs,fotos:[a.id],
       evaluador:SES.nombre,usuario:SES.u,creado:new Date().toISOString(),fecha:ahoraLocal(),...gpsCampos(palma)};
     await guardarRegCir(r);if(m){m.estado='registrada';m.dano=r.dano;m.registro=r.id;}await dbPut('jornadas',j);}
   catch(e){alert('Error al guardar: '+e.message);return;}
@@ -240,7 +251,7 @@ function geoPlagas(j,regs,pts,ahora,archivoFotos){
   const g=geoCirugia(j,regs,pts,ahora,archivoFotos);const ms=regs.filter(r=>r.tipo==='monitoreo');
   g.name='plagas_'+j.id;
   g.jornada={id:j.id,labor:'plagas',evaluador:j.evaluador,usuario:j.usuario,dispositivo:j.dispositivo,fecha:fechaLocal(j.inicio),hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),inicio:j.inicio,fin:j.fin,
-    km:+(j.km||0).toFixed(3),...(j.resumen_paradas||{}),lotes_muestreo:j.lotes_muestreo,
+    km:+(j.km||0).toFixed(3),...(j.resumen_paradas||{}),lotes_muestreo:j.lotes_muestreo,unidades:j.unidades||[],
     muestra:(j.muestra||[]).map(m=>({palma_id:m.palma_id,lote:m.lote,linea:m.linea,palma:m.palma,muestreo:m.muestreo,estado:m.estado,registro:m.registro||null})),
     palmas_registradas:ms.length,con_dano:ms.filter(r=>r.dano).length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
   return g;

@@ -389,7 +389,14 @@ Si hay más plagas en la misma palma, se usa **＋ Agregar otra plaga en esta pa
 - Lista de palmas muestreadas con su foto.
 - **Exportar a CSV** (una fila por palma y plaga) y **Ver en el mapa**.
 
-La programación por bloques de esta labor se diseña después.
+**Programación (visor → 🧭 COORDINACIÓN → Monitoreo de plagas → Programación).**
+- El ciclo viene de `BloquesSanidad.gpkg` pasado a palmas: **18 días con 6 unidades de unos 30 ha** cada uno (bloque P y mitad, por ejemplo D01_02-P1-1). Se guarda en `plagas/programacion/ciclo.json`, con su PDF de validación.
+- Cada auxiliar es **titular de una posición** del día (1 a 6) y sigue con su siguiente unidad pendiente. Los días con una séptima unidad se cubren con apoyo.
+- **Plan del día:** se puede cambiar la unidad, quitar a quien no asiste o agregar unidades de apoyo. **Guardar y enviar** escribe `plagas/plan/AAAA-MM-DD.json`.
+- **Avance:** una unidad queda hecha cuando se registró el 90 % de su muestra. También se marca terminada o se reabre con un clic.
+- **En la App** aparece **«Su bloque de hoy»** con su unidad y sus lotes. **Usar mi bloque** calcula la muestra solo dentro de las palmas de la unidad.
+
+**Reportes:** el diario y el semanal incluyen la página **MONITOREO DE PLAGAS** (por plaga y por lote) y las hojas **Plagas** y **Plagas por lote** en el Excel.
 
 ## 7.2 Ortofoto del dron
 - **Origen:** `ORTHO.tif` (9,2 cm por píxel, 108.480 × 154.151 píxeles, 4 bandas, sin comprimir, **66,9 GB**, MAGNA-SIRGAS Colombia Oeste Oeste EPSG:3114).

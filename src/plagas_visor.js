@@ -3,10 +3,11 @@
    Lee las jornadas de plagas/jornadas de los últimos días: resumen por plaga y por lote, palmas muestreadas con fotos,
    exportación a CSV y los puntos en el mapa (rojo = con daño, verde = sin daño).
    ===================================================================== */
-GER.plg={dias:30,cargando:false,datos:null,capa:null};
+GER.plg={dias:30,cargando:false,datos:null,capa:null,sub:'prog'};
 async function cargarPlagasVisor(){
   const G=GER.plg;G.cargando=true;pintarGer();
-  try{const hoy=hoyISO(),d1=hoyISO(new Date(Date.now()-G.dias*86400000));
+  try{const ini=GER.plgc&&GER.plgc.as&&GER.plgc.as.inicio;const nd=Math.max(G.dias,ini?diasEntre(ini,hoyISO())+1:0);
+    const hoy=hoyISO(),d1=hoyISO(new Date(Date.now()-nd*86400000));
     const dias=await listarDias('plagas/jornadas',d1,hoy);const arch=[];
     await enParalelo(dias,6,async d=>{for(const f of await arbol(d.sha))if(f.type==='blob')arch.push({...f,dia:d.path});});
     const zips=new Map(arch.filter(f=>f.path.endsWith('_fotos.zip')).map(f=>[f.dia+'/'+f.path,f.sha]));
@@ -24,6 +25,12 @@ const estTxtV=x=>ESTADOS_PLAGA.filter(e=>Number(x[e.k])>0).map(e=>`${e.t} ${x[e.
 function pintarPlagasGer(){
   const G=GER.plg;
   if(!G.datos&&!G.cargando){cargarPlagasVisor();}
+  const sub=`<div class="ger-par"><button class="btn mini ${G.sub==='prog'?'prim':''}" data-psub="prog">Programación</button><button class="btn mini ${G.sub==='res'?'prim':''}" data-psub="res">Resultados</button></div>`;
+  if(G.sub==='prog')return sub+pintarProgPlagas();
+  return sub+pintarResPlagas();
+}
+function pintarResPlagas(){
+  const G=GER.plg;
   const par=`<div class="ger-par">Últimos <select id="plgDias">${[7,15,30,60,90].map(d=>`<option value="${d}" ${G.dias===d?'selected':''}>${d} días</option>`).join('')}</select>
     <button class="btn mini" id="plgRec">↻ Volver a leer</button>${G.datos&&G.datos.regs.length?'<button class="btn mini" id="plgCsv">⬇ Exportar (CSV)</button><button class="btn mini prim" id="plgMapa">'+(G.capa?'Quitar del mapa':'Ver en el mapa')+'</button>':''}</div>`;
   if(G.cargando||!G.datos)return `<div class="ger-sec"><h3>Monitoreo de plagas</h3>${par}<p class="tenue">Leyendo las jornadas de monitoreo de plagas…</p></div>`;
@@ -62,9 +69,134 @@ function alternarCapaPlagas(){
   const ch=document.createElement('span');ch.className='chip';ch.id='chPlg';ch.style.cursor='pointer';ch.title='Quitar del mapa';ch.innerHTML=`🐛 Plagas: ${num(R.length)} palmas ✕`;ch.onclick=()=>alternarCapaPlagas();$('#chDatos').before(ch);
 }
 ENLACES_GER.plagas=()=>{const G=GER.plg;
+  $$('#gerPanel [data-psub]').forEach(b=>b.onclick=()=>{G.sub=b.dataset.psub;pintarGer();});
+  if(G.sub==='prog')enlazarProgPlagas();
   const d=$('#plgDias');if(d)d.onchange=()=>{G.dias=Number(d.value)||30;G.datos=null;cargarPlagasVisor();};
   const r=$('#plgRec');if(r)r.onclick=()=>{G.datos=null;cargarPlagasVisor();};
   const c=$('#plgCsv');if(c)c.onclick=exportarPlagasCSV;
   const m=$('#plgMapa');if(m)m.onclick=()=>{alternarCapaPlagas();if(G.capa)alternarGerencia(false);else pintarGer();};
   $$('#gerPanel [data-pfo]').forEach(b=>b.onclick=()=>{const x=G._regs[+b.dataset.pfo];verFotos({...x,_j:x._j});});
 };
+
+/* =====================================================================
+   PROGRAMACIÓN DEL MONITOREO DE PLAGAS (ciclo de 18 días · unidades de ~30 ha)
+   plagas/programacion/ciclo.json: unidades (bloque P y mitad) con sus lotes y palmas (rangos de ids).
+   · Titular por posición del día (1…6): sigue con su siguiente unidad pendiente, a su ritmo.
+   · Avance: palmas de la muestra registradas dentro de la unidad (10×10 o el muestreo usado en el lote) desde el inicio de la vuelta;
+     con 90 % la unidad queda hecha; también se marca a mano.
+   · Plan del día en plagas/plan/AAAA-MM-DD.json (lo lee la App: «Su bloque de hoy»).
+   ===================================================================== */
+GER.plgc={c:null,cargando:false,err:null,as:null,asSha:null,planes:[],av:null,avKey:'',calc:false,dia:null,guardado:false};
+function unidadesPlg(){const C=GER.plgc;const m=new Map();for(const D of C.c.dias)for(const u of D.unidades)m.set(u.unidad,{...u,dia:D.dia});return m;}
+async function guardarAsigPlg(msg){const C=GER.plgc;C.as.actualizado=new Date().toISOString();C.as.actualizado_por=SES.u;
+  C.asSha=await ghPut('plagas/programacion/asignacion.json',JSON.stringify(C.as,null,1),msg,C.asSha);}
+async function cargarCicloPlg(){
+  const C=GER.plgc,rama=encodeURIComponent(SES.repo.rama),raw=async r=>JSON.parse(await (await gh(`/contents/${r}?ref=${rama}`,'application/vnd.github.raw+json')).text());
+  try{C.c=await raw('plagas/programacion/ciclo.json');}catch(e){C.c=false;if(e.status!==404)C.err=e.message;return;}
+  try{const j=await (await gh(`/contents/plagas/programacion/asignacion.json?ref=${rama}`)).json();C.asSha=j.sha;C.as=JSON.parse(DEC.decode(deB64(j.content.replace(/\s/g,''))));}catch(e){if(e.status!==404)throw e;C.as=null;}
+  if(!C.as)C.as={formato:'sanidad-asignacion-plagas-1',ciclo_version:C.c.version,vuelta:1,inicio:null,titulares:{},manual:{}};
+  C.as.titulares=C.as.titulares||{};C.as.manual=C.as.manual||{};C.planes=[];
+  try{const l=await (await gh(`/contents/plagas/plan?ref=${rama}`)).json();
+    const fs=(Array.isArray(l)?l:[]).filter(x=>/^\d{4}-\d{2}-\d{2}\.json$/.test(x.name)).map(x=>x.name).sort().reverse().filter(n=>!C.as.inicio||n.slice(0,10)>=C.as.inicio).slice(0,30);
+    for(const n of fs){try{C.planes.push({fecha:n.slice(0,10),...await raw(`plagas/plan/${n}`)});}catch(e){}}}catch(e){}
+  C.planes.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  if(!Object.keys(C.as.titulares).length)for(const p of C.planes)for(const a of p.asignaciones||[])if(a.tipo==='titular'&&a.posicion)C.as.titulares[a.posicion]=a.usuario;
+}
+/* Avance de cada unidad: palmas registradas de su muestra (calculada con la cartografía) desde el inicio de la vuelta */
+/* Llave del avance (igual al pintar y al calcular: si no coinciden, se recalcularía sin fin) */
+const llaveAvPlg=()=>{const G=GER.plg,r=G.datos&&G.datos.regs||[];return r.length+'|'+GER.plgc.as.inicio+'|'+(r[0]&&r[0].id)+'|'+JSON.stringify(GER.plgc.as.manual||{}).length;};
+async function avancePlg(){
+  const C=GER.plgc,G=GER.plg,ini=C.as.inicio;const regs=(G.datos&&G.datos.regs||[]).filter(r=>ini&&String(r.fecha||r.creado).slice(0,10)>=ini);
+  const key=llaveAvPlg();if(C.avKey===key&&C.av)return;C.calc=true;
+  const hechas=new Set(regs.map(r=>String(r.palma_id)));const mLote=new Map();for(const r of regs)if(r.muestreo)mLote.set(r.lote,r.muestreo);
+  const av={};
+  for(const u of unidadesPlg().values()){let n=0,h=0;
+    for(const t of u.lotes){if(!ini){n+=1;continue;}const k=(MUESTREOS.find(x=>x.id===(mLote.get(t.lote)||C.c.reglas.muestreo_defecto))||MUESTREOS[0]).k;
+      const d=await chunkLote(t.lote);const m=muestraLote(d,k,id=>VAJ.has(id)).filter(x=>enRangos(x.palma_id,t.rangos));n+=m.length;h+=m.filter(x=>hechas.has(x.palma_id)).length;}
+    av[u.unidad]={n,h,p:n?h/n*100:0};}
+  C.av=av;C.avKey=key;C.calc=false;
+}
+function estadoUnidad(id){const C=GER.plgc,m=C.as.manual[id],a=(C.av&&C.av[id])||{p:0};
+  if(m&&m.estado==='terminado')return {e:'hecha',p:a.p,manual:true};if(a.p>=90&&!(m&&m.estado==='reabierto'))return {e:'hecha',p:a.p};return {e:a.p>0?'curso':'pendiente',p:a.p};}
+function sigUnidad(pos,ocup){const C=GER.plgc;for(const D of C.c.dias){const u=D.unidades.find(x=>x.posicion===pos);if(u&&!ocup.has(u.unidad)&&estadoUnidad(u.unidad).e!=='hecha')return u.unidad;}return null;}
+const nPos=()=>Math.max(...GER.plgc.c.dias.map(D=>D.unidades.length));
+function armarDiaPlg(fecha,forzar){const C=GER.plgc;const env=C.planes.find(p=>p.fecha===fecha);
+  if(env&&!forzar){C.dia={fecha,enviado:true,filas:(env.asignaciones||[]).map(a=>({usuario:a.usuario,unidad:a.unidad}))};C.guardado=true;return;}
+  const filas=[],ocup=new Set();for(let p=1;p<=6;p++){const u=sigUnidad(p,ocup);if(!u)continue;ocup.add(u);filas.push({usuario:C.as.titulares[p]||'',unidad:u});}
+  C.dia={fecha,enviado:false,filas};C.guardado=false;}
+const chipU=s=>s.e==='hecha'?`<span class="ger-chip ok">✔ ${s.manual?'terminada':num(s.p,0)+' %'}</span>`:s.e==='curso'?`<span class="ger-chip med">${num(s.p,0)} %</span>`:'<span class="ger-chip gris">pendiente</span>';
+/* Auxiliares con la labor de monitoreo de plagas (del paquete de acceso) */
+async function opsPlagas(){if(GER.plg.ops)return GER.plg.ops;const us=await cirUsuarios();
+  GER.plg.ops=us.filter(x=>!x.inactivo&&(x.labores||[]).includes('plagas')).map(x=>({u:x.u,nombre:x.nombre}));return GER.plg.ops;}
+function pintarProgPlagas(){
+  const C=GER.plgc,G=GER.plg;
+  if(C.c==null&&!C.cargando){C.cargando=true;cargarCicloPlg().catch(e=>{C.err=e.message;C.c=false;}).finally(()=>{C.cargando=false;pintarGer();});}
+  if(!G.ops&&!G.cargandoOps){G.cargandoOps=true;opsPlagas().catch(e=>{G.ops=[];toast(e.message,6000);}).finally(()=>{G.cargandoOps=false;pintarGer();});}
+  if(C.c==null)return '<p class="tenue">Consultando la programación de plagas…</p>';
+  if(C.c===false)return `<p class="tenue">${C.err?'❌ '+esc(C.err):'Aún no hay programación de plagas (plagas/programacion/ciclo.json).'}</p>`;
+  if(!G.datos)return '<p class="tenue">Leyendo los monitoreos registrados…</p>';
+  const key=llaveAvPlg();
+  if((C.avKey!==key||!C.av)&&!C.calc){avancePlg().catch(e=>{C.calc=false;C.av={};toast(e.message,6000);}).finally(()=>pintarGer());}
+  if(!C.av)return '<p class="tenue">Calculando el avance de las unidades…</p>';
+  const P=GER.plan;if(!P.fecha)P.fecha=(()=>{const h=new Date();const f=hoyISO();return h.getHours()<10&&esHabil(f)?f:habilMas(f);})();
+  if(!C.dia||C.dia.fecha!==P.fecha)armarDiaPlg(P.fecha);
+  const ops=(G.ops||[]),U=unidadesPlg(),todos=[...U.values()],est=new Map(todos.map(u=>[u.unidad,estadoUnidad(u.unidad)]));
+  const selOp=(attr,val,vacio)=>`<select ${attr} style="min-width:170px"><option value="">${vacio}</option>${ops.map(o=>`<option value="${esc(o.u)}" ${val===o.u?'selected':''}>${esc(o.nombre)}</option>`).join('')}</select>`;
+  const nH=todos.filter(u=>est.get(u.unidad).e==='hecha').length;
+  const tTit=tablaGer([{t:'Posición',f:x=>`<b>${x}</b>`},{t:'Titular',f:x=>selOp(`data-ptit="${x}"`,C.as.titulares[x]||'','— Sin titular —')},
+    {t:'Siguiente unidad',f:x=>{const s=sigUnidad(x,new Set());return s?`<b>${esc(s)}</b> ${chipU(est.get(s))}`:'<span class="ger-chip ok">vuelta completa</span>';}}],[1,2,3,4,5,6]);
+  const fl=C.dia.filas,usadas=new Map();fl.forEach(f=>{if(f.unidad)usadas.set(f.unidad,(usadas.get(f.unidad)||0)+1);});
+  const pend=todos.filter(u=>est.get(u.unidad).e!=='hecha');
+  const tDia=tablaGer([{t:'Auxiliar',f:x=>selOp(`data-pfu="${x.i}"`,x.usuario,'— Auxiliar —')},
+    {t:'Unidad',f:x=>`<select data-pfb="${x.i}" style="min-width:150px"><option value="">— Unidad —</option>${pend.concat(x.unidad&&!pend.some(u=>u.unidad===x.unidad)?[U.get(x.unidad)]:[]).filter(Boolean).map(u=>`<option value="${esc(u.unidad)}" ${u.unidad===x.unidad?'selected':''}>${esc(u.unidad)} · día ${u.dia}</option>`).join('')}</select>${usadas.get(x.unidad)>1?' <b style="color:#ff8a8a">repetida</b>':''}`},
+    {t:'Lotes',f:x=>{const u=U.get(x.unidad);return u?esc(u.lotes.map(l=>l.lote).join(', ')):'—';}},{t:'Palmas',n:1,f:x=>{const u=U.get(x.unidad);return u?num(u.palmas):'—';}},
+    {t:'Avance',f:x=>x.unidad?chipU(est.get(x.unidad)):''},{t:'',f:x=>`<button class="btn mini" data-pfq="${x.i}" title="Quitar">✕</button>`}],fl.map((f,i)=>({...f,i})));
+  const sinAux=[];{const oc=new Set(fl.map(f=>f.unidad));for(const D of C.c.dias){if(!D.unidades.some(u=>est.get(u.unidad).e!=='hecha'))continue;
+    for(const u of D.unidades)if(u.posicion>6&&!oc.has(u.unidad)&&est.get(u.unidad).e!=='hecha')sinAux.push(u.unidad);break;}}
+  const grid=`<div class="ger-tabla"><table class="ger-calor"><thead><tr><th>Día</th>${Array.from({length:nPos()},(_,i)=>`<th class="c">${i+1}</th>`).join('')}</tr></thead><tbody>${C.c.dias.map(D=>`<tr><td><b>D${D.dia}</b></td>${Array.from({length:nPos()},(_,i)=>{const u=D.unidades.find(x=>x.posicion===i+1);if(!u)return '<td class="c tenue">—</td>';
+    const s=est.get(u.unidad),bg=s.e==='hecha'?'rgba(34,211,154,.35)':s.e==='curso'?'rgba(255,197,61,.30)':'transparent';
+    return `<td class="c" data-pcel="${esc(u.unidad)}" style="cursor:pointer;background:${bg}" title="${esc(u.unidad)} · ${esc(u.lotes.map(l=>l.lote).join(', '))} · ${num(u.palmas)} palmas">${s.e==='hecha'?'✔':s.e==='curso'?num(s.p,0):'·'}</td>`;}).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="ger-sec"><h3>Programación del monitoreo · vuelta ${C.as.vuelta}</h3>
+    <p class="tenue">${C.c.resumen.dias} días · ${C.c.resumen.unidades} unidades de ~30 ha (bloque P y mitad) · ${num(C.c.resumen.palmas)} palmas. ${C.as.inicio?'Vuelta iniciada el '+esc(C.as.inicio)+'.':'La vuelta inicia con el primer plan que se envíe.'} Cada auxiliar sigue con su siguiente unidad; una unidad queda hecha con el 90 % de su muestra registrada.</p>
+    <div class="ger-kpis">${kpi(`${nH} / ${todos.length}`,'Unidades hechas',nH===todos.length?'ok':'')}${kpi(num(todos.filter(u=>est.get(u.unidad).e==='curso').length),'En curso')}${kpi(num(todos.length-nH),'Pendientes')}</div></div>
+    <div class="ger-sec"><h3>1. Auxiliar titular de cada posición</h3><p class="tenue">La posición 1 hace la primera unidad de cada día, la 2 la segunda… Los días con una séptima unidad se cubren con apoyo.</p>${tTit}
+      <div class="ger-par"><button class="btn mini prim" id="pTitG">Guardar titulares</button></div></div>
+    <div class="ger-sec"><h3>2. Plan del día</h3><div class="ger-par">Fecha <input type="date" id="pFecha" value="${esc(P.fecha)}">
+      <button class="btn mini" id="pAg">＋ Agregar unidad (apoyo)</button><button class="btn mini" id="pSug">↺ Volver a la sugerencia</button>
+      <button class="btn mini nar" id="pEnv">${C.guardado?'✅ Enviado · enviar de nuevo':'Guardar y enviar a los celulares'}</button></div>
+      ${C.dia.enviado?`<p class="tenue">Plan ya enviado para el ${esc(C.dia.fecha)}; puede modificarlo y enviarlo de nuevo.</p>`:''}${tDia}
+      ${sinAux.length?`<div class="ger-aviso">Unidades del día sin auxiliar: <b>${sinAux.map(esc).join(', ')}</b>. Agréguelas como apoyo (＋ Agregar unidad).</div>`:''}</div>
+    <div class="ger-sec"><h3>3. Avance del ciclo</h3><p class="tenue">✔ hecha · número = % de la muestra registrada · · pendiente. Clic en una unidad para marcarla terminada o reabrirla.</p>${grid}
+      <div class="ger-par"><button class="btn mini" id="pVuelta">Iniciar una nueva vuelta</button></div></div>`;
+}
+function enlazarProgPlagas(){
+  const C=GER.plgc,P=GER.plan;if(!C.c||!C.av||!C.dia)return;
+  const f=$('#pFecha');if(f)f.onchange=()=>{P.fecha=f.value;armarDiaPlg(P.fecha);pintarGer();};
+  $$('#gerPanel [data-ptit]').forEach(s=>s.onchange=()=>{C.as.titulares[s.dataset.ptit]=s.value;if(!C.dia.enviado)armarDiaPlg(P.fecha,true);pintarGer();});
+  const tg=$('#pTitG');if(tg)tg.onclick=async()=>{tg.disabled=true;try{await guardarAsigPlg('Plagas: auxiliares titulares de las posiciones');toast('✅ Titulares guardados.');}catch(e){toast(e.message,6000);}pintarGer();};
+  $$('#gerPanel [data-pfu]').forEach(s=>s.onchange=()=>{C.dia.filas[s.dataset.pfu].usuario=s.value;C.guardado=false;pintarGer();});
+  $$('#gerPanel [data-pfb]').forEach(s=>s.onchange=()=>{C.dia.filas[s.dataset.pfb].unidad=s.value;C.guardado=false;pintarGer();});
+  $$('#gerPanel [data-pfq]').forEach(b=>b.onclick=()=>{C.dia.filas.splice(Number(b.dataset.pfq),1);C.guardado=false;pintarGer();});
+  const ag=$('#pAg');if(ag)ag.onclick=()=>{const oc=new Set(C.dia.filas.map(x=>x.unidad));let s='';for(let p=1;p<=nPos()&&!s;p++)s=sigUnidad(p,oc)||'';C.dia.filas.push({usuario:'',unidad:s});C.guardado=false;pintarGer();};
+  const su=$('#pSug');if(su)su.onclick=()=>{armarDiaPlg(P.fecha,true);pintarGer();};
+  $$('#gerPanel [data-pcel]').forEach(td=>td.onclick=async()=>{const id=td.dataset.pcel,s=estadoUnidad(id);const t=s.e!=='hecha';
+    if(!confirm(t?`¿Marcar ${id} como terminada? (muestra registrada: ${num(s.p,0)} %)`:`¿Reabrir ${id}?`))return;
+    C.as.manual[id]={estado:t?'terminado':'reabierto',por:SES.u,fecha:new Date().toISOString()};
+    try{await guardarAsigPlg(`Plagas: ${id} ${t?'terminada':'reabierta'}`);if(!C.dia.enviado)armarDiaPlg(P.fecha,true);}catch(e){delete C.as.manual[id];toast(e.message,6000);}pintarGer();});
+  const vu=$('#pVuelta');if(vu)vu.onclick=async()=>{if(!confirm('¿Iniciar una nueva vuelta? Todas las unidades vuelven a quedar pendientes.'))return;
+    const prev=JSON.parse(JSON.stringify(C.as));C.as.vuelta=(C.as.vuelta||1)+1;C.as.inicio=null;C.as.manual={};
+    try{await guardarAsigPlg(`Plagas: inicia la vuelta ${C.as.vuelta}`);C.planes=[];C.av=null;C.avKey='';C.dia=null;}catch(e){C.as=prev;toast(e.message,6000);}pintarGer();};
+  const g=$('#pEnv');if(g)g.onclick=async()=>{const U=unidadesPlg(),fl=C.dia.filas;
+    if(!fl.length){toast('El plan no tiene unidades.',5000);return;}
+    const mal=fl.findIndex(x=>!x.usuario||!x.unidad);if(mal>=0){toast(`Complete el auxiliar y la unidad de la fila ${mal+1}.`,6000);return;}
+    const us=fl.map(x=>x.unidad);if(new Set(us).size!==us.length){toast('Hay una unidad asignada dos veces.',6000);return;}
+    g.disabled=true;g.textContent='Guardando…';const ruta=`plagas/plan/${P.fecha}.json`;let sha=null;try{sha=(await (await gh(`/contents/${ruta}?ref=${encodeURIComponent(SES.repo.rama)}`)).json()).sha;}catch(e){}
+    const nom=u=>((GER.plg.ops||[]).find(o=>o.u===u)||{}).nombre||u;
+    const plan={formato:'sanidad-plan-plagas-1',fecha:P.fecha,ciclo_version:C.c.version,vuelta:C.as.vuelta,creado:new Date().toISOString(),creado_por:SES.u,
+      asignaciones:fl.map(x=>{const u=U.get(x.unidad);const tit=Object.entries(C.as.titulares).find(([k,v])=>v===x.usuario&&Number(k)===u.posicion);
+        return {usuario:x.usuario,nombre:nom(x.usuario),unidad:u.unidad,dia:u.dia,posicion:u.posicion,tipo:tit?'titular':'apoyo',palmas:u.palmas,ha:u.ha,muestreo:C.c.reglas.muestreo_defecto,lotes:u.lotes};})};
+    try{await ghPut(ruta,JSON.stringify(plan),`Plan de monitoreo de plagas ${P.fecha} · ${fl.length} unidades`,sha);
+      if(!C.as.inicio||P.fecha<C.as.inicio){C.as.inicio=P.fecha;await guardarAsigPlg(`Plagas: vuelta ${C.as.vuelta} inicia el ${P.fecha}`);C.avKey='';}
+      C.planes=C.planes.filter(p=>p.fecha!==P.fecha).concat([plan]).sort((a,b)=>a.fecha.localeCompare(b.fecha));C.dia.enviado=true;C.guardado=true;
+      toast(`✅ Plan del ${P.fecha} enviado: cada auxiliar verá su bloque al iniciar el monitoreo.`,7000);}catch(e){toast(e.message,6000);}pintarGer();};
+}
