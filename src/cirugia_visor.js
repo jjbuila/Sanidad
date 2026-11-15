@@ -42,7 +42,7 @@ const etqPalma=o=>`${o.lote} · L${o.linea??'?'} · P${o.palma??'?'}`;
   bt.onclick=()=>alternarCirugia();
 })();
 function alternarCirugia(on){
-  CIR.on=on==null?!CIR.on:on;document.body.classList.toggle('modo-cir',CIR.on);$('#btCir').classList.toggle('prim',CIR.on);
+  CIR.on=on==null?!CIR.on:on;if(CIR.on&&typeof ERR!=='undefined'&&ERR.on)alternarErr(false);document.body.classList.toggle('modo-cir',CIR.on);$('#btCir').classList.toggle('prim',CIR.on);
   for(const c of [capaRec,capaDiag,capaPar])CIR.on?mapa.removeLayer(c):(c.addTo(mapa));
   if(CIR.on){CIR.capa.addTo(mapa);if(!CIR.cargado&&!CIR.cargando)cirCargar();else pintarCir();}
   else{mapa.removeLayer(CIR.capa);}

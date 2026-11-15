@@ -874,7 +874,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261115:1342</div>
+    <div id="lgVer">VERSIÓN 20261115:1409</div>
   </div>
 </div>
 
@@ -969,7 +969,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261115:1342';
+const VERSION='20261115:1409';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -2128,7 +2128,7 @@ const etqPalma=o=>`${o.lote} · L${o.linea??'?'} · P${o.palma??'?'}`;
   bt.onclick=()=>alternarCirugia();
 })();
 function alternarCirugia(on){
-  CIR.on=on==null?!CIR.on:on;document.body.classList.toggle('modo-cir',CIR.on);$('#btCir').classList.toggle('prim',CIR.on);
+  CIR.on=on==null?!CIR.on:on;if(CIR.on&&typeof ERR!=='undefined'&&ERR.on)alternarErr(false);document.body.classList.toggle('modo-cir',CIR.on);$('#btCir').classList.toggle('prim',CIR.on);
   for(const c of [capaRec,capaDiag,capaPar])CIR.on?mapa.removeLayer(c):(c.addTo(mapa));
   if(CIR.on){CIR.capa.addTo(mapa);if(!CIR.cargado&&!CIR.cargando)cirCargar();else pintarCir();}
   else{mapa.removeLayer(CIR.capa);}
@@ -3206,10 +3206,13 @@ const tipoErrTxt=t=>(TIPOS_ERR[t]||{}).t||t||'';
   .err-tipo{border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700;background:rgba(255,138,101,.15);color:#ff8a65;border:1px solid rgba(255,138,101,.45);white-space:nowrap}`;
   document.head.appendChild(css);
   const p=document.createElement('div');p.id='errPanel';$('aside').appendChild(p);
+  // Acceso directo en la cabecera, junto a ✚ CIRUGÍAS (también está en 🧭 COORDINACIÓN → Programador de erradicación)
+  const bt=document.createElement('button');bt.className='btn mini';bt.id='btErr';bt.innerHTML='🪓 ERRADICACIÓN';bt.title='Programador, seguimiento y aprobaciones de la erradicación';
+  const c=$('#btCir');if(c)c.after(bt);else $('#chDatos').before(bt);bt.onclick=()=>{if(GER.on)alternarGerencia(false);alternarErr();};
 })();
 function alternarErr(on){
   ERR.on=on==null?!ERR.on:on;if(ERR.on&&typeof CIR!=='undefined'&&CIR.on)alternarCirugia(false);
-  document.body.classList.toggle('modo-err',ERR.on);
+  document.body.classList.toggle('modo-err',ERR.on);{const b=$('#btErr');if(b)b.classList.toggle('prim',ERR.on);}
   for(const c of [capaRec,capaDiag,capaPar])ERR.on?mapa.removeLayer(c):(c.addTo(mapa));
   if(ERR.on){ERR.capa.addTo(mapa);if(!ERR.cargado&&!ERR.cargando)errCargar();else pintarErr();}
   else mapa.removeLayer(ERR.capa);

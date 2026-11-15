@@ -72,7 +72,10 @@ with sync_playwright() as p:
     check('Casos: cráter, espontánea y yarumo pendientes, en orden de prioridad', pend == ['P1:CRATER', 'P2:ESPONTANEA', 'P3:YARUMO'], pend)
     check('Casos: PC inicial no se erradica; la corrección del erradicador y las ya erradicadas salen', not any(x.startswith(('P4', 'P5', 'P6', 'P7', 'P8')) for x in pend))
     check('Plazo: día hábil siguiente al reporte', vz.evaluate("ERR.pend[0].vence===habilMas(ERR.pend[0].fecha_censo)"))
-    # Coordinación → Programador de erradicación
+    # Botón de la cabecera y Coordinación → Programador de erradicación
+    vz.click('#btErr'); vz.wait_for_timeout(400)
+    check('Cabecera: botón 🪓 ERRADICACIÓN abre el programador', vz.evaluate("ERR.on&&document.body.classList.contains('modo-err')"))
+    vz.click('#btErr'); vz.wait_for_timeout(300)
     vz.click('#btCoord'); time.sleep(.3); vz.click('[data-gt=progerr]'); time.sleep(.3)
     check('Coordinación: pestaña Programador de erradicación', 'PROGRAMADOR DE ERRADICACIÓN' in vz.inner_text('#gerPanel').upper())
     vz.click('#gerAbrirErr'); time.sleep(.6)

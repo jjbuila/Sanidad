@@ -21,10 +21,13 @@ const tipoErrTxt=t=>(TIPOS_ERR[t]||{}).t||t||'';
   .err-tipo{border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700;background:rgba(255,138,101,.15);color:#ff8a65;border:1px solid rgba(255,138,101,.45);white-space:nowrap}`;
   document.head.appendChild(css);
   const p=document.createElement('div');p.id='errPanel';$('aside').appendChild(p);
+  // Acceso directo en la cabecera, junto a ✚ CIRUGÍAS (también está en 🧭 COORDINACIÓN → Programador de erradicación)
+  const bt=document.createElement('button');bt.className='btn mini';bt.id='btErr';bt.innerHTML='🪓 ERRADICACIÓN';bt.title='Programador, seguimiento y aprobaciones de la erradicación';
+  const c=$('#btCir');if(c)c.after(bt);else $('#chDatos').before(bt);bt.onclick=()=>{if(GER.on)alternarGerencia(false);alternarErr();};
 })();
 function alternarErr(on){
   ERR.on=on==null?!ERR.on:on;if(ERR.on&&typeof CIR!=='undefined'&&CIR.on)alternarCirugia(false);
-  document.body.classList.toggle('modo-err',ERR.on);
+  document.body.classList.toggle('modo-err',ERR.on);{const b=$('#btErr');if(b)b.classList.toggle('prim',ERR.on);}
   for(const c of [capaRec,capaDiag,capaPar])ERR.on?mapa.removeLayer(c):(c.addTo(mapa));
   if(ERR.on){ERR.capa.addTo(mapa);if(!ERR.cargado&&!ERR.cargando)errCargar();else pintarErr();}
   else mapa.removeLayer(ERR.capa);
