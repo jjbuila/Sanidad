@@ -17,8 +17,8 @@
  },
  "carto": {
   "archivo": "carto.enc",
-  "version": "20261111-1550",
-  "tam": 4425767,
+  "version": "20261115-0712",
+  "tam": 4499392,
   "lotes": 291
  },
  "usuarios": [
@@ -373,7 +373,7 @@
    }
   }
  ],
- "modificado": "2026-11-11T20:50:29.954659+00:00",
+ "modificado": "2026-11-15T12:12:34.938Z",
  "vias": {
   "archivo": "vias.enc",
   "version": "20261113-0043",

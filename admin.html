@@ -297,10 +297,14 @@ function leerFilas(tbody,existentes){
 function csvCredenciales(lista){return '﻿usuario;nombre;rol;contraseña\r\n'+lista.map(x=>[x.u,x.nombre,x.rol,x.clave].join(';')).join('\r\n');}
 function mostrarResultado(cont,archivos,lista){
   cont.hidden=false;
-  cont.innerHTML=`<div class="ok">✅ Archivos generados y descargados: ${archivos.map(a=>`<code>${a}</code>`).join(' ')}.<br>
+  /* archivos: [{nombre, datos}] — un botón por archivo: el navegador puede bloquear la 2.ª descarga automática, pero nunca una pedida con un clic */
+  cont.innerHTML=`<div class="ok">✅ Archivos generados: ${archivos.map(a=>`<code>${a.nombre}</code>`).join(' ')}.<br>
+    Si alguno no se descargó solo (el navegador suele bloquear la segunda descarga), use su botón:
+    <div class="fila" style="margin:8px 0">${archivos.map((a,i)=>`<button class="btn chico" data-dl="${i}">⬇ ${a.nombre}</button>`).join('')}</div>
     Súbalos al repositorio <b>Sanidad</b> dentro de la carpeta <code>datos/</code> (reemplazando los anteriores). Los celulares los tomarán la próxima vez que abran la aplicación con internet.</div>
     ${lista.length?`<button class="btn" id="dlCred">Descargar credenciales para entregar (CSV)</button>
     <p class="tenue">⚠️ El CSV contiene contraseñas en texto plano: entréguelas de forma personal y elimínelo después.</p>`:''}`;
+  cont.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>{const a=archivos[+b.dataset.dl];descargar(a.datos,a.nombre,a.tipo);});
   const b=cont.querySelector('#dlCred');if(b)b.onclick=()=>descargar(csvCredenciales(lista),'credenciales_sanidad_vegetal.csv','text/csv');
 }
 
@@ -328,9 +332,10 @@ $('#cGenerar').onclick=async()=>{
     const acceso={formato:FORMATO,id:crypto.randomUUID(),creado:new Date().toISOString(),repo:{owner,repo,rama},
       kdf:{alg:'PBKDF2-SHA256',iter:ITER},token:await cifrar(dk,enc.encode(token)),
       carto:{archivo:'carto.enc',version:versionAhora(),tam:carto.bytes.length,lotes:carto.lotes},usuarios};
-    descargar(JSON.stringify(acceso,null,1),'acceso.json','application/json');
-    await new Promise(r=>setTimeout(r,600));descargar(new Blob([carto.bytes]),'carto.enc');
-    mostrarResultado($('#cOk'),['acceso.json','carto.enc'],lista);
+    const arch=[{nombre:'acceso.json',datos:JSON.stringify(acceso,null,1),tipo:'application/json'},{nombre:'carto.enc',datos:new Blob([carto.bytes])}];
+    descargar(arch[0].datos,arch[0].nombre,arch[0].tipo);
+    await new Promise(r=>setTimeout(r,600));descargar(arch[1].datos,arch[1].nombre);
+    mostrarResultado($('#cOk'),arch,lista);
   }catch(e){msg.textContent='❌ '+e.message;}
   finally{bt.disabled=false;bt.textContent='GENERAR ARCHIVOS CIFRADOS';}
 };
@@ -703,11 +708,10 @@ $('#eGuardar').onclick=async()=>{
     const fp=$('#ePlant').files[0];let plant=null;
     if(fp){plant=await cifrarPlantacion(ED.dk,fp);a.plantacion={archivo:'plantacion.enc',version:versionAhora(),tam:plant.bytes.length};}
     a.modificado=new Date().toISOString();
-    descargar(JSON.stringify(a,null,1),'acceso.json','application/json');
-    if(carto){await new Promise(r=>setTimeout(r,600));descargar(new Blob([carto.bytes]),'carto.enc');}
-    if(plant){await new Promise(r=>setTimeout(r,600));descargar(new Blob([plant.bytes]),'plantacion.enc');}
+    const arch=[{nombre:'acceso.json',datos:JSON.stringify(a,null,1),tipo:'application/json'},...(carto?[{nombre:'carto.enc',datos:new Blob([carto.bytes])}]:[]),...(plant?[{nombre:'plantacion.enc',datos:new Blob([plant.bytes])}]:[])];
+    for(const [i,x] of arch.entries()){if(i)await new Promise(r=>setTimeout(r,600));descargar(x.datos,x.nombre,x.tipo);}
     const entregar=nuevos.concat(Array.from(ED.claves,([u,clave])=>{const m=ED.lista.find(y=>y.u===u);return {u,nombre:m.nombre,rol:m.rol,clave};}));
-    mostrarResultado($('#eOk'),['acceso.json',...(carto?['carto.enc']:[]),...(plant?['plantacion.enc']:[])],entregar);
+    mostrarResultado($('#eOk'),arch,entregar);
     ED.acceso=a;
     const cambiosH=cambiosUsuarios();registrarHistorial(cambiosH).catch(e=>{msg.textContent='⚠ Archivos generados, pero no se pudo guardar el historial de cambios: '+e.message;});
     // El paquete descargado pasa a ser el actual: los cambios ya quedaron aplicados
