@@ -87,12 +87,12 @@ with sync_playwright() as p:
         casos:GER.mcCasos,kpi:kpiPC?Number(kpiPC.querySelector('b').innerText.replace(/\\D/g,'')):null,ha:GER.mcHa,filas,ley:document.querySelector('#mcLeyenda').innerText,
         resumen:document.querySelector('#mcResumen').innerText,top:document.querySelector('#mcTop').innerText}}"""
     mc = vz.evaluate(LEY)
-    pct = sum(float(f[2].replace('%', '').replace(',', '.').strip() or 0) for f in mc['filas'][:5])
     check('Tablero: mapa de incidencia actual PC por clases, sin ortofoto', mc['mapa'] and mc['teselas'] == 0 and mc['img'] == 1 and mc['casos'] == mc['kpi'] and mc['casos'] > 0 and 'IT01' in mc['top'] and 'INCIDENCIA ACTUAL PC' in mc['ley'], mc)
-    check('Tablero: convenciones con 5 clases, área (ha) y porcentaje', len(mc['filas']) == 6 and mc['filas'][0][0].startswith('≤ 1,0') and sum(mc['ha']) > 0 and abs(pct - 100) < 0.6 and mc['filas'][5][0] == 'Total', mc['filas'])
+    check('Tablero: convenciones de incidencia solo con color y rango', len(mc['filas']) == 5 and all(len(f) == 1 for f in mc['filas']) and mc['filas'][0][0].startswith('≤ 1,0') and mc['filas'][4][0] == '> 4,0 %' and 'Área' not in mc['ley'], mc['filas'])
     vz.click('[data-mcm=nuevos]'); time.sleep(1.2)
     mn = vz.evaluate(LEY)
-    check('Tablero: mapa de casos nuevos PC con sus clases', 'CASOS NUEVOS PC' in mn['ley'] and 'casos nuevos' in mn['resumen'] and mn['filas'][4][0] == '> 12' and mn['img'] == 1, mn['resumen'])
+    check('Tablero: casos nuevos con color, rango y número de casos', 'CASOS NUEVOS PC' in mn['ley'] and 'casos nuevos' in mn['resumen'] and len(mn['filas']) == 5 and mn['filas'][4][0] == '> 12' and mn['img'] == 1
+          and sum(int(f[1].replace('.', '')) for f in mn['filas']) == mn['casos'] and 'Área' not in mn['ley'], mn['filas'])
     vz.click('[data-mcm=incid]'); time.sleep(.6)
     ciclo = vz.evaluate("[...document.querySelectorAll('#gerPanel table')].pop().innerText")
     check('Ciclo de censo: IT05 con 40 días (alerta) e IT09 sin censo', '40 días' in ciclo and 'Sin censo en el periodo' in ciclo, ciclo.replace('\n', ' | ')[:200])

@@ -22,7 +22,7 @@
   - **Incidencia actual PC:** casos vigentes ÷ palmas del lote. Clases ≤ 1 %, 1–2 %, 2–3 %, 3–4 % y > 4 %.
   - **Casos nuevos PC:** en el periodo cargado. Clases ≤ 3, 3–6, 6–9, 9–12 y > 12.
   - Es una superficie interpolada (IDW) a partir del valor de cada lote, pintada sobre toda la plantación (límite de `cartografia/plantacion.geojson`), con los lotes y sus nombres encima, escala y norte.
-  - Las **convenciones** muestran el área (ha) y el porcentaje de cada clase. Las hectáreas se ajustan al área oficial de los lotes.
+  - **Convenciones:** en incidencia, solo el color y el rango. En casos nuevos, el color, el rango y el número de casos de los lotes de cada rango.
   - Al lado aparece la lista de lotes ordenada de mayor a menor (un clic acerca el lote). Al acercar el mapa aparece cada palma con caso.
 - **🧭 COORDINACIÓN Y SUPERVISIÓN DE LA LABOR** (gestión del personal): Planificación (ciclo de censo y asignación del personal), **Programador de cirugías** (abre el programador sobre el mapa; también con el botón ✚ CIRUGÍAS), Cirugía (indicadores), Calidad, Auditoría y Reportes.
 - **🗄️ ANÁLISIS DE DATOS** (analistas de datos): Sincronización de los equipos.
