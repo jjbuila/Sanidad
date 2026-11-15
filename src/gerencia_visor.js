@@ -390,57 +390,174 @@ function proponerPlan(ops){
     out.push({...o,lotes:sel.map(x=>({lote:x.lote,ha:x.ha,dias:x.dias}))});}
   return out;
 }
-/* ---- Ciclo de censo aprobado (censo/programacion/ciclo.json): bloque general por día y bloque de cada persona (18 ha, calles completas).
-   Cada día se asigna un operario a cada bloque (P1…P11) y se envía a los celulares en censo/plan/AAAA-MM-DD.json con lotes y calles. ---- */
-GER.cic={c:null,cargando:false,err:null,dia:null,asig:{},guardado:false};
+/* ---- Ciclo de censo aprobado (censo/programacion/ciclo.json): asignación del personal por bloque de persona (P1…P11).
+   · Titular: cada P tiene un operario que recorre sus bloques D1·P, D2·P, D3·P… en orden y a su propio ritmo
+     (no todo el ciclo avanza el mismo día: cada operario sigue con su siguiente bloque pendiente).
+   · Avance automático: palmas distintas visitadas dentro de las calles del bloque, en las jornadas desde el inicio de la vuelta;
+     con 90 % o más el bloque queda ejecutado. También se puede marcar terminado o reabrir a mano.
+   · Plan del día: a cada titular su siguiente bloque; se puede cambiar el bloque, quitar a quien no asiste, reemplazar al operario
+     o agregar bloques de apoyo (un operario con dos bloques, o el bloque de otra P) para ir barriendo la programación.
+   Estado en censo/programacion/asignacion.json; el plan de cada fecha en censo/plan/AAAA-MM-DD.json (lo leen los celulares). ---- */
+const UMBRAL_EJEC=90;
+GER.cic={c:null,cargando:false,err:null,as:null,asSha:null,planes:[],av:null,avKey:'',calculando:false,dia:null,guardado:false};
+const bloqueId=(d,p)=>`D${d}·P${p}`;
+function bloquesCiclo(){const C=GER.cic;if(C._b&&C._bv===C.c)return C._b;const m=new Map();
+  for(const D of C.c.dias)for(const p of D.personas)m.set(bloqueId(D.dia,p.persona),{id:bloqueId(D.dia,p.persona),dia:D.dia,persona:p.persona,palmas:p.palmas,ha:p.ha,detalle:p.detalle,tramos:p.tramos});
+  C._b=m;C._bv=C.c;return m;}
+async function guardarAsignacion(msg){const C=GER.cic;C.as.actualizado=new Date().toISOString();C.as.actualizado_por=SES.u;
+  C.asSha=await ghPut('censo/programacion/asignacion.json',JSON.stringify(C.as,null,1),msg,C.asSha);}
 async function cargarCiclo(){
-  const C=GER.cic,rama=encodeURIComponent(SES.repo.rama);
-  try{C.c=JSON.parse(await (await gh(`/contents/censo/programacion/ciclo.json?ref=${rama}`,'application/vnd.github.raw+json')).text());}
-  catch(e){C.c=false;if(e.status!==404)C.err=e.message;return;}
-  // El último plan enviado indica en qué día del ciclo vamos y qué operario tenía cada bloque
+  const C=GER.cic,rama=encodeURIComponent(SES.repo.rama),raw=async r=>JSON.parse(await (await gh(`/contents/${r}?ref=${rama}`,'application/vnd.github.raw+json')).text());
+  try{C.c=await raw('censo/programacion/ciclo.json');}catch(e){C.c=false;if(e.status!==404)C.err=e.message;return;}
+  try{const j=await (await gh(`/contents/censo/programacion/asignacion.json?ref=${rama}`)).json();C.asSha=j.sha;C.as=JSON.parse(DEC.decode(deB64(j.content.replace(/\s/g,''))));}
+  catch(e){if(e.status!==404)throw e;C.as=null;}
+  if(!C.as)C.as={formato:'sanidad-asignacion-censo-1',ciclo_version:C.c.version,vuelta:1,inicio:null,titulares:{},manual:{}};
+  C.as.titulares=C.as.titulares||{};C.as.manual=C.as.manual||{};
+  // Planes enviados en esta vuelta (para saber qué bloque tuvo cada quien y retomar el plan de una fecha)
+  C.planes=[];
   try{const l=await (await gh(`/contents/censo/plan?ref=${rama}`)).json();
-    const fs=(Array.isArray(l)?l:[]).filter(x=>/^\d{4}-\d{2}-\d{2}\.json$/.test(x.name)).map(x=>x.name).sort().reverse();
-    for(const n of fs.slice(0,6)){const p=JSON.parse(await (await gh(`/contents/censo/plan/${n}?ref=${rama}`,'application/vnd.github.raw+json')).text());
-      if(p.ciclo_dia){C.ultimo={fecha:n.slice(0,10),dia:p.ciclo_dia};C.dia=p.ciclo_dia%C.c.dias.length+1;for(const a of p.asignaciones||[])if(a.persona)C.asig[a.persona]=a.usuario;break;}}}
+    const fs=(Array.isArray(l)?l:[]).filter(x=>/^\d{4}-\d{2}-\d{2}\.json$/.test(x.name)).map(x=>x.name).sort().reverse().filter(n=>!C.as.inicio||n.slice(0,10)>=C.as.inicio).slice(0,30);
+    for(const n of fs){try{const p=await raw(`censo/plan/${n}`);if(p.ciclo_version||p.ciclo_dia||p.ciclo_dias)C.planes.push({fecha:n.slice(0,10),...p});}catch(e){}}}
   catch(e){}
-  if(!C.dia)C.dia=1;
+  C.planes.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  // Sin titulares guardados: se toman del último plan (cada operario con su P)
+  if(!Object.keys(C.as.titulares).length)for(const p of C.planes)for(const a of p.asignaciones||[])if(a.persona&&(a.tipo||'titular')==='titular')C.as.titulares[a.persona]=a.usuario;
 }
+/* Avance de cada bloque con las jornadas cargadas (desde el inicio de la vuelta) */
+async function calcularAvance(){
+  const C=GER.cic,ini=C.as.inicio;const key=JOR.length+'|'+(JOR[0]&&JOR[0].id)+'|'+ini;if(C.avKey===key&&C.av)return;
+  C.calculando=true;
+  const vis=new Map();if(ini)for(const j of JOR){if(String(j.fecha)<ini)continue;for(const x of j.por_lote||[]){const ids=x.ids_palmas_visitadas||[];if(!ids.length)continue;let s=vis.get(x.lote);if(!s)vis.set(x.lote,s=new Set());ids.forEach(i=>s.add(String(i)));}}
+  const av={};
+  for(const b of bloquesCiclo().values()){let tot=0,v=0;
+    for(const t of b.tramos){const s=vis.get(t.lote);
+      if(t.desde==null||t.hasta==null){tot+=t.palmas;if(s){const lt=totalLote(t.lote)||t.palmas;v+=Math.min(t.palmas,Math.round(s.size*t.palmas/lt));}continue;}   // lote sin líneas: proporcional
+      if(!s){tot+=t.palmas;continue;}
+      const ch=await chunkLote(t.lote);let n=0,k=0;for(const a of ch){const l=Number(a[1]);if(l>=t.desde&&l<=t.hasta){n++;if(s.has(String(a[0])))k++;}}
+      tot+=n||t.palmas;v+=k;}
+    av[b.id]=tot?Math.min(100,v/tot*100):0;}
+  C.av=av;C.avKey=key;C.calculando=false;
+}
+function estadoBloque(id){const C=GER.cic,m=C.as.manual[id],p=(C.av&&C.av[id])||0;
+  if(m&&m.estado==='terminado')return {e:'ejecutado',p,manual:true};
+  if(p>=UMBRAL_EJEC&&!(m&&m.estado==='reabierto'))return {e:'ejecutado',p};
+  return {e:p>0?'curso':'pendiente',p,manual:!!m};}
+const ultimoPlanBloque=id=>{let r=null;for(const p of GER.cic.planes)for(const a of p.asignaciones||[])if(a.bloque===id)r={fecha:p.fecha,usuario:a.usuario,nombre:a.nombre};return r;};
+function siguienteBloque(persona,ocupados){const C=GER.cic;
+  for(const D of C.c.dias){const id=bloqueId(D.dia,persona);if(ocupados.has(id))continue;if(estadoBloque(id).e!=='ejecutado'&&D.personas.some(p=>p.persona===persona))return id;}
+  return null;}
+/* Plan sugerido (o el ya enviado) para la fecha */
+function armarDia(fecha,forzar){
+  const C=GER.cic,P=GER.plan;
+  const env=C.planes.find(p=>p.fecha===fecha);
+  if(env&&!forzar){C.dia={fecha,enviado:true,filas:(env.asignaciones||[]).filter(a=>a.bloque).map(a=>({usuario:a.usuario,bloque:a.bloque}))};C.guardado=true;return;}
+  const filas=[],ocup=new Set();
+  for(let p=1;p<=C.c.reglas.personas_dia;p++){const u=C.as.titulares[p]||'';const b=siguienteBloque(p,ocup);if(!b)continue;ocup.add(b);filas.push({usuario:u,bloque:b});}
+  C.dia={fecha,enviado:false,filas};C.guardado=false;
+}
+function tipoFila(f,filas){const C=GER.cic,b=bloquesCiclo().get(f.bloque);if(!f.usuario||!b)return '';
+  if(C.as.titulares[b.persona]===f.usuario)return filas.filter(x=>x.usuario===f.usuario).length>1?'titular · 2+ bloques':'titular';
+  const esTit=Object.values(C.as.titulares).includes(f.usuario);
+  return esTit?'apoyo':'reemplazo';}
+const chipEstado=s=>s.e==='ejecutado'?`<span class="ger-chip ok">✔ ${s.manual?'terminado':num(s.p,0)+' %'}</span>`:s.e==='curso'?`<span class="ger-chip med">${num(s.p,0)} %</span>`:`<span class="ger-chip gris">pendiente</span>`;
 function pintarCiclo(){
   const C=GER.cic,P=GER.plan;
-  if(C.c==null&&!C.cargando){C.cargando=true;cargarCiclo().finally(()=>{C.cargando=false;pintarGer();});}
+  if(C.c==null&&!C.cargando){C.cargando=true;cargarCiclo().catch(e=>{C.err=e.message;C.c=false;}).finally(()=>{C.cargando=false;pintarGer();});}
   if(C.c==null)return '<p class="tenue">Consultando el ciclo de censo aprobado…</p>';
   if(C.c===false)return `<p class="tenue">${C.err?'❌ '+esc(C.err):'Aún no hay un ciclo de censo aprobado (censo/programacion/ciclo.json).'}</p>`;
-  const c=C.c,D=c.dias.find(x=>x.dia===C.dia)||c.dias[0],R=c.reglas;
-  const ops=P.ops||[];const usados={};for(const k in C.asig)if(C.asig[k])usados[C.asig[k]]=(usados[C.asig[k]]||0)+1;
-  const sel=p=>`<select data-cp="${p.persona}" style="min-width:180px"><option value="">— Operario —</option>${ops.map(o=>`<option value="${esc(o.usuario)}" ${C.asig[p.persona]===o.usuario?'selected':''}>${esc(o.nombre)}</option>`).join('')}</select>${C.asig[p.persona]&&usados[C.asig[p.persona]]>1?' <b style="color:var(--rojo,#e53935)">repetido</b>':''}`;
-  return `<div class="ger-sec"><h3>Ciclo de censo aprobado</h3>
-    <p class="tenue">Aprobado el ${esc(c.aprobado)} · ${c.dias.length} días · ${R.personas_dia} personas por día · ${R.ha_persona} ha (${num(R.palmas_persona)} palmas, ${esc(R.conteo)}) por persona · calles completas · bloques continuos · inicio en ${esc(R.inicio)}.
-    ${C.ultimo?` Último plan enviado: día ${C.ultimo.dia} del ciclo (${esc(C.ultimo.fecha)}).`:''}</p>
-    <div class="ger-par">Fecha <input type="date" id="cFecha" value="${esc(P.fecha)}"> Día del ciclo <select id="cDia">${c.dias.map(x=>`<option value="${x.dia}" ${x.dia===D.dia?'selected':''}>Día ${x.dia} · ${esc(x.programas.join(', '))} · ${num(x.palmas)} palmas</option>`).join('')}</select>
-      <button class="btn mini nar" id="cGuardar">${C.guardado?'✅ Enviado · enviar de nuevo':'Guardar y enviar a los celulares'}</button> <button class="btn mini" id="cPdf">📄 PDF del ciclo</button></div>
-    ${P.ops==null?'<p class="tenue">Cargando operarios…</p>':tablaGer([{t:'Bloque',f:p=>`<b>D${D.dia}·P${p.persona}</b>`},{t:'Lotes y calles',f:p=>esc(p.detalle)},{t:'Palmas',n:1,f:p=>num(p.palmas)},{t:'Ha',n:1,f:p=>num(p.ha,1)},{t:'Operario',f:sel}],D.personas)}</div>`;
+  const key=JOR.length+'|'+(JOR[0]&&JOR[0].id)+'|'+C.as.inicio;
+  if((C.avKey!==key||!C.av)&&!C.calculando){calcularAvance().catch(e=>{C.calculando=false;C.av={};toast(e.message,6000);}).finally(()=>pintarGer());}
+  if(!C.av)return '<p class="tenue">Calculando el avance de los bloques…</p>';
+  if(!C.dia||C.dia.fecha!==P.fecha)armarDia(P.fecha);
+  const c=C.c,R=c.reglas,B=bloquesCiclo(),ops=P.ops||[],nom=u=>(ops.find(o=>o.usuario===u)||{}).nombre||u||'—',K=R.personas_dia;
+  const todos=[...B.values()],est=new Map(todos.map(b=>[b.id,estadoBloque(b.id)]));
+  const nEj=todos.filter(b=>est.get(b.id).e==='ejecutado').length,nCu=todos.filter(b=>est.get(b.id).e==='curso').length;
+  const palEj=todos.reduce((t,b)=>t+b.palmas*Math.min(1,(est.get(b.id).e==='ejecutado'?100:est.get(b.id).p)/100),0),palTot=todos.reduce((t,b)=>t+b.palmas,0);
+  const desde=$('#fDesde')&&$('#fDesde').value;
+  const avisoRango=C.as.inicio&&(!desde||desde>C.as.inicio)?`<div class="ger-aviso">El avance se calcula con las jornadas cargadas. Para contar toda la vuelta (desde el ${esc(C.as.inicio)}) <button class="btn mini prim" id="cDesdeIni">Cargar jornadas desde el ${esc(C.as.inicio)}</button></div>`:'';
+  // 1. Titulares por P
+  const selOp=(attr,val,vacio)=>`<select ${attr} style="min-width:170px"><option value="">${vacio}</option>${ops.map(o=>`<option value="${esc(o.usuario)}" ${val===o.usuario?'selected':''}>${esc(o.nombre)}</option>`).join('')}</select>`;
+  const rep={};for(const k in C.as.titulares)if(C.as.titulares[k])rep[C.as.titulares[k]]=(rep[C.as.titulares[k]]||0)+1;
+  const filasP=Array.from({length:K},(_,i)=>i+1).map(p=>{const bs=c.dias.filter(D=>D.personas.some(x=>x.persona===p)).map(D=>bloqueId(D.dia,p));
+    return {p,ej:bs.filter(id=>est.get(id).e==='ejecutado').length,n:bs.length,sig:siguienteBloque(p,new Set())};});
+  const tTit=P.ops==null?'<p class="tenue">Cargando operarios…</p>':tablaGer([{t:'Bloque',f:x=>`<b>P${x.p}</b>`},
+    {t:'Operario titular',f:x=>selOp(`data-tit="${x.p}"`,C.as.titulares[x.p]||'','— Sin titular —')+(C.as.titulares[x.p]&&rep[C.as.titulares[x.p]]>1?' <b style="color:#ff8a8a">repetido</b>':'')},
+    {t:'Bloques ejecutados',n:1,f:x=>`${x.ej} de ${x.n}`},{t:'Siguiente bloque',f:x=>x.sig?`<b>${esc(x.sig)}</b> ${chipEstado(est.get(x.sig))}`:'<span class="ger-chip ok">vuelta completa</span>'}],filasP);
+  // 2. Plan del día
+  const filas=C.dia.filas,usadas=new Map();filas.forEach(f=>{if(f.bloque)usadas.set(f.bloque,(usadas.get(f.bloque)||0)+1);});
+  const pend=todos.filter(b=>est.get(b.id).e!=='ejecutado');
+  const selB=(i,val)=>`<select data-fb="${i}" style="min-width:150px"><option value="">— Bloque —</option>${pend.concat(val&&!pend.some(b=>b.id===val)?[B.get(val)]:[]).filter(Boolean).map(b=>`<option value="${esc(b.id)}" ${b.id===val?'selected':''}>${esc(b.id)} · ${est.get(b.id).e==='curso'?num(est.get(b.id).p,0)+' %':'pend.'}</option>`).join('')}</select>${usadas.get(val)>1?' <b style="color:#ff8a8a">repetido</b>':''}`;
+  const tDia=P.ops==null?'':tablaGer([{t:'Operario',f:x=>selOp(`data-fu="${x.i}"`,x.usuario,'— Operario —')},{t:'Bloque',f:x=>selB(x.i,x.bloque)},
+    {t:'Tipo',f:x=>{const t=tipoFila(x,filas);return t?`<span class="ger-chip ${t.startsWith('titular')?'ok':'med'}">${esc(t)}</span>`:'';}},
+    {t:'Lotes y calles',f:x=>{const b=B.get(x.bloque);return b?esc(b.detalle):'—';}},{t:'Palmas',n:1,f:x=>{const b=B.get(x.bloque);return b?num(b.palmas):'—';}},
+    {t:'Avance',f:x=>x.bloque?chipEstado(est.get(x.bloque)):''},{t:'',f:x=>`<button class="btn mini" data-fq="${x.i}" title="Quitar (no asiste o no va hoy)">✕</button>`}],filas.map((f,i)=>({...f,i})));
+  const sinAsignar=filasP.filter(x=>x.sig&&!filas.some(f=>f.bloque===x.sig)).map(x=>x.sig);
+  // 3. Avance del ciclo (días × personas)
+  const grid=`<div class="ger-tabla"><table class="ger-calor"><thead><tr><th>Día</th>${Array.from({length:K},(_,i)=>`<th class="c">P${i+1}</th>`).join('')}</tr></thead><tbody>${
+    c.dias.map(D=>`<tr><td><b>D${D.dia}</b> <span class="tenue">${esc(D.programas.join(', '))}</span></td>${Array.from({length:K},(_,i)=>{const id=bloqueId(D.dia,i+1);if(!B.has(id))return '<td class="c tenue">—</td>';
+      const s=est.get(id),u=ultimoPlanBloque(id),bg=s.e==='ejecutado'?'rgba(34,211,154,.35)':s.e==='curso'?'rgba(255,197,61,.30)':'transparent';
+      return `<td class="c" data-cel="${esc(id)}" style="cursor:pointer;background:${bg};${u&&s.e!=='ejecutado'?'outline:1px solid #6fb3ff;outline-offset:-2px;':''}" title="${esc(id)} · ${esc(B.get(id).detalle)}${u?` · plan ${u.fecha}: ${u.nombre||u.usuario}`:''}\nClic: ${s.e==='ejecutado'?'reabrir':'marcar terminado'}">${s.e==='ejecutado'?'✔':s.e==='curso'?num(s.p,0):'·'}</td>`;}).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="ger-sec"><h3>Ciclo de censo aprobado · vuelta ${C.as.vuelta}</h3>
+    <p class="tenue">Aprobado el ${esc(c.aprobado)} · ${c.dias.length} días · ${K} bloques por día (P1–P${K}) · ${R.ha_persona} ha (${num(R.palmas_persona)} palmas) por persona · calles completas.
+      ${C.as.inicio?`Vuelta iniciada el ${esc(C.as.inicio)}.`:'La vuelta inicia con el primer plan que se envíe.'} Cada operario avanza por sus bloques a su ritmo; un bloque queda ejecutado con ${UMBRAL_EJEC} % de sus palmas visitadas.</p>
+    ${avisoRango}
+    <div class="ger-kpis">${kpi(`${nEj} / ${todos.length}`,'Bloques ejecutados',nEj===todos.length?'ok':'')}${kpi(num(nCu),'Bloques en curso')}${kpi(num(palTot?palEj/palTot*100:0,1)+' %','Avance del ciclo (palmas)')}${kpi(num(todos.length-nEj-nCu),'Bloques pendientes')}</div></div>
+  <div class="ger-sec"><h3>1. Operario titular de cada bloque (P)</h3>
+    <p class="tenue">El titular de P3 hace D1·P3, luego D2·P3, D3·P3… El plan de cada día le propone su siguiente bloque pendiente.</p>
+    ${tTit}<div class="ger-par"><button class="btn mini prim" id="cTitGuardar">Guardar titulares</button> <button class="btn mini" id="cPdf">📄 PDF del ciclo</button></div></div>
+  <div class="ger-sec"><h3>2. Plan del día</h3>
+    <div class="ger-par">Fecha <input type="date" id="cFecha" value="${esc(P.fecha)}">
+      <button class="btn mini" id="cAgregar" title="Un operario con dos bloques, o el bloque de alguien que no vino">＋ Agregar bloque (apoyo o emergencia)</button>
+      <button class="btn mini" id="cSugerir">↺ Volver a la sugerencia</button>
+      <button class="btn mini nar" id="cGuardar">${C.guardado?'✅ Enviado · enviar de nuevo':'Guardar y enviar a los celulares'}</button></div>
+    ${C.dia.enviado?`<p class="tenue">Este es el plan ya enviado para el ${esc(C.dia.fecha)}. Puede modificarlo y enviarlo de nuevo.</p>`:''}
+    ${tDia}
+    ${sinAsignar.length?`<div class="ger-aviso">Bloques siguientes sin operario hoy: <b>${sinAsignar.map(esc).join(', ')}</b>. Agréguelos a un operario (＋ Agregar bloque) para no atrasar la programación.</div>`:''}</div>
+  <div class="ger-sec"><h3>3. Avance del ciclo</h3>
+    <p class="tenue">✔ ejecutado · número = % de avance · · pendiente · borde azul = asignado en un plan. Clic en un bloque para marcarlo terminado o reabrirlo.</p>
+    ${grid}<div class="ger-par"><button class="btn mini" id="cVuelta">Iniciar una nueva vuelta del ciclo</button></div></div>`;
 }
 function enlazarCiclo(){
-  const C=GER.cic,P=GER.plan;if(!C.c)return;
-  const f=$('#cFecha');if(f)f.onchange=()=>{P.fecha=f.value;C.guardado=false;};
-  const d=$('#cDia');if(d)d.onchange=()=>{C.dia=Number(d.value);C.guardado=false;pintarGer();};
-  $$('#gerPanel [data-cp]').forEach(s=>s.onchange=()=>{C.asig[s.dataset.cp]=s.value;C.guardado=false;pintarGer();});
+  const C=GER.cic,P=GER.plan;if(!C.c||!C.av||!C.dia)return;
+  const f=$('#cFecha');if(f)f.onchange=()=>{P.fecha=f.value;armarDia(P.fecha);pintarGer();};
+  const di=$('#cDesdeIni');if(di)di.onclick=async()=>{$('#fDesde').value=C.as.inicio;$('#fHasta').value=hoyISO();await cargar();pintarGer();};
+  $$('#gerPanel [data-tit]').forEach(s=>s.onchange=()=>{C.as.titulares[s.dataset.tit]=s.value;if(!C.dia.enviado)armarDia(P.fecha,true);pintarGer();});
+  const tg=$('#cTitGuardar');if(tg)tg.onclick=async()=>{tg.disabled=true;tg.textContent='Guardando…';
+    try{await guardarAsignacion('Censo: operarios titulares de los bloques del ciclo');toast('✅ Titulares guardados.');}catch(e){toast(e.message,6000);}pintarGer();};
+  $$('#gerPanel [data-fu]').forEach(s=>s.onchange=()=>{C.dia.filas[s.dataset.fu].usuario=s.value;C.guardado=false;pintarGer();});
+  $$('#gerPanel [data-fb]').forEach(s=>s.onchange=()=>{C.dia.filas[s.dataset.fb].bloque=s.value;C.guardado=false;pintarGer();});
+  $$('#gerPanel [data-fq]').forEach(b=>b.onclick=()=>{C.dia.filas.splice(Number(b.dataset.fq),1);C.guardado=false;pintarGer();});
+  const ag=$('#cAgregar');if(ag)ag.onclick=()=>{const us=new Set(C.dia.filas.map(x=>x.bloque));
+    const sig=Array.from({length:C.c.reglas.personas_dia},(_,i)=>siguienteBloque(i+1,us)).find(Boolean)||'';
+    C.dia.filas.push({usuario:'',bloque:sig});C.guardado=false;pintarGer();};
+  const su=$('#cSugerir');if(su)su.onclick=()=>{armarDia(P.fecha,true);pintarGer();};
+  $$('#gerPanel [data-cel]').forEach(td=>td.onclick=async()=>{const id=td.dataset.cel,s=estadoBloque(id);
+    const term=s.e!=='ejecutado';if(!confirm(term?`¿Marcar ${id} como terminado? (avance calculado: ${num(s.p,0)} %)`:`¿Reabrir ${id}? Volverá a quedar pendiente en la programación.`))return;
+    C.as.manual[id]={estado:term?'terminado':'reabierto',por:SES.u,fecha:new Date().toISOString()};
+    try{await guardarAsignacion(`Censo: ${id} ${term?'marcado terminado':'reabierto'}`);if(!C.dia.enviado)armarDia(P.fecha,true);}catch(e){delete C.as.manual[id];toast(e.message,6000);}pintarGer();});
+  const vu=$('#cVuelta');if(vu)vu.onclick=async()=>{if(!confirm('¿Iniciar una nueva vuelta? Todos los bloques vuelven a quedar pendientes; el avance se cuenta desde el próximo plan que envíe.'))return;
+    const prev=JSON.parse(JSON.stringify(C.as));C.as.vuelta=(C.as.vuelta||1)+1;C.as.inicio=null;C.as.manual={};
+    try{await guardarAsignacion(`Censo: inicia la vuelta ${C.as.vuelta} del ciclo`);C.planes=[];C.av=null;C.avKey='';C.dia=null;}catch(e){C.as=prev;toast(e.message,6000);}pintarGer();};
   const pdf=$('#cPdf');if(pdf)pdf.onclick=async()=>{pdf.disabled=true;const w=window.open('','_blank');
     try{const b=await (await gh(`/contents/censo/programacion/programacion_censo.pdf?ref=${encodeURIComponent(SES.repo.rama)}`,'application/vnd.github.raw+json')).arrayBuffer();
       const u=URL.createObjectURL(new Blob([b],{type:'application/pdf'}));if(w)w.location.href=u;else window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),300000);}
     catch(e){if(w)w.close();toast(e.message,6000);}pdf.disabled=false;};
   const g=$('#cGuardar');if(g)g.onclick=async()=>{
-    const D=C.c.dias.find(x=>x.dia===C.dia);const falta=D.personas.filter(p=>!C.asig[p.persona]);
-    if(falta.length){toast(`Asigne un operario a: ${falta.map(p=>'P'+p.persona).join(', ')}.`,6000);return;}
-    const us=D.personas.map(p=>C.asig[p.persona]);if(new Set(us).size!==us.length){toast('Hay un operario asignado a dos bloques.',6000);return;}
+    const B=bloquesCiclo(),fl=C.dia.filas;
+    if(!fl.length){toast('El plan no tiene bloques.',5000);return;}
+    const mal=fl.findIndex(x=>!x.usuario||!x.bloque);if(mal>=0){toast(`Complete el operario y el bloque de la fila ${mal+1}.`,6000);return;}
+    const bs=fl.map(x=>x.bloque);if(new Set(bs).size!==bs.length){toast('Hay un bloque asignado dos veces.',6000);return;}
     g.disabled=true;g.textContent='Guardando…';
     const ruta=`censo/plan/${P.fecha}.json`;let sha=null;try{sha=(await (await gh(`/contents/${ruta}?ref=${encodeURIComponent(SES.repo.rama)}`)).json()).sha;}catch(e){}
     const nom=u=>(P.ops.find(o=>o.usuario===u)||{}).nombre||u;
-    const plan={formato:'sanidad-plan-censo-1',fecha:P.fecha,ciclo_version:C.c.version,ciclo_dia:D.dia,creado:new Date().toISOString(),creado_por:SES.u,
-      asignaciones:D.personas.map(p=>({usuario:C.asig[p.persona],nombre:nom(C.asig[p.persona]),persona:p.persona,bloque:`D${D.dia}·P${p.persona}`,palmas:p.palmas,
-        lotes:p.tramos.map(t=>({lote:t.lote,ha:+(t.palmas/115).toFixed(1),palmas:t.palmas,desde:t.desde,hasta:t.hasta,lineas_calculadas:!!t.lineas_calculadas}))}))};
-    try{await ghPut(ruta,JSON.stringify(plan,null,1),`Plan de censo ${P.fecha} · día ${D.dia} del ciclo`,sha);C.guardado=true;C.ultimo={fecha:P.fecha,dia:D.dia};
-      toast(`✅ Día ${D.dia} enviado: cada operario verá su bloque (lotes y calles) al planificar la jornada del ${P.fecha}.`,7000);}
+    const dias=[...new Set(fl.map(x=>B.get(x.bloque).dia))].sort((a,b)=>a-b);
+    const plan={formato:'sanidad-plan-censo-2',fecha:P.fecha,ciclo_version:C.c.version,vuelta:C.as.vuelta,ciclo_dia:dias[0],ciclo_dias:dias,creado:new Date().toISOString(),creado_por:SES.u,
+      asignaciones:fl.map(x=>{const b=B.get(x.bloque);return {usuario:x.usuario,nombre:nom(x.usuario),persona:b.persona,bloque:b.id,tipo:tipoFila(x,fl).replace(/ ·.*/,''),palmas:b.palmas,avance_pct:+(estadoBloque(b.id).p.toFixed(1)),
+        lotes:b.tramos.map(t=>({lote:t.lote,ha:+(t.palmas/115).toFixed(1),palmas:t.palmas,desde:t.desde,hasta:t.hasta,lineas_calculadas:!!t.lineas_calculadas}))};})};
+    try{await ghPut(ruta,JSON.stringify(plan,null,1),`Plan de censo ${P.fecha} · ${fl.length} bloques (${bs.join(', ')})`,sha);
+      if(!C.as.inicio||P.fecha<C.as.inicio){C.as.inicio=P.fecha;await guardarAsignacion(`Censo: vuelta ${C.as.vuelta} del ciclo inicia el ${P.fecha}`);C.avKey='';}
+      C.planes=C.planes.filter(p=>p.fecha!==P.fecha).concat([{...plan}]).sort((a,b)=>a.fecha.localeCompare(b.fecha));C.dia.enviado=true;C.guardado=true;
+      toast(`✅ Plan del ${P.fecha} enviado: cada operario verá su bloque (lotes y calles) al planificar la jornada.`,7000);}
     catch(e){toast(e.message,6000);}pintarGer();};
 }
 function pintarPlanCenso(){

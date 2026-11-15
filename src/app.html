@@ -3066,16 +3066,21 @@ async function cargarPlanCenso(){
   if(!p)try{const c=await dbGet('config','plan_censo');if(c&&c.v&&c.v.fecha===f)p=c.v;}catch(e){}
   PLANC.p=p;
 }
-const misLotesPlan=()=>{const a=PLANC.p&&SES&&(PLANC.p.asignaciones||[]).find(x=>x.usuario===SES.u);return a?a.lotes:[];};
+/* Un operario puede tener varios bloques el mismo día (titular + apoyo o emergencia): se juntan sus lotes; si un lote se repite, se une el rango de calles. */
+const misAsigPlan=()=>PLANC.p&&SES?(PLANC.p.asignaciones||[]).filter(x=>x.usuario===SES.u):[];
+const misLotesPlan=()=>{const m=new Map();for(const a of misAsigPlan())for(const x of a.lotes||[]){const y=m.get(x.lote);
+    if(!y){m.set(x.lote,{...x});continue;}y.palmas=(Number(y.palmas)||0)+(Number(x.palmas)||0);y.ha=+((Number(y.ha)||0)+(Number(x.ha)||0)).toFixed(1);
+    if(y.desde!=null&&x.desde!=null){y.desde=Math.min(y.desde,x.desde);y.hasta=Math.max(y.hasta,x.hasta);}else{y.desde=null;y.hasta=null;}}
+  return [...m.values()];};
 function bannerPlan(){
   const ls=misLotesPlan();if(!ls.length||!$('#plLista'))return;
   const ha=ls.reduce((t,x)=>t+(Number(x.ha)||0),0),pal=ls.reduce((t,x)=>t+(Number(x.palmas)||0),0);
-  const a=PLANC.p&&SES&&(PLANC.p.asignaciones||[]).find(x=>x.usuario===SES.u)||{};
+  const as=misAsigPlan(),bl=as.filter(x=>x.bloque),a={bloque:bl.map(x=>x.bloque+(x.tipo&&x.tipo!=='titular'?` (${x.tipo})`:'')).join(' + ')};
   // Ciclo aprobado: cada lote con su rango de calles (desde–hasta); «Lc» = lote sin numeración de líneas en la cartografía (se censa completo)
   const rango=x=>x.desde!=null&&x.hasta!=null?` L${x.desde}–L${x.hasta}`:(x.lineas_calculadas?` (lote sin líneas en la cartografía: su parte ≈ ${num(x.palmas)} palmas, ver mapa del bloque)`:'');
-  $('#plLista').insertAdjacentHTML('beforebegin',`<div class="aviso" id="plAsig">📋 <b>${a.bloque?'Su bloque de hoy '+esc(a.bloque):'Lotes asignados para hoy'}:</b> ${ls.map(x=>`<b>${esc(x.lote)}</b>${esc(rango(x))}`).join(' · ')}
+  $('#plLista').insertAdjacentHTML('beforebegin',`<div class="aviso" id="plAsig">📋 <b>${a.bloque?(bl.length>1?'Sus bloques de hoy ':'Su bloque de hoy ')+esc(a.bloque):'Lotes asignados para hoy'}:</b> ${ls.map(x=>`<b>${esc(x.lote)}</b>${esc(rango(x))}`).join(' · ')}
     <span class="tenue">(${pal?num(pal)+' palmas · ':''}${String(ha.toFixed(1)).replace('.',',')} ha aprox.)</span>
-    <button class="btn prim ancho" id="plUsar" style="margin-top:8px">Usar ${a.bloque?'mi bloque':'los lotes asignados'}</button></div>`);
+    <button class="btn prim ancho" id="plUsar" style="margin-top:8px">Usar ${a.bloque?(bl.length>1?'mis bloques':'mi bloque'):'los lotes asignados'}</button></div>`);
   $('#plUsar').onclick=()=>{for(const x of ls){if(!CARTO.lotes[x.lote])continue;if(!enPlan(x.lote))alternarPlan(x.lote);
       const it=S.plan.find(p=>p.lote===x.lote);if(it&&x.desde!=null&&x.hasta!=null){it.desde=Number(x.desde);it.hasta=Number(x.hasta);}}   // solo las calles del bloque
     pintarPlanLista();pintarPlanSel();

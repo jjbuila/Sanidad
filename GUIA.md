@@ -257,8 +257,20 @@ Llega en 3 a 5 minutos y queda en la lista de reportes.
 **Planificación del censo — ciclo aprobado (visor → GERENCIA → Planificación).** La plantación está dividida en un **ciclo de 16 días** aprobado (`censo/programacion/ciclo.json`, con su PDF, Excel y mapa en la misma carpeta del repositorio de datos), de lo general a lo particular:
 - **Bloque general por día:** zona de lotes vecinos, de sur a norte empezando en IT, para **11 personas**; los lotes se cierran en el mismo día salvo unos pocos que continúan al día siguiente.
 - **Bloque de cada persona:** **18 ha (2.070 palmas, contando existentes 1 y no existentes 0) o más, preferiblemente 18–19 ha**, por **calles completas** (línea impar + par) y **continuo** (solo lotes vecinos).
-- Cada día: elija la fecha y el día del ciclo (el visor propone el siguiente al último enviado), asigne un operario a cada bloque P1…P11 (se recuerda la asignación del día anterior; avisa si un operario queda repetido) y toque **Guardar y enviar a los celulares** (`censo/plan/AAAA-MM-DD.json`). Botón **📄 PDF del ciclo** para consultarlo.
-- En la App, al planificar la jornada, el operario ve **«Su bloque de hoy D5·P3»** con los lotes y calles (por ejemplo *GU28 L1–L78 · GU27 L39–L59*) y **Usar mi bloque** lo deja seleccionado con exactamente esas líneas. En los lotes de RI sin numeración de líneas en la cartografía se indica cuántas palmas le corresponden; conviene cargar la numeración real.
+- **Asignación del personal por bloque (P):**
+  1. **Operario titular de cada P.** El titular de P3 hace D1·P3, luego D2·P3, D3·P3… Se elige una vez y se guarda con **Guardar titulares** (`censo/programacion/asignacion.json`).
+  2. **Avance automático.** Cada bloque toma su avance de las jornadas sincronizadas: palmas distintas visitadas dentro de sus calles desde el inicio de la vuelta. Con **90 %** queda ejecutado. Como no todo el ciclo avanza el mismo día, cada operario sigue con **su siguiente bloque pendiente**, aunque otros vayan en otro día del ciclo. Un bloque a medias se le vuelve a proponer para terminarlo.
+  3. **Plan del día.** Elija la fecha y el visor propone a cada titular su bloque. Se puede:
+     - cambiar el bloque;
+     - quitar a quien no asiste (✕);
+     - poner otro operario (**reemplazo**);
+     - con **＋ Agregar bloque (apoyo o emergencia)**, dar a un operario un segundo bloque o el bloque de alguien que no vino, para ir barriendo la programación.
+
+     El visor avisa qué bloques quedaron sin operario y no deja enviar un bloque repetido. **Guardar y enviar a los celulares** escribe `censo/plan/AAAA-MM-DD.json`.
+  4. **Avance del ciclo.** Una grilla de días × P muestra ✔ ejecutado, % en curso, pendiente, y un borde azul si el bloque ya está asignado en un plan. Con un clic se marca un bloque **terminado** o se **reabre**. **Iniciar una nueva vuelta** deja todo pendiente otra vez.
+
+  Para que el avance cuente toda la vuelta, cargue las jornadas desde su inicio; el visor ofrece el botón. **📄 PDF del ciclo** abre la programación aprobada.
+- En la App, al planificar la jornada, el operario ve **«Su bloque de hoy D5·P3»** con los lotes y calles (por ejemplo *GU28 L1–L78 · GU27 L39–L59*), y **Usar mi bloque** lo deja seleccionado con esas líneas. Si ese día tiene dos bloques (titular + apoyo), ve **«Sus bloques de hoy D5·P3 + D4·P8 (apoyo)»** y **Usar mis bloques** selecciona las calles de ambos. En los lotes de RI sin numeración de líneas en la cartografía se indica cuántas palmas le corresponden.
 - La propuesta automática por días sin censo sigue disponible como alternativa.
 
 **Historia de la palma.** En el visor, en la ficha de un diagnóstico, *🕘 Historia de la palma* muestra en orden sus censos y, si se cargó Cirugías, las cirugías y correcciones, con aviso si lleva más de 30 días en recuperación sin revisión. En la App, la ficha de la palma muestra la **línea de tiempo** con sus registros.
