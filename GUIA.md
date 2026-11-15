@@ -19,7 +19,7 @@
 
 **Módulos del visor:**
 - **📊 GERENCIA:** Tablero, Reportes y Sincronización.
-- **🧭 COORDINACIÓN Y SUPERVISIÓN DE LA LABOR** (gestión del personal): Planificación (ciclo de censo y asignación del personal), Cirugía, Calidad, Auditoría y Reportes.
+- **🧭 COORDINACIÓN Y SUPERVISIÓN DE LA LABOR** (gestión del personal): Planificación (ciclo de censo y asignación del personal), **Programador de cirugías** (abre el programador sobre el mapa; también con el botón ✚ CIRUGÍAS), Cirugía (indicadores), Calidad, Auditoría y Reportes.
 - **🗄️ ANÁLISIS DE DATOS** (analistas de datos): Sincronización de los equipos.
 
 Ver la sección 7.4 (reportes diarios, alertas, planificación, panel del día e IA).
