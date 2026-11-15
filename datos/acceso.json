@@ -28,8 +28,8 @@
    "iv": "4pNjyKVAZPXd2uuo",
    "ct": "DOYfFl6RfCCKgsW3gwydeKE3e2p3w9q9g8a2HlsOP5+HXyc1RXtIaBBIvCu5H3C4",
    "meta": {
-    "iv": "q4LGqKCYItsfYWVV",
-    "ct": "MuFevN+7OetN6667hq15BkERdrju3sP7dkenwVRt1rBvH9LzZWHLJDBjr5uTp5X6L977zrHJYuK+lpWH/9jmysAVzOd6C8Vf9Ksm/lCZ36KqLUlDHjkdv4Nhf0lj2gu6xpk9fH2okZcwU06viU3xAP1yNEA6CJDuPcDhbgi3BIMdygduHe8bvNFWUP2HUW8S9LzwIl1xAi4fc2w27GenFV0qjRp4Yjg7K9CUCcct4zvn6i8PGq/0VPm6sEHYc5t1tODLZgnfqrn7PaE="
+    "iv": "yREfSZSanFTtOlEC",
+    "ct": "lGcwoEApRCWw/eZKDOTyNMsem+Dxs2mzrR7IuOko+CwLL8InoHpaqCEVXQAPurEJ1dTUSC6gs89hv+PrgvIjX+Jj8qdg1bDE8vKhwSTL5l2cLzrNfyH1VWaGUO8W2ChLMiEkohSAB3A+njio2E82uAGyvivi1j9/zHlBw7cEf7VCPeFaoAgKnaHMW6PxB+HsQUq49wUH7SZZIIGd5aY6cTz+hZn91195ffGRulviIGvGInnU/IzBRcVcSqhiSwun5Yu567wQyeIborL6Rca0Sw=="
    }
   },
   {
@@ -373,7 +373,7 @@
    }
   }
  ],
- "modificado": "2026-11-15T14:41:07.529Z",
+ "modificado": "2026-11-15T15:06:36.083Z",
  "vias": {
   "archivo": "vias.enc",
   "version": "20261113-0043",
