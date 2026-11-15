@@ -10,7 +10,12 @@ def check(n, c, x=''):
     global ok
     print(('OK   ' if c else 'FALLA') + ' ' + n + (' · ' + str(x) if x != '' else '')); ok = ok and bool(c)
 
-INIT = INIT_VOZ
+# Cámara simulada con un lienzo animado: la cámara falsa de Chromium a veces «desaparece» al reabrirla (NotFoundError) y volvía inestable la prueba.
+CAMARA = """(()=>{const md=navigator.mediaDevices;if(!md)return;const o=md.getUserMedia.bind(md);
+  md.getUserMedia=async c=>{if(!c||!c.video)return o(c);const cv=document.createElement('canvas');cv.width=640;cv.height=480;const x=cv.getContext('2d');let n=0;
+    const pinta=()=>{x.fillStyle='hsl('+((n++*9)%360)+',60%,40%)';x.fillRect(0,0,640,480);};pinta();const st=cv.captureStream(15);const iv=setInterval(pinta,66);
+    st.getTracks().forEach(t=>{const s0=t.stop.bind(t);t.stop=()=>{clearInterval(iv);s0();};});return st;};})();"""
+INIT = INIT_VOZ + CAMARA
 errores = []
 with sync_playwright() as p:
     nav = p.chromium.launch(**CANAL, headless=True, args=['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'])

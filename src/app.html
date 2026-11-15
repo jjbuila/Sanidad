@@ -1798,23 +1798,31 @@ const CAM={stream:null,n:0};
 async function abrirCamara(){
   if(!F)return;
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){const i=$('#inFoto');i.value='';i.click();return;}
-  // Hasta 3 intentos: al reabrirla enseguida, Android puede tardar en liberar la cámara (NotReadableError).
-  for(let k=0;k<3&&!CAM.stream;k++){try{CAM.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});}
-    catch(e){if(e&&(e.name==='NotAllowedError'||e.name==='SecurityError'))break;await esperar(600);}}
+  // Hasta 5 intentos con espera creciente: al reabrirla enseguida, Android puede tardar en liberar la cámara (NotReadableError).
+  for(let k=0;k<5&&!CAM.stream;k++){try{CAM.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});}
+    catch(e){if(e&&(e.name==='NotAllowedError'||e.name==='SecurityError'))break;await esperar(500*(k+1));}}
   if(!CAM.stream){toast('No se pudo abrir la cámara dentro de la app; se usará la del celular.',4000);const i=$('#inFoto');i.value='';i.click();return;}
   CAM.n=0;$('#camN').textContent='0 fotos';const v=$('#camVid');v.srcObject=CAM.stream;$('#camara').hidden=false;try{await v.play();}catch(e){}
 }
 function cerrarCamara(){try{CAM.stream&&CAM.stream.getTracks().forEach(t=>t.stop());}catch(e){}CAM.stream=null;$('#camVid').srcObject=null;$('#camara').hidden=true;}
 $('#camX').onclick=cerrarCamara;$('#camOk').onclick=cerrarCamara;
 /* Solo cámara: no se permiten fotos desde la galería. */
-$('#camDisparo').onclick=async()=>{
+/* El disparo deja su promesa en CAM.prom: los comandos de voz esperan a que la foto quede guardada (en celulares lentos comprimirla tarda). */
+$('#camDisparo').onclick=()=>{CAM.prom=dispararFoto();return CAM.prom;};
+const fotoPendiente=async(max=12000)=>{if(CAM.prom)try{await Promise.race([CAM.prom,esperar(max)]);}catch(e){}};
+async function tomarFotoVoz(){const a=nFotosF();
+  // Si la cámara aún no muestra imagen (recién reabierta), espera y vuelve a intentar: hasta 3 disparos.
+  for(let k=0;k<3&&nFotosF()===a;k++){await abrirCamaraVoz();if(!CAM.stream)break;   /* sin cámara en la app se usó la del celular */
+    $('#camDisparo').click();await fotoPendiente();if(nFotosF()===a)await esperar(700);}
+  return nFotosF()>a;}
+async function dispararFoto(){
   const v=$('#camVid');if(!v.videoWidth||!F)return;const M=1280;const k=Math.min(1,M/Math.max(v.videoWidth,v.videoHeight));
   const c=document.createElement('canvas');c.width=Math.round(v.videoWidth*k);c.height=Math.round(v.videoHeight*k);c.getContext('2d').drawImage(v,0,0,c.width,c.height);
   const fl=$('#camFlash');fl.style.opacity=.85;setTimeout(()=>fl.style.opacity=0,120);if(navigator.vibrate)navigator.vibrate(40);
   const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.78));c.width=c.height=0;if(!blob)return;
   const id=uid();const buf=await blob.arrayBuffer();if(F.alFoto){const fn=F.alFoto;cerrarCamara();fn(id,blob,buf);return;}F.fotosNuevas.push({id,buf,type:'image/jpeg'});agregarMiniatura(id,blob,true,false);
   CAM.n++;$('#camN').textContent=CAM.n+(CAM.n===1?' foto':' fotos');
-};
+}
 async function procesarArchivosFoto(inp){
   const files=Array.from(inp.files||[]);if(!F)return;
   for(const file of files){try{const c=await comprimir(file);const id=uid();F.fotosNuevas.push({id,...c});agregarMiniatura(id,new Blob([c.buf],{type:c.type}),true,false);}
@@ -2187,24 +2195,24 @@ async function pedirObs(){VD.estado='obs';VD.g=null;VD.paso=pedirObs;
     VD.obs=true;marcarHecho('__obs');return pasoFoto();});}
 function quitarUltimaFoto(){if(!F||!F.fotosNuevas.length)return false;F.fotosNuevas.pop();const c=$('#fotos');if(c&&c.lastElementChild)c.lastElementChild.remove();
   CAM.n=Math.max(0,CAM.n-1);$('#camN').textContent=CAM.n+(CAM.n===1?' foto':' fotos');return true;}
-async function abrirCamaraVoz(){if($('#camara').hidden){await abrirCamara();await esperar(300);}
-  for(let i=0;i<40&&!($('#camVid').videoWidth>0);i++)await esperar(100);} // espera a que la cámara muestre imagen (celulares lentos)
+async function abrirCamaraVoz(){if($('#camara').hidden||!CAM.stream){await abrirCamara();await esperar(300);}
+  for(let i=0;i<60&&!($('#camVid').videoWidth>0);i++)await esperar(100);} // espera a que la cámara muestre imagen (celulares lentos)
 async function pasoFoto(){VD.estado='foto';VD.g=null;VD.paso=pasoFoto;
   const n=nFotosF();await abrirCamaraVoz();
   await decir(n?`Tiene ${n} foto${n>1?'s':''}. Diga tomar foto para otra, o registrar diagnóstico.`:'Cámara lista. Diga tomar foto.');
   await escucharV(CMD_FOTO.map(gramTxt),async t=>{if(VD.estado!=='foto')return;
     if(coincide(t,['repetir foto','borrar foto'])){if(quitarUltimaFoto()){await abrirCamaraVoz();await decir('Foto borrada. Diga tomar foto.');}else await decir('No hay foto para borrar. Diga tomar foto.');return;}
-    if(coincide(t,['guardar foto','listo'])){if(!nFotosF()){await decir('Aún no hay foto. Diga tomar foto.');return;}
+    if(coincide(t,['guardar foto','listo'])){await fotoPendiente();if(!nFotosF()){await decir('Aún no hay foto. Diga tomar foto.');return;}
       if(!$('#camara').hidden)cerrarCamara();await decir('Foto guardada. Diga registrar diagnóstico, u otra foto.');return;}
-    if(coincide(t,['tomar foto','otra foto','foto'])){await abrirCamaraVoz();const a=nFotosF();$('#camDisparo').click();
-      for(let i=0;i<20&&nFotosF()===a;i++)await esperar(100);
-      await decir(nFotosF()>a?'Foto tomada. Diga guardar foto, o repetir foto.':'No se pudo tomar la foto. Intente de nuevo.');return;}
+    if(coincide(t,['tomar foto','otra foto','foto'])){const ok=await tomarFotoVoz();
+      await decir(ok?'Foto tomada. Diga guardar foto, o repetir foto.':'No se pudo tomar la foto. Intente de nuevo.');return;}
     if(await comandoGeneral(t))return;
     await decir('No entendí. Diga tomar foto, guardar foto o registrar diagnóstico.');});}
 function fraseRegistro(r){const e=estadoDe(r.estado)||{n:r.estado||''};const sint=(r.sintomas||[]).join(', ');
   return `Se registró la palma ${paraVoz(r.numero||r.palma_id)}${r.linea?', línea '+paraVoz(r.linea):''}${r.lote?', del lote '+paraVoz(r.lote):''}. `+
     `Enfermedad: ${r.n1||e.n}${r.n2?', '+r.n2:''}. Diagnóstico: ${r.n3||e.n}.${sint?' Síntomas: '+sint+'.':''}`;}
 async function registrarVoz(){
+  await fotoPendiente();   // una foto recién disparada termina de guardarse antes de validar
   if(!F||!frmAbierto())return modoEspera(false);
   const falta=gruposForm().find(g=>g.req&&!g.resp);
   if(falta){VD.pila=VD.pila.filter(n=>n!==falta.name);if(!$('#camara').hidden)cerrarCamara();await decir('Falta.');return preguntar(falta);}
@@ -2271,9 +2279,8 @@ async function dictar(t){
   if(seg.obs){const ta=$('#frm textarea[name=observaciones]');if(ta){ta.value=seg.obs;n++;}}
   if(n)pitido(980,90);else if(!seg.cmds.length)pitido(330,200); // pitido agudo: entendido; grave: no se reconoció ningún campo
   for(const c of seg.cmds){if(VD.estado!=='dictado'&&c!=='registrar')break;
-    if(c==='tomar'){await abrirCamaraVoz();const a=nFotosF();$('#camDisparo').click();for(let i=0;i<20&&nFotosF()===a;i++)await esperar(100);
-      if(nFotosF()>a)pitido(1200,70);else await decir('No se pudo tomar la foto.');}
-    else if(c==='guardar'){if(!$('#camara').hidden)cerrarCamara();pitido(980,90);}
+    if(c==='tomar'){if(await tomarFotoVoz())pitido(1200,70);else await decir('No se pudo tomar la foto.');}
+    else if(c==='guardar'){await fotoPendiente();if(!$('#camara').hidden)cerrarCamara();pitido(980,90);}
     else if(c==='repetir'){quitarUltimaFoto();await abrirCamaraVoz();await decir('Foto borrada.');}
     else if(c==='resumen'){await decir(resumenForm());}
     else if(c==='cancelar'){if(!$('#camara').hidden)cerrarCamara();cerrarHoja();F=null;await decir('Diagnóstico cancelado. No se guardó nada.');return modoEspera(false);}
