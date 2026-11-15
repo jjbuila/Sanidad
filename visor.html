@@ -874,7 +874,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261115:1131</div>
+    <div id="lgVer">VERSIÓN 20261115:1148</div>
   </div>
 </div>
 
@@ -969,7 +969,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261115:1131';
+const VERSION='20261115:1148';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -2377,7 +2377,9 @@ function aplicarPermisosGer(){
   .ger-calor td.c{text-align:center;font-variant-numeric:tabular-nums;min-width:38px}
   .ger-barra{display:inline-block;height:8px;border-radius:4px;background:var(--acento);vertical-align:middle;margin-right:6px}
   #chCalor{cursor:pointer}
-  .mc-etq{background:transparent;border:0;box-shadow:none;color:#e6f4ee;font-size:10.5px;font-weight:700;text-shadow:0 0 3px #000,0 0 3px #000}.mc-etq::before{display:none}
+  .mc-etq{background:transparent;border:0;box-shadow:none;color:#111;font-size:8px;font-weight:600;padding:0;text-shadow:0 0 2px #fff,0 0 2px #fff}.mc-etq::before{display:none}
+  .mc-sin-etq .mc-etq{display:none}
+  #gerMapaCalor .leaflet-control-scale-line{background:rgba(255,255,255,.85);color:#222;border-color:#222}
   @media (max-width:900px){.mc-grid{grid-template-columns:1fr!important}}`;
   document.head.appendChild(css);
   for(const [k,m] of Object.entries(MODS_GER)){const bt=document.createElement('button');bt.className='btn mini';bt.id=m.btn;bt.innerHTML=`${m.icono} ${m.corto}`;bt.title=m.ayuda;
@@ -2458,16 +2460,16 @@ function pintarTablero(){
   const tCiclo=tablaGer([{t:'Lote',f:x=>`<b>${esc(x.lote)}</b>`},{t:'Programa',f:x=>esc(x.prog||'—')},{t:'Último censo',f:x=>esc(x.ultimo||'—')},{t:'Desde el último censo',f:chipC},{t:'Avance en el periodo',n:1,f:x=>x.avance==null?'—':num(x.avance,1)+' %'}],ciclo);
   return `<p class="tenue">Datos: ${esc(rangoTxt())} · ${num(JORF.length)} jornadas con los filtros de la izquierda (programa, operario, lote).</p>${kp}
     <div class="ger-sec"><h3>Productividad por operario</h3><p class="tenue">Ha/hora y palmas/hora sobre el tiempo efectivo (sin paradas). Ordenado de mayor a menor rendimiento.</p>${tProd}</div>
-    <div class="ger-sec"><h3>Mapa de calor de casos activos de PC</h3>
-      <p class="tenue">Casos vigentes: palmas cuyo último diagnóstico es PC (sin recuperación, alta ni tratamiento), con los filtros de la izquierda. Sin ortofoto: solo los lotes de la plantación.
-        Azul = pocos casos cerca · rojo = foco con muchos casos. Acerque el mapa para ver cada palma.</p>
-      <div class="ger-par">Radio de influencia <input type="range" id="mcRadio" min="15" max="150" step="5" value="${GER.mcRadio||50}" style="width:160px"> <b id="mcRadioV">${GER.mcRadio||50} m</b>
-        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="mcNombres" ${GER.mcNombres?'checked':''}> Nombres de lote</label>
-        <span style="display:flex;align-items:center;gap:6px">pocos <span style="display:inline-block;width:120px;height:10px;border-radius:5px;background:linear-gradient(90deg,#1d4ed8,#22d3ee,#a3e635,#facc15,#fb923c,#dc2626)"></span> muchos casos</span>
+    <div class="ger-sec"><h3>Mapas de PC por lote</h3>
+      <p class="tenue">Superficie interpolada (IDW) a partir del valor de cada lote, por clases, sobre toda la plantación (sin ortofoto). Con los filtros de la izquierda.
+        <b>Incidencia actual</b> = casos vigentes (último diagnóstico PC, sin recuperación, alta ni tratamiento) ÷ palmas del lote. <b>Casos nuevos</b> = palmas que aparecen por primera vez como caso en el periodo cargado (${esc(rangoTxt())}).</p>
+      <div class="ger-par"><button class="btn mini ${(GER.mcModo||'incid')==='incid'?'prim':''}" data-mcm="incid">Incidencia actual PC</button>
+        <button class="btn mini ${GER.mcModo==='nuevos'?'prim':''}" data-mcm="nuevos">Casos nuevos PC</button>
+        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="mcNombres" ${GER.mcNombres!==false?'checked':''}> Nombres de lote</label>
         <span id="mcResumen"></span></div>
-      <div style="display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:12px" class="mc-grid">
-        <div id="gerMapaCalor" style="height:560px;border-radius:14px;border:1px solid var(--borde);background:#08140f"></div>
-        <div id="mcTop" class="ger-tabla" style="max-height:560px;overflow:auto"></div></div></div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px" class="mc-grid">
+        <div id="gerMapaCalor" style="height:640px;border-radius:14px;border:1px solid var(--borde);background:#fff"></div>
+        <div><div id="mcLeyenda"></div><div id="mcTop" class="ger-tabla" style="max-height:330px;overflow:auto;margin-top:10px"></div></div></div></div>
     <div class="ger-sec"><h3>Casos nuevos de PC por lote y semana</h3><p class="tenue">Primera vez que cada palma aparece como caso de PC en el periodo. Más rojo = más casos. La incidencia actual es casos vigentes ÷ palmas del lote.</p>
       <div class="ger-par"><button class="btn mini ${GER.calor?'prim':''}" id="gerCalor">🔥 ${GER.calor?'Quitar':'Ver'} mapa de calor de PC en el mapa</button></div>${tCalor}</div>
     <div class="ger-sec"><h3>Avance del ciclo de censo</h3>${nMal||nSin?`<div class="ger-aviso ${nMal?'ger-mal':''}">⚠ ${nMal?`<b>${nMal}</b> lote(s) llevan más de ${X} días sin censo`:''}${nMal&&nSin?' · ':''}${nSin?`<b>${nSin}</b> lote(s) sin censo en el periodo cargado (cargue un rango más largo para verlos)`:''}.</div>`:''}
@@ -2481,49 +2483,94 @@ function casosPCActivos(){
   const ult=new Map();for(const j of JORF)for(const d of j.diags){if(!loteSel(d.lote)||!enProg(d.lote))continue;const k=d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma);const u=ult.get(k);if(!u||String(d.creado)>String(u.creado))ult.set(k,d);}
   return [...ult.values()].filter(d=>esCasoPC(codN1(d),d.nivel2,d.estado)&&d.lat!=null);
 }
-/* Capa de calor propia (sin librerías externas): acumula un degradado radial por caso en un lienzo y lo colorea de azul a rojo.
-   El radio está en metros, así el foco se ve igual en cualquier acercamiento. */
-const CapaCalorPC=L.Layer.extend({
-  initialize(pts,radio){this._pts=pts;this._radio=radio;},
-  onAdd(m){this._m=m;const c=this._c=L.DomUtil.create('canvas','leaflet-zoom-hide');c.style.position='absolute';c.style.pointerEvents='none';
-    m.getPanes().overlayPane.appendChild(c);m.on('moveend zoomend resize',this._dibujar,this);this._dibujar();},
-  onRemove(m){L.DomUtil.remove(this._c);m.off('moveend zoomend resize',this._dibujar,this);},
-  setRadio(r){this._radio=r;this._dibujar();},
-  _paleta(){if(this._g)return this._g;const c=document.createElement('canvas');c.width=1;c.height=256;const x=c.getContext('2d');const g=x.createLinearGradient(0,0,0,256);
-    for(const [k,v] of [[0,'#1d4ed8'],[.25,'#22d3ee'],[.45,'#a3e635'],[.62,'#facc15'],[.8,'#fb923c'],[1,'#dc2626']])g.addColorStop(k,v);x.fillStyle=g;x.fillRect(0,0,1,256);return this._g=x.getImageData(0,0,1,256).data;},
-  _dibujar(){const m=this._m,c=this._c;if(!m||!c)return;const s=m.getSize();if(!s.x||!s.y){if((this._re=(this._re||0)+1)<25)setTimeout(()=>this._dibujar(),150);return;}this._re=0;   /* panel aún sin tamaño u oculto: reintenta */L.DomUtil.setPosition(c,m.containerPointToLayerPoint([0,0]));c.width=s.x;c.height=s.y;
-    const x=c.getContext('2d',{willReadFrequently:true});x.clearRect(0,0,s.x,s.y);if(!this._pts.length)return;
-    const mpp=40075016.686*Math.cos(m.getCenter().lat*Math.PI/180)/Math.pow(2,m.getZoom()+8);const r=Math.max(5,Math.min(220,this._radio/mpp));
-    const b=document.createElement('canvas');b.width=b.height=Math.ceil(r*2);const bx=b.getContext('2d');const g=bx.createRadialGradient(r,r,0,r,r,r);
-    g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');bx.fillStyle=g;bx.fillRect(0,0,b.width,b.height);
-    x.globalAlpha=.28;for(const p of this._pts){const q=m.latLngToContainerPoint(p);if(q.x<-r||q.y<-r||q.x>s.x+r||q.y>s.y+r)continue;x.drawImage(b,q.x-r,q.y-r);}
-    const im=x.getImageData(0,0,s.x,s.y),d=im.data,P=this._paleta();
-    for(let i=0;i<d.length;i+=4){const a=d[i+3];if(!a)continue;const j=a*4;d[i]=P[j];d[i+1]=P[j+1];d[i+2]=P[j+2];d[i+3]=Math.min(235,40+a*1.4);}
-    x.putImageData(im,0,0);}
-});
+/* Casos nuevos de PC en el periodo: primera vez que cada palma aparece como caso (con su diagnóstico de esa vez). */
+function casosPCNuevos(){
+  const pri=new Map();
+  for(const j of JORF)for(const d of j.diags){if(!esCasoPC(codN1(d),d.nivel2,d.estado)||!loteSel(d.lote)||!enProg(d.lote))continue;
+    const k=d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma);const u=pri.get(k);if(!u||String(d.creado)<String(u.creado))pri.set(k,d);}
+  return [...pri.values()].filter(d=>d.lat!=null);
+}
+/* Clases de los mapas (como los mapas oficiales de Sanidad Vegetal) */
+const MC_COL=['#2c7bb6','#abdda4','#ffffbf','#fdae61','#d7191c'];
+const MC_CLASES={incid:{titulo:'INCIDENCIA ACTUAL PC',ley:'Incidencia PC',cortes:[1,2,3,4],etq:['≤ 1,0 %','1,0 % – 2,0 %','2,0 % – 3,0 %','3,0 % – 4,0 %','> 4,0 %']},
+  nuevos:{titulo:'CASOS NUEVOS PC',ley:'N.º casos nuevos PC',cortes:[3,6,9,12],etq:['≤ 3','3 – 6','6 – 9','9 – 12','> 12']}};
+const claseMC=(v,c)=>{let k=0;while(k<c.length&&v>c[k])k++;return k;};
+/* Superficie IDW (12 lotes más cercanos, potencia 2) en celdas de CEL metros, recortada a los lotes. Devuelve el lienzo y el área por clase. */
+function superficieMC(feats,vals,cortes,CEL,pinta){
+  pinta=pinta&&pinta.length?pinta:feats;   /* se pinta toda la plantación (si está disponible); el área por clase se cuenta solo en los lotes */
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;const anillos=f=>f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+  for(const f of pinta.concat(feats))for(const pol of anillos(f))for(const r of pol)for(const [x,y] of r){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}
+  const mx=111320*Math.cos((y0+y1)/2*Math.PI/180),my=110540,dlon=CEL/mx,dlat=CEL/my,W=Math.ceil((x1-x0)/dlon)+1,H=Math.ceil((y1-y0)/dlat)+1;
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d',{willReadFrequently:true});g.fillStyle='#000';
+  const mascara=fs=>{g.clearRect(0,0,W,H);for(const f of fs)for(const pol of anillos(f)){g.beginPath();for(const r of pol)r.forEach(([x,y],i)=>{const px=(x-x0)/dlon,py=(y1-y)/dlat;i?g.lineTo(px,py):g.moveTo(px,py);});g.fill('evenodd');}   /* cada polígono por separado */
+    return g.getImageData(0,0,W,H).data;};
+  const MA=mascara(feats),M=pinta===feats?MA:mascara(pinta);
+  const P=[];for(const f of feats){const l=f.properties._lote,c=centroLote(l);if(c)P.push([(c[1]-x0)*mx,(y1-c[0])*my,vals.get(l)||0]);}
+  const K=Math.min(12,P.length),bd=new Float64Array(K),bv=new Float64Array(K);
+  const img=g.createImageData(W,H),D=img.data,area=[0,0,0,0,0],RGB=MC_COL.map(h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)));
+  for(let j=0;j<H;j++)for(let i=0;i<W;i++){const o=(j*W+i)*4;if(M[o+3]<128)continue;
+    const px=i*CEL+CEL/2,py=j*CEL+CEL/2;let n=0,exacto=null;
+    for(const q of P){const dx=q[0]-px,dy=q[1]-py,d2=dx*dx+dy*dy;if(d2<1){exacto=q[2];break;}
+      if(n<K){let k=n++;while(k>0&&bd[k-1]>d2){bd[k]=bd[k-1];bv[k]=bv[k-1];k--;}bd[k]=d2;bv[k]=q[2];}
+      else if(d2<bd[K-1]){let k=K-1;while(k>0&&bd[k-1]>d2){bd[k]=bd[k-1];bv[k]=bv[k-1];k--;}bd[k]=d2;bv[k]=q[2];}}
+    let v=exacto;if(v==null){let sw=0,sv=0;for(let k=0;k<n;k++){const w=1/bd[k];sw+=w;sv+=w*bv[k];}v=sw?sv/sw:0;}
+    const c=claseMC(v,cortes);if(MA[o+3]>=128)area[c]++;const rgb=RGB[c];D[o]=rgb[0];D[o+1]=rgb[1];D[o+2]=rgb[2];D[o+3]=255;}
+  g.clearRect(0,0,W,H);g.putImageData(img,0,0);
+  // Hectáreas: proporción de cada clase × área oficial de los lotes (Area_ha); sin ese dato, el área de las celdas
+  const oficial=feats.reduce((a,f)=>a+(Number(f.properties.Area_ha)||0),0),celdas=area.reduce((a,b)=>a+b,0);
+  return {cv,limites:[[y1-H*dlat,x0],[y1,x0+W*dlon]],ha:area.map(n=>oficial&&celdas?n/celdas*oficial:n*CEL*CEL/10000)};
+}
+/* Límite de la plantación (cartografia/plantacion.geojson del repositorio de datos, el mismo que usa la App) */
+async function cargarPlantacionGer(){
+  try{const t=await (await gh(`/contents/cartografia/plantacion.geojson?ref=${encodeURIComponent(SES.repo.rama)}`,'application/vnd.github.raw+json')).text();const g=JSON.parse(t);
+    const fs=(g.type==='FeatureCollection'?g.features:g.type==='Feature'?[g]:[{type:'Feature',properties:{},geometry:g}]).filter(f=>f&&f.geometry&&/Polygon/.test(f.geometry.type));
+    GER.plant=fs.length?fs:null;}catch(e){GER.plant=null;}
+}
+/* Control con la flecha del norte (como los mapas impresos) */
+const NorteMC=L.Control.extend({onAdd(){const d=L.DomUtil.create('div');d.innerHTML='<div style="font:700 13px sans-serif;color:#222;text-align:center;line-height:1">N<br><span style="font-size:24px">⬆</span></div>';return d;}});
 function montarMapaCalor(){
   const el=$('#gerMapaCalor');if(!el)return;
   if(GER.mc){try{GER.mcVista={c:GER.mc.getCenter(),z:GER.mc.getZoom()};GER.mc.off();GER.mc.remove();}catch(e){}GER.mc=null;}
-  const casos=casosPCActivos(),porLote=new Map();for(const d of casos)porLote.set(d.lote,(porLote.get(d.lote)||0)+1);
-  const m=L.map(el,{zoomControl:true,attributionControl:false,preferCanvas:true,minZoom:11,maxZoom:20});GER.mc=m;
-  const feats=LOTES?LOTES.features.filter(f=>f.geometry&&enProg(f.properties._lote)&&loteSel(f.properties._lote)):[];
-  const capaL=L.geoJSON({type:'FeatureCollection',features:feats},{style:f=>({color:'#5f8a78',weight:1,fill:true,fillColor:porLote.get(f.properties._lote)?'#1a2e26':'#11211b',fillOpacity:1})}).addTo(m);
-  capaL.eachLayer(l=>{const lo=l.feature.properties._lote,n=porLote.get(lo)||0,tl=totalLote(lo);
-    if(GER.mcNombres)l.bindTooltip(`${esc(lo)}${n?' · '+n:''}`,{permanent:true,direction:'center',className:'mc-etq'});
-    else l.bindTooltip(`<b>${esc(lo)}</b> · ${num(n)} caso${n===1?'':'s'} activo${n===1?'':'s'}${tl?` · ${num(n/tl*100,2)} %`:''}`,{sticky:true});});
-  const pts=casos.map(d=>[d.lat,d.lng]);GER.mcCapa=new CapaCalorPC(pts,GER.mcRadio||50).addTo(m);
+  const modo=GER.mcModo||'incid',C=MC_CLASES[modo];
+  if(GER.plant===undefined){GER.plant=null;cargarPlantacionGer().then(()=>{if(GER.plant&&$('#gerMapaCalor'))montarMapaCalor();});}
+  const sinFiltro=!FIL.lote.size&&!FIL.prog.size,plant=sinFiltro&&GER.plant?GER.plant:null;
+  const feats=LOTES?LOTES.features.filter(f=>f.geometry&&/Polygon/.test(f.geometry.type)&&enProg(f.properties._lote)&&loteSel(f.properties._lote)):[];
+  const casos=modo==='incid'?casosPCActivos():casosPCNuevos();
+  const n=new Map();for(const d of casos)n.set(d.lote,(n.get(d.lote)||0)+1);
+  const vals=new Map();for(const f of feats){const l=f.properties._lote,c=n.get(l)||0,tl=totalLote(l);vals.set(l,modo==='incid'?(tl?c/tl*100:0):c);}
+  const m=L.map(el,{zoomControl:true,attributionControl:false,preferCanvas:true,minZoom:11,maxZoom:20,zoomSnap:.25});GER.mc=m;
+  L.control.scale({imperial:false,position:'bottomleft'}).addTo(m);new NorteMC({position:'topright'}).addTo(m);
+  let sup=null;
+  if(feats.length){const key=modo+'|'+feats.length+'|'+[...vals].map(x=>x[0]+':'+x[1].toFixed(3)).join(',');
+    if(GER.mcCache&&GER.mcCache.key===key+(plant?'|P':''))sup=GER.mcCache.sup;else{sup=superficieMC(feats,vals,C.cortes,20,plant);GER.mcCache={key:key+(plant?'|P':''),sup};}
+    L.imageOverlay(sup.cv.toDataURL(),sup.limites,{opacity:1,interactive:false}).addTo(m);}
+  const capaL=L.geoJSON({type:'FeatureCollection',features:feats},{style:{color:'#111',weight:.8,fill:true,fillOpacity:0}}).addTo(m);
+  if(plant)L.geoJSON({type:'FeatureCollection',features:plant},{style:{color:'#000',weight:3,fill:false},interactive:false}).addTo(m);
+  const fmt=v=>modo==='incid'?num(v,2)+' %':num(v)+' caso'+(v===1?'':'s');
+  capaL.eachLayer(l=>{const lo=l.feature.properties._lote,v=vals.get(lo)||0;
+    l.bindTooltip(`<b>${esc(lo)}</b> · ${modo==='incid'?`${num(n.get(lo)||0)} casos activos · incidencia ${num(v,2)} %`:`${num(v)} casos nuevos`}`,{sticky:true});
+    if(GER.mcNombres!==false)l.bindTooltip(esc(lo),{permanent:true,direction:'center',className:'mc-etq'});});
+  // Etiquetas solo con suficiente acercamiento (si no, se tapan)
+  const etq=()=>{const z=m.getZoom();el.classList.toggle('mc-sin-etq',z<12);};m.on('zoomend',etq);
   // Cada palma con caso al acercarse (zoom 17 o más)
-  const pal=L.layerGroup();for(const d of casos)L.circleMarker([d.lat,d.lng],{radius:3.5,color:'#fff',weight:1,fillColor:'#dc2626',fillOpacity:1})
+  const pal=L.layerGroup();for(const d of casos)L.circleMarker([d.lat,d.lng],{radius:3.5,color:'#000',weight:1,fillColor:'#d7191c',fillOpacity:1})
     .bindTooltip(`${esc(d.lote)} · L${esc(d.linea??'?')} · P${esc(d.palma??'?')}<br>${esc(d.nivel2||'')} · ${esc(String(d.creado||'').slice(0,10))}`).addTo(pal);
   const verPal=()=>{if(m.getZoom()>=17)pal.addTo(m);else m.removeLayer(pal);};m.on('zoomend',verPal);
-  if(GER.mcVista)m.setView(GER.mcVista.c,GER.mcVista.z);else{const bb=feats.length?capaL.getBounds():(pts.length?L.latLngBounds(pts):null);   /* vista inicial: toda la plantación */if(bb)m.fitBounds(bb,{padding:[20,20]});else m.setView([1.52,-78.77],13);}
-  verPal();setTimeout(()=>{m.invalidateSize();GER.mcCapa._dibujar();},60);
-  GER.mcCasos=casos.length;
-  $('#mcResumen').innerHTML=`<b>${num(casos.length)}</b> casos activos en <b>${num(porLote.size)}</b> lotes`;
-  const top=[...porLote.entries()].map(([l,n])=>({l,n,i:totalLote(l)?n/totalLote(l)*100:null})).sort((a,b)=>b.n-a.n);
-  $('#mcTop').innerHTML=tablaGer([{t:'Lote',f:x=>`<b>${esc(x.l)}</b>`},{t:'Casos',n:1,f:x=>num(x.n)},{t:'Incid.',n:1,f:x=>x.i==null?'—':num(x.i,2)+' %'}],top,x=>`class="clic" data-mcl="${esc(x.l)}"`);
+  if(GER.mcVista&&GER.mcVistaModo===modo)m.setView(GER.mcVista.c,GER.mcVista.z);else if(feats.length)m.fitBounds(capaL.getBounds(),{padding:[10,10]});else m.setView([1.52,-78.77],13);
+  GER.mcVistaModo=modo;verPal();etq();setTimeout(()=>m.invalidateSize(),60);
+  GER.mcCasos=casos.length;GER.mcHa=sup?sup.ha:[0,0,0,0,0];
+  $('#mcResumen').innerHTML=`<b>${num(casos.length)}</b> ${modo==='incid'?'casos activos':'casos nuevos'} en <b>${num(n.size)}</b> lotes`;
+  const tot=GER.mcHa.reduce((a,b)=>a+b,0);
+  $('#mcLeyenda').innerHTML=`<div style="background:#fff;color:#222;border-radius:12px;padding:12px 14px">
+      <div style="font-family:var(--t);font-size:17px;letter-spacing:1px;color:#555;margin-bottom:6px">${C.titulo}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:#555"><th style="text-align:left;padding:3px 4px">${C.ley}</th><th style="text-align:right;padding:3px 4px">Área (ha)</th><th style="text-align:right;padding:3px 4px">%</th></tr></thead>
+      <tbody>${C.etq.map((t,i)=>`<tr data-mcc="${i}"><td style="padding:4px"><span style="display:inline-block;width:26px;height:14px;background:${MC_COL[i]};border:1px solid #555;vertical-align:middle;margin-right:8px"></span>${t}</td>
+        <td style="text-align:right;padding:4px">${num(GER.mcHa[i],1)}</td><td style="text-align:right;padding:4px">${tot?num(GER.mcHa[i]/tot*100,1):'0'} %</td></tr>`).join('')}
+        <tr style="border-top:1px solid #bbb;font-weight:700"><td style="padding:4px">Total</td><td style="text-align:right;padding:4px">${num(tot,1)}</td><td style="text-align:right;padding:4px">${tot?'100':'0'} %</td></tr></tbody></table></div>`;
+  const top=[...vals.entries()].filter(x=>x[1]>0).map(([l,v])=>({l,v,c:n.get(l)||0})).sort((a,b)=>b.v-a.v);
+  $('#mcTop').innerHTML=tablaGer([{t:'Lote',f:x=>`<b>${esc(x.l)}</b>`},{t:modo==='incid'?'Casos':'Casos nuevos',n:1,f:x=>num(x.c)},...(modo==='incid'?[{t:'Incidencia',n:1,f:x=>num(x.v,2)+' %'}]:[])],top,x=>`class="clic" data-mcl="${esc(x.l)}"`);
   $$('#mcTop [data-mcl]').forEach(tr=>tr.onclick=()=>{const l=tr.dataset.mcl;let bb=null;capaL.eachLayer(y=>{if(y.feature.properties._lote===l)bb=y.getBounds();});if(bb)m.fitBounds(bb,{padding:[30,30],maxZoom:17});});
-  const rr=$('#mcRadio');if(rr)rr.oninput=()=>{GER.mcRadio=Number(rr.value);$('#mcRadioV').textContent=rr.value+' m';GER.mcCapa.setRadio(GER.mcRadio);};
+  $$('#gerPanel [data-mcm]').forEach(b=>b.onclick=()=>{GER.mcModo=b.dataset.mcm;pintarGer();});
   const nn=$('#mcNombres');if(nn)nn.onchange=()=>{GER.mcNombres=nn.checked;montarMapaCalor();};
 }
 /* Mapa de calor de los casos de PC vigentes sobre el mapa principal (ortofoto). */

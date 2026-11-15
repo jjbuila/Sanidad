@@ -18,7 +18,12 @@
 **Pruebas automáticas:** cada cambio en `src/` o `tests/` dispara en GitHub Actions el flujo **Pruebas** (`.github/workflows/pruebas.yml`): compila la app y ejecuta las pruebas de `tests/` (unas 200 verificaciones con GitHub simulado y datos ficticios). Si algo falla, el flujo queda en rojo antes de que el cambio llegue a los celulares. Ver `tests/README.md`.
 
 **Módulos del visor:**
-- **📊 GERENCIA:** Tablero, Reportes y Sincronización. El Tablero incluye un **mapa de calor de los casos activos de PC sin ortofoto**: lotes de la plantación sobre fondo oscuro, con radio de influencia ajustable, nombres de lote opcionales, la palma de cada caso al acercar y la lista de lotes con más casos (un clic acerca el lote).
+- **📊 GERENCIA:** Tablero, Reportes y Sincronización. El Tablero incluye los **mapas de PC por lote, sin ortofoto**, al estilo de los mapas oficiales.
+  - **Incidencia actual PC:** casos vigentes ÷ palmas del lote. Clases ≤ 1 %, 1–2 %, 2–3 %, 3–4 % y > 4 %.
+  - **Casos nuevos PC:** en el periodo cargado. Clases ≤ 3, 3–6, 6–9, 9–12 y > 12.
+  - Es una superficie interpolada (IDW) a partir del valor de cada lote, pintada sobre toda la plantación (límite de `cartografia/plantacion.geojson`), con los lotes y sus nombres encima, escala y norte.
+  - Las **convenciones** muestran el área (ha) y el porcentaje de cada clase. Las hectáreas se ajustan al área oficial de los lotes.
+  - Al lado aparece la lista de lotes ordenada de mayor a menor (un clic acerca el lote). Al acercar el mapa aparece cada palma con caso.
 - **🧭 COORDINACIÓN Y SUPERVISIÓN DE LA LABOR** (gestión del personal): Planificación (ciclo de censo y asignación del personal), **Programador de cirugías** (abre el programador sobre el mapa; también con el botón ✚ CIRUGÍAS), Cirugía (indicadores), Calidad, Auditoría y Reportes.
 - **🗄️ ANÁLISIS DE DATOS** (analistas de datos): Sincronización de los equipos.
 
