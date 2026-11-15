@@ -113,7 +113,7 @@ with sync_playwright() as p:
       LOTES={type:'FeatureCollection',features:['IT01','IT05','IT09','IT12'].map((l,k)=>({type:'Feature',properties:{_lote:l},geometry:{type:'Polygon',coordinates:[[[-78.701+k*0.01,1.499],[-78.699+k*0.01,1.499],[-78.699+k*0.01,1.512],[-78.701+k*0.01,1.512],[-78.701+k*0.01,1.499]]]}}))};
       IND_LOTES={IT01:{n:1000},IT05:{n:800},IT09:{n:500},IT12:{n:900}};
       document.querySelector('#fDesde').value=hoyISO(new Date(Date.now()-60*86400000));document.querySelector('#fHasta').value=hoy;aplicarFiltros(false);}""")
-    vz.evaluate("document.querySelector('#btGer').click()"); vz.wait_for_timeout(300); vz.click('[data-gt=plan]')
+    vz.evaluate("document.querySelector('#btCoord').click()"); vz.wait_for_timeout(300); vz.click('[data-gt=plan]')
     vz.wait_for_function("GER.plan.ops&&GER.plan.ops.length", timeout=10000); vz.wait_for_timeout(300)
     ops = vz.evaluate("GER.plan.ops.map(o=>o.usuario)")
     check('Visor: operarios activos de censo (sin supervisores ni suspendidos)', ops == ['op1', 'op2'], ops)

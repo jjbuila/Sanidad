@@ -56,7 +56,7 @@ with sync_playwright() as p:
       SES={u:'admin1',nombre:'Admin',rol:'admin',token:'tok',repo:{owner:'jjbuila',repo:'SanidadData',rama:'main'}};
       window.cirUsuarios=async()=>[{u:'op1',nombre:'PEDRO PEREZ',rol:'operario',labores:['censo']},{u:'op2',nombre:'MARIA LOPEZ',rol:'operario',labores:['censo']},{u:'op3',nombre:'JUAN RUIZ',rol:'operario',labores:['censo']}];}""")
     EST['asig'] = {'formato': 'sanidad-asignacion-censo-1', 'ciclo_version': 'v1', 'vuelta': 1, 'inicio': '2026-11-13', 'titulares': {}, 'manual': {}}
-    vz.evaluate("document.querySelector('#btGer').click()"); vz.wait_for_timeout(300); vz.click('[data-gt=plan]')
+    vz.evaluate("document.querySelector('#btCoord').click()"); vz.wait_for_timeout(300); vz.click('[data-gt=plan]')
     vz.wait_for_function("GER.cic.av&&GER.plan.ops&&document.querySelector('[data-fu]')", timeout=15000); vz.wait_for_timeout(300)
     T = vz.inner_text('#gerPanel')
     check('Visor: titulares tomados del último plan (P1 María, P2 Pedro)', vz.input_value('[data-tit="1"]') == 'op2' and vz.input_value('[data-tit="2"]') == 'op1')

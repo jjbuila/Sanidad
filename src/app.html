@@ -3047,7 +3047,7 @@ async function panelDia(){
     try{const buf=await (await ghRaw(`reportes/diario/${fechaRes}/${nombre}`)).arrayBuffer();
       const tipo={pdf:'application/pdf',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',html:'text/html'}[ext];
       await compartir(new Blob([buf],{type:tipo}),nombre);
-      if(NATIVO&&!(navigator.canShare))toast('Si no se abrió, descárguelo en el visor (GERENCIA → Reportes) o revise el correo.',7000);}
+      if(NATIVO&&!(navigator.canShare))toast('Si no se abrió, descárguelo en el visor (GERENCIA o COORDINACIÓN → Reportes) o revise el correo.',7000);}
     catch(e){toast(e.message,6000);}b.disabled=false;});
   $('#pdEnviar').onclick=async()=>{if(!confirm('¿Generar el reporte de hoy con las jornadas sincronizadas hasta ahora y enviarlo a todos los destinatarios?'))return;
     const b=$('#pdEnviar');b.disabled=true;b.textContent='Solicitando…';const ruta='solicitudes/reporte.json',rama=encodeURIComponent(S.cfg.gh.rama);

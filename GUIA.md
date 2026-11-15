@@ -17,7 +17,12 @@
 
 **Pruebas automáticas:** cada cambio en `src/` o `tests/` dispara en GitHub Actions el flujo **Pruebas** (`.github/workflows/pruebas.yml`): compila la app y ejecuta las pruebas de `tests/` (unas 200 verificaciones con GitHub simulado y datos ficticios). Si algo falla, el flujo queda en rojo antes de que el cambio llegue a los celulares. Ver `tests/README.md`.
 
-**Gerencia (visor):** botón **📊 GERENCIA** con Tablero, Planificación, Cirugía, Sincronización, Calidad, Auditoría y Reportes. Ver la sección 7.4 (reportes diarios, alertas, planificación, panel del día e IA).
+**Módulos del visor:**
+- **📊 GERENCIA:** Tablero, Reportes y Sincronización.
+- **🧭 COORDINACIÓN Y SUPERVISIÓN DE LA LABOR** (gestión del personal): Planificación (ciclo de censo y asignación del personal), Cirugía, Calidad, Auditoría y Reportes.
+- **🗄️ ANÁLISIS DE DATOS** (analistas de datos): Sincronización de los equipos.
+
+Ver la sección 7.4 (reportes diarios, alertas, planificación, panel del día e IA).
 
 ## 2. Preparar el repositorio privado de datos
 
@@ -244,7 +249,7 @@ Entran las jornadas finalizadas y sincronizadas hasta el corte. Para generarlo a
 3. Pruebe con el envío manual (abajo).
 
 **Envío manual.** Además de los automáticos, en cualquier momento:
-- **Visor → 📊 GERENCIA → Reportes → 📤 Generar y enviar ahora:** reporte diario o semanal de la fecha elegida, enviado a todos los destinatarios configurados, solo a los correos que escriba, o sin envío (solo generar).
+- **Visor → 📊 GERENCIA (o 🧭 COORDINACIÓN) → Reportes → 📤 Generar y enviar ahora:** reporte diario o semanal de la fecha elegida, enviado a todos los destinatarios configurados, solo a los correos que escriba, o sin envío (solo generar).
 - **App → Menú → Panel del día → 📤 Generar y enviar el reporte de hoy ahora** (supervisores y administradores).
 Llega en 3 a 5 minutos y queda en la lista de reportes.
 
@@ -254,7 +259,7 @@ Llega en 3 a 5 minutos y queda en la lista de reportes.
 
 **Panel del día (App).** Menú → *Panel del día* (supervisores y administradores): jornadas recibidas hoy, hectáreas, diagnósticos, casos de PC, alertas, operarios y lotes con PC del último reporte diario. Al ingresar, si el reporte de hoy trae alertas, aparece un aviso.
 
-**Planificación del censo — ciclo aprobado (visor → GERENCIA → Planificación).** La plantación está dividida en un **ciclo de 16 días** aprobado (`censo/programacion/ciclo.json`, con su PDF, Excel y mapa en la misma carpeta del repositorio de datos), de lo general a lo particular:
+**Planificación del censo — ciclo aprobado (visor → 🧭 COORDINACIÓN → Planificación).** La plantación está dividida en un **ciclo de 16 días** aprobado (`censo/programacion/ciclo.json`, con su PDF, Excel y mapa en la misma carpeta del repositorio de datos), de lo general a lo particular:
 - **Bloque general por día:** zona de lotes vecinos, de sur a norte empezando en IT, para **11 personas**; los lotes se cierran en el mismo día salvo unos pocos que continúan al día siguiente.
 - **Bloque de cada persona:** **18 ha (2.070 palmas, contando existentes 1 y no existentes 0) o más, preferiblemente 18–19 ha**, por **calles completas** (línea impar + par) y **continuo** (solo lotes vecinos).
 - **Asignación del personal por bloque (P):**

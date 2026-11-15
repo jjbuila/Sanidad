@@ -548,7 +548,7 @@ function pintarAlertasCfg(){
     <div class="fila"><div><label>Plantilla del reporte</label><input type="text" id="aW1" value="${esc(W.plantilla_reporte)}"></div><div><label>Plantilla de alerta</label><input type="text" id="aW2" value="${esc(W.plantilla_alerta)}"></div><div><label>Idioma</label><input type="text" id="aW3" value="${esc(W.idioma)}"></div></div>
     <div class="fila" style="margin-top:12px"><button class="btn prim" id="aGuardar">GUARDAR EN GITHUB</button>
       <a class="btn" target="_blank" rel="noopener" href="https://github.com/${esc(repo.owner)}/${esc(repo.repo)}/actions/workflows/reporte-diario.yml">▶ Probar: generar y enviar el reporte de hoy</a></div>
-    <p class="tenue">Envío manual en cualquier momento: visor → 📊 GERENCIA → Reportes → <b>📤 Generar y enviar ahora</b> (a todos, a correos puntuales o sin envío), o en la App: Menú → Panel del día.</p><div></div>
+    <p class="tenue">Envío manual en cualquier momento: visor → 📊 GERENCIA o 🧭 COORDINACIÓN → Reportes → <b>📤 Generar y enviar ahora</b> (a todos, a correos puntuales o sin envío), o en la App: Menú → Panel del día.</p><div></div>
     <details style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">Configuración única de los envíos (claves y plantillas)</summary>
       <div class="tenue" style="margin-top:8px;line-height:1.6">
       <b>1. Claves en GitHub</b> (repositorio <code>${esc(repo.owner)}/${esc(repo.repo)}</code> → Settings → Secrets and variables → Actions → New repository secret):<br>

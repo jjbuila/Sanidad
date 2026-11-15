@@ -1021,7 +1021,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261115:0751</div>
+  <div id="splashVer">VERSIÓN 20261115:0823</div>
 </div>
 
 <div id="login" hidden>
@@ -1036,7 +1036,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261115:0751</div>
+  <div id="lgVer2">VERSIÓN 20261115:0823</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1153,7 +1153,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261115:0751';
+const VERSION='20261115:0823';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -3816,7 +3816,7 @@ async function panelDia(){
     try{const buf=await (await ghRaw(`reportes/diario/${fechaRes}/${nombre}`)).arrayBuffer();
       const tipo={pdf:'application/pdf',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',html:'text/html'}[ext];
       await compartir(new Blob([buf],{type:tipo}),nombre);
-      if(NATIVO&&!(navigator.canShare))toast('Si no se abrió, descárguelo en el visor (GERENCIA → Reportes) o revise el correo.',7000);}
+      if(NATIVO&&!(navigator.canShare))toast('Si no se abrió, descárguelo en el visor (GERENCIA o COORDINACIÓN → Reportes) o revise el correo.',7000);}
     catch(e){toast(e.message,6000);}b.disabled=false;});
   $('#pdEnviar').onclick=async()=>{if(!confirm('¿Generar el reporte de hoy con las jornadas sincronizadas hasta ahora y enviarlo a todos los destinatarios?'))return;
     const b=$('#pdEnviar');b.disabled=true;b.textContent='Solicitando…';const ruta='solicitudes/reporte.json',rama=encodeURIComponent(S.cfg.gh.rama);
