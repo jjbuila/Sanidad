@@ -58,7 +58,7 @@ with sync_playwright() as p:
       const j={id:'JV',fecha:'2026-11-13',evaluador:'Operario Uno',usuario:'op1',inicio:new Date(t0).toISOString(),fin:new Date(t0+3600e3).toISOString(),hora_inicio:'08:00',hora_fin:'09:00',duracion_min:60,
         km:0.33,ha:2.35,palmas:270,metodo:'calle',n_paradas:0,min_paradas:0,min_mov:60,por_lote:[],densidad:115,app:'',lotes:new Set(['IT01']),paradas:[],
         track:{c,t,acc:c.map(()=>4)},header:{},secuencias:null,tiempos:{min_efectivo_labor:47,hora_inicio_labor:'08:05',hora_fin_labor:'08:58'},vel:2};
-      j.diags=[d('V1',10,'Pudrición del cogollo'),d('V2',40,'Marchitez letal')];j.diags.forEach(x=>x._j=j);
+      j.diags=[d('V1',10,'Pudrición del cogollo'),d('V2',40,'Marchitez letal')];JOR=[j]; // como en el visor real: los diagnósticos de la jornada no llevan _j
       abrirDetalle(j);}""")
     vr = vz.evaluate("document.querySelector('.play-res').innerText.replace(/\\n/g,' ')")
     check('Visor: resumen con Inicio, Fin, Ha y T. efectivo', all(k in vr for k in ('Inicio', '08:00', 'Fin', '09:00', '2,35', 'T. efectivo', '0:47')) or all(k in vr for k in ('Inicio', 'Fin', '2.35', '0:47')), vr)

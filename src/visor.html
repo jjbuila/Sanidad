@@ -751,6 +751,7 @@ async function fotoPrincipal(d){const k=d._j&&d._j.id+'|'+d.id;if(FOTO1.has(k))r
 function precargarFotos(j){if(j&&j.zipSha&&j.diags.some(d=>Number(d.n_fotos)>0))blobZip(j.zipSha).catch(()=>{});}
 /* Ficha del diagnóstico en el mapa: la primera foto se ve directamente (tocarla abre todas). */
 function popupDiag(d,ll){
+  if(!d._j){const j=(typeof JOR!=='undefined'?JOR:[]).find(x=>x.diags&&x.diags.includes(d))||(SEL&&SEL.diags&&SEL.diags.includes(d)?SEL:null);if(j)d={...d,_j:j};} // diagnóstico sin su jornada (p. ej. desde la reproducción)
   const n=Number(d.n_fotos)||0;
   const html=foto=>(n?`<div class="ppFoto">${foto}</div>`:'')+htmlDiag(d)+`<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
     ${n?`<button class="btn mini nar ppFotos">📷 Ver ${n} foto(s)</button>`:''}<button class="btn mini ppJor">Ver jornada</button><button class="btn mini ppHist">🕘 Historia de la palma</button></div>`;
