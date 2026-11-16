@@ -418,6 +418,15 @@ La **programación** está en 🧭 COORDINACIÓN → Monitoreo de plagas.
 
 **Reportes:** el diario y el semanal incluyen la página **MONITOREO DE PLAGAS** (por plaga y por lote) y las hojas **Plagas** y **Plagas por lote** en el Excel.
 
+## 7.7 Hoja de vida de la palma
+
+Cada palma **diagnosticada o con alguna novedad** de otra labor tiene una hoja de vida con todo lo que le ha pasado, en orden. Las palmas sin diagnósticos ni novedades no tienen hoja de vida.
+
+- **Qué registra:** diagnósticos del censo de **todos** los operarios (enfermedad, opción, seguimiento, estado, síntomas, cirugía, producción y foto), correcciones y casos nuevos del cirujano o del erradicador, **cirugías** (tipo y producto), **erradicaciones** (tipo, método, producto y dosis), **existencia 0** aprobada o rechazada (con quién la decidió) y **daños de plagas** encontrados en el monitoreo. Desde el inicio, sin las jornadas de prueba.
+- **Cómo se arma:** un flujo automático del repositorio de datos (`scripts/hoja_vida.py`) la rehace cada vez que se sincroniza una jornada o se aprueba una existencia 0, y además cada hora de 6:00 a. m. a 8:00 p. m.; queda en `palmas/hoja_vida/<LOTE>.json`.
+- **En la App (todo el personal de sanidad):** al tocar una palma, en cualquier labor (censo, cirugía, erradicación o plagas), aparece **📋 Hoja de vida** con el estado actual (último diagnóstico, hace cuántos días y quién, número de diagnósticos, cirugías y plagas), las alertas (PE partida, cráter pendiente o ya erradicado, existencia 0, en recuperación sin revisión hace más de 30 días) y la línea de tiempo, de lo más reciente a lo más antiguo. Se descarga con internet (solo los lotes que cambiaron) y queda guardada para usarla **sin señal**. En las palmas de **auditoría** no se muestra, para no influir el diagnóstico.
+- **En el visor:** en la ficha del diagnóstico, **📋 Hoja de vida** abre la hoja completa (no solo las fechas cargadas) y suma lo cargado en el visor que aún no haya pasado al archivo, sin duplicar. Los registros con foto tienen **📷 Ver foto**.
+
 ## 7.2 Ortofoto del dron
 - **Origen:** `ORTHO.tif` (9,2 cm por píxel, 108.480 × 154.151 píxeles, 4 bandas, sin comprimir, **66,9 GB**, MAGNA-SIRGAS Colombia Oeste Oeste EPSG:3114).
 - **Versión liviana (alta definición):**

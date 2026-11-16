@@ -255,3 +255,39 @@ function criticoDe(d){if(!d)return null;const n2=String(d.nivel2||d.n2||'').toUp
   if(n2==='PE PARTIDA'&&(!c||c==='PE'||/EST[IÍ]PITE/.test(n1)))return 'PE_PARTIDA';
   if((n2==='CRATER'||n2==='CRÁTER')&&(!c||c==='PC'||/COGOLLO/.test(n1)))return 'CRATER';
   return null;}
+
+/* ---------- Hoja de vida de la palma (App y visor): resumen, alertas y línea de tiempo ---------- */
+const HV_LAB={censo:['Censo','#e53935'],correccion:['Corrección','#ff9f1c'],caso_nuevo:['Caso nuevo','#ff7043'],cirugia:['Cirugía','#2f93d5'],
+  erradicacion:['Erradicación','#8d6e63'],existencia:['Existencia','#9e9e9e'],plagas:['Plagas','#c77dff']};
+(function(){const css=document.createElement('style');css.textContent=`
+  .hv{margin:10px 0;border:1px solid var(--borde,#2a3b36);border-radius:12px;padding:8px 10px;background:rgba(47,147,213,.06)}
+  .hv>summary{cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;align-items:center;gap:6px}
+  .hv>summary::-webkit-details-marker{display:none}
+  .hv .est{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin:8px 0;font-size:13px}
+  .hv .al{background:#b71c1c;color:#fff;border-radius:8px;padding:5px 8px;margin:6px 0;font-weight:700;font-size:13px}
+  .hv .al.am{background:#e65100}
+  .hv .ev{border-left:4px solid #999;padding:4px 8px;margin:6px 0;font-size:13px;line-height:1.35}
+  .hv .ev .tenue{font-size:12px}`;document.head.appendChild(css);})();
+function fechaHV(t){const d=new Date(t);return isNaN(d)?String(t||''):d.toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});}
+/* Estado actual y alertas a partir de los eventos (el último diagnóstico manda). */
+function resumenHV(ev){
+  const diags=ev.filter(e=>e.l==='censo'||e.l==='correccion'||e.l==='caso_nuevo');const ult=diags[diags.length-1]||null;
+  const dias=ult?Math.floor((Date.now()-Date.parse(ult.t))/864e5):null;
+  const al=[];const n2=String(ult&&ult.n2||'').toUpperCase();
+  if(ev.some(e=>e.l==='existencia'&&/aprobada/i.test(e.x)))al.push(['✝ Palma con existencia 0 (ya no existe en la cartografía)','']);
+  else if(n2==='PE PARTIDA')al.push(['✝ PE PARTIDA: la palma murió','']);
+  else if(n2==='CRATER'||n2==='CRÁTER')al.push([ev.some(e=>e.l==='erradicacion'&&Date.parse(e.t)>=Date.parse(ult.t))?'⚠ Cráter: ya fue erradicada':'⚠ PC CRÁTER: pendiente de erradicar','am']);
+  if(/RECUPERACI/.test(n2)&&dias>30)al.push([`⏰ En recuperación sin nueva revisión hace ${dias} días`,'am']);
+  return {ult,dias,al,nCir:ev.filter(e=>e.l==='cirugia').length,nDiag:diags.length,nPlg:ev.filter(e=>e.l==='plagas').length};
+}
+function htmlHojaVida(h,abierta,conFoto){
+  const ev=h.ev||[];const r=resumenHV(ev);
+  return `<details class="hv"${abierta?' open':''}><summary>📋 Hoja de vida <span class="tenue" style="font-weight:600">· ${ev.length} registro${ev.length===1?'':'s'}</span></summary>
+    ${r.al.map(([t,c])=>`<div class="al ${c}">${esc(t)}</div>`).join('')}
+    <div class="est"><div><b>Último diagnóstico:</b><br>${r.ult?esc(r.ult.x):'—'}</div><div><b>Hace:</b><br>${r.dias==null?'—':r.dias===0?'hoy':r.dias+' día'+(r.dias===1?'':'s')}${r.ult?`<br><span class="tenue">${esc(r.ult.q||'')}</span>`:''}</div>
+      <div><b>Diagnósticos:</b> ${r.nDiag}</div><div><b>Cirugías:</b> ${r.nCir}${r.nPlg?` · <b>Plagas:</b> ${r.nPlg}`:''}</div></div>
+    ${[...ev].reverse().map(e=>{const [et,col]=HV_LAB[e.l]||[e.l,'#999'];
+      return `<div class="ev" style="border-left-color:${col}"><b>${esc(et)}${e.r&&e.l!=='censo'?' ('+esc(e.r)+')':''}</b> · <span class="tenue">${esc(fechaHV(e.t))}</span><br>${esc(e.x||'')}${e.d?`<br><span class="tenue">${esc(e.d)}</span>`:''}<br><span class="tenue">${esc(e.q||'')}${e.f?(conFoto?` <button class="btn mini nar" data-hvf="${esc(e.f)}">📷 Ver foto</button>`:' · 📷'):''}</span></div>`;}).join('')}
+    <div class="tenue" style="font-size:11.5px">Incluye los registros de todo el personal ya sincronizados. Se actualiza con internet.</div></details>`;
+}
+const nombreCortoHV=n=>{const p=String(n||'').trim().split(/\s+/);return p.length>=3?p[p.length>=4?2:1]+' '+p[0]:String(n||'');};

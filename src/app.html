@@ -3372,6 +3372,7 @@ function avisarFueraPlantacion(m){
 /*CIRUGIA_APP_JS*/
 /*ERRADICACION_APP_JS*/
 /*PLAGAS_APP_JS*/
+/*HOJA_VIDA_APP_JS*/
 /* =====================================================================
    ARRANQUE
    ===================================================================== */
@@ -3408,6 +3409,7 @@ async function despuesDeIngresar(){
   try{await cargarAuditoria();}catch(e){}
   try{await cargarRamas();}catch(e){}
   try{await cargarAjustesExistencia();}catch(e){}
+  cargarHojaVida().catch(()=>{}); // hoja de vida de las palmas (en segundo plano)
   try{await cargarPlanCenso();}catch(e){}
   try{await cargarModoProgApp();}catch(e){}
   try{await cargarServiciosIA();}catch(e){}

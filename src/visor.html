@@ -754,7 +754,7 @@ function popupDiag(d,ll){
   if(!d._j){const j=(typeof JOR!=='undefined'?JOR:[]).find(x=>x.diags&&x.diags.includes(d))||(SEL&&SEL.diags&&SEL.diags.includes(d)?SEL:null);if(j)d={...d,_j:j};} // diagnóstico sin su jornada (p. ej. desde la reproducción)
   const n=Number(d.n_fotos)||0;
   const html=foto=>(n?`<div class="ppFoto">${foto}</div>`:'')+htmlDiag(d)+`<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-    ${n?`<button class="btn mini nar ppFotos">📷 Ver ${n} foto(s)</button>`:''}<button class="btn mini ppJor">Ver jornada</button><button class="btn mini ppHist">🕘 Historia de la palma</button></div>`;
+    ${n?`<button class="btn mini nar ppFotos">📷 Ver ${n} foto(s)</button>`:''}<button class="btn mini ppJor">Ver jornada</button><button class="btn mini ppHist">📋 Hoja de vida</button></div>`;
   const pp=L.popup({maxWidth:340,minWidth:260}).setLatLng(ll||[d.lat,d.lng]).setContent(html('<span class="tenue">Cargando foto…</span>')).openOn(mapa);
   const enlazar=()=>{const e=pp.getElement();if(!e)return;
     e.querySelectorAll('.ppFotos,.ppFoto img').forEach(b=>b.onclick=()=>verFotos(d));
@@ -1147,6 +1147,7 @@ async function entrar(){
 /*ERRADICACION_VISOR_JS*/
 /*PLAGAS_VISOR_JS*/
 /*ENFERMEDADES_VISOR_JS*/
+/*HOJA_VIDA_VISOR_JS*/
 (async()=>{
   ponerBase();pintarLeyenda();
   msOpciones('est',ESTADOS.map(e=>({v:e.id,t:e.n})));
