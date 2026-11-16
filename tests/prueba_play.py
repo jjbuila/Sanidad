@@ -70,6 +70,21 @@ with sync_playwright() as p:
     check('Visor: pausa mientras muestra el diagnóstico', abs(vb - va) < 1, (va, vb))
     vz.wait_for_function("(document.querySelector('.leaflet-popup-content')||{innerText:''}).innerText.includes('Marchitez')", timeout=20000)
     check('Visor: ficha del 2.º diagnóstico', True)
+    # Foto que tarda en bajar: una sola descarga, la ficha muestra la foto y la pausa son 5 s desde que se ve
+    import io, zipfile, base64 as b64
+    png = b64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+    bz = io.BytesIO(); zf = zipfile.ZipFile(bz, 'w'); zf.writestr('f1.jpg', png); zf.close()
+    vz.evaluate("pararPlay();mapa.closePopup()")
+    vz.evaluate("""(z)=>{window._nz=0;const _g=gh;gh=async(r,a)=>{if(r.includes('/git/blobs/ZIP1')){_nz++;await new Promise(x=>setTimeout(x,2000));
+        return new Response(Uint8Array.from(atob(z),c=>c.charCodeAt(0)));}return _g(r,a);};
+      const j=SEL;j.zipSha='ZIP1';j.diags[0].n_fotos=1;j.diags[0].fotos='f1.jpg';FOTO1.clear();ZIPS.clear();abrirDetalle(j);}""", b64.b64encode(bz.getvalue()).decode())
+    vz.select_option('#pVel', '600'); vz.click('#pBt')
+    vz.wait_for_function("!!document.querySelector('.leaflet-popup-content .ppFoto img')", timeout=20000)
+    t_img = time.time(); f1 = vz.evaluate('PLAY.t'); time.sleep(4); f2 = vz.evaluate('PLAY.t')
+    check('Visor: la foto se ve en la ficha (una sola descarga del archivo de fotos)', vz.evaluate('_nz') == 1, vz.evaluate('_nz'))
+    check('Visor: la pausa dura 5 s desde que aparece la foto', abs(f2 - f1) < 1, (f1, f2))
+    vz.wait_for_function("PLAY.t>%d" % (f1 + 1000), timeout=6000)
+    check('Visor: después de la pausa continúa', 4.5 < time.time() - t_img < 7.5, round(time.time() - t_img, 1))
     check('Sin errores de JavaScript', not errores, errores[:4])
     nav.close()
 print('\nRESULTADO:', 'TODO OK' if ok else 'HAY FALLAS'); sys.exit(0 if ok else 1)
