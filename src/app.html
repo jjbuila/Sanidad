@@ -514,12 +514,20 @@ const N1S=[...RAMAS.filter((x,i,a)=>a.findIndex(y=>y.c===x.c)===i).map(x=>({c:x.
 const PROBLEMAS=N1S.filter(x=>x.c!=='SN').map(x=>({id:x.c,n:x.n1.charAt(0)+x.n1.slice(1).toLowerCase().replace(/\(([a-z]+)\)/,(m,g)=>'('+g.toUpperCase()+')')}));
 const TRANSIT=['Transitable','Poco transitable','No transitable'];
 /* Nivel 3 automático. CRATER aparece como caso nuevo y como seguimiento: se decide por el historial de la palma. */
+const HV_FORM={pid:null,h:null}; // hoja de vida de la palma del formulario abierto
 function ramaDe(c,n2,palmaId,regId){
   const fil=RAMAS.filter(x=>x.c===c&&(x.n2||null)===(n2||null));
   if(fil.length<=1)return {rama:fil[0]||null,motivo:''};
-  const previo=S.registros.some(r=>r.palma_id===palmaId&&r.id!==regId&&(r.n1_codigo===c||(r.problemas||[]).includes(c)));
+  const local=S.registros.some(r=>r.palma_id===palmaId&&r.id!==regId&&(r.n1_codigo===c||(r.problemas||[]).includes(c)));
+  // Hoja de vida: registros de todo el personal ya sincronizados (censo, correcciones y casos nuevos del cirujano o erradicador)
+  const hv=HV_FORM.pid===String(palmaId)&&HV_FORM.h?(HV_FORM.h.ev||[]).filter(e=>(e.l==='censo'||e.l==='correccion'||e.l==='caso_nuevo')&&e.id!==regId&&(e.n1===c||(!e.n1&&String(e.x||'').includes('('+c+')')))):[];
+  const previo=local||hv.length>0;
   const rama=fil.find(x=>/SEGUIMIENTO/.test(x.n3||''))&&previo?fil.find(x=>/SEGUIMIENTO/.test(x.n3)):fil.find(x=>!/SEGUIMIENTO/.test(x.n3||''))||fil[0];
-  return {rama,motivo:previo?'la palma ya tiene registros de '+c+' en este dispositivo':'la palma no tiene registros previos de '+c+' en este dispositivo'};
+  const u=hv[hv.length-1];
+  return {rama,motivo:local?'la palma ya tiene registros de '+c+' en este dispositivo'
+    :u&&typeof AUD!=='undefined'&&AUD.ids&&AUD.ids.has(String(palmaId))?'la palma ya tiene registros previos de '+c
+    :u?`la hoja de vida de la palma tiene ${hv.length} registro${hv.length>1?'s':''} de ${c} (último: ${new Date(u.t).toLocaleDateString('es-CO')}${u.q?' · '+u.q:''})`
+    :'la palma no tiene registros previos de '+c+' (ni en este dispositivo ni en la hoja de vida)'};
 }
 /* Formulario de diagnóstico editable: la administración publica config/ramas.json en el repositorio de datos.
    Se aplica sobre la tabla incorporada (RAMAS, N1S, PROBLEMAS y colores) y se guarda para uso sin conexión. */
@@ -1729,6 +1737,8 @@ async function abrirFormulario(base){
   const f0=S.idx.get(base.palma_id);
   if(!edit&&!f0){toast('Esa palma no pertenece a la jornada.');return;}
   if(!edit){const rg=reglaDiagnostico(f0);if(!rg.ok){toast(rg.motivo.replace(/<[^>]+>/g,''),5000);return;}}
+  {const fp=S.idx.get(base.palma_id);HV_FORM.pid=String(base.palma_id);HV_FORM.h=null;
+    if(fp&&typeof hojaVidaDe==='function')try{HV_FORM.h=await hojaVidaDe(base.palma_id,fp.properties._lote);}catch(e){}}
   const r=edit?JSON.parse(JSON.stringify(base)):{id:uid(),palma_id:base.palma_id,jornada_id:S.jornada.id,evaluador:S.jornada.evaluador,
     estado:'',n1_codigo:'',n1:'',n2:'',n3:'',rama:null,problemas:[],sintomas:[],hongo:'',cirugia:'',produccion:'',raices:'',transitabilidad:'',observaciones:'',fotos:[],sync:'pendiente'};
   const sinc=r.sync==='sincronizado';

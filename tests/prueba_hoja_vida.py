@@ -47,7 +47,23 @@ with sync_playwright() as p:
     orden = vz.evaluate("[...document.querySelectorAll('#hvCuerpo .ev b')].map(b=>b.innerText)")
     check('Visor: lo más reciente primero y el último diagnóstico manda', orden[0] == 'Censo' and 'RECUPERACI' in vz.inner_text('#hvCuerpo .est').upper(), orden)
     check('Visor: registro con foto tiene «Ver foto»', vz.evaluate("document.querySelectorAll('#hvCuerpo [data-hvf]').length") == 1)
-    vz.click('#hvX'); check('Visor: se cierra', vz.evaluate("document.querySelector('#hvModal').hidden"))
+    check('Visor: la vista incluye el mapa con la palma marcada', vz.evaluate("!!HVP.mapa&&document.querySelector('#hvMapa .leaflet-container, #hvMapa.leaflet-container')!==null&&!!HVP.sel"))
+    vz.click('#hvX'); check('Visor: se cierra', vz.evaluate("document.querySelector('#hvPanel').hidden"))
+    # Botón de la cabecera: lista por lote, filtros y mapa
+    orden = vz.evaluate("[...document.querySelectorAll('header button')].map(b=>b.id).filter(Boolean)")
+    check('Visor: botón 📋 HOJA DE VIDA en la cabecera', 'btHV' in orden and 'HOJA DE VIDA' in vz.inner_text('#btHV'), orden)
+    vz.click('#btHV'); vz.wait_for_selector('#hvLista .it', timeout=8000)
+    li = [x.splitlines()[0] for x in vz.evaluate("[...document.querySelectorAll('#hvLista .it')].map(e=>e.innerText)")]
+    check('Visor: lista las palmas con hoja de vida del lote', len(li) == 1 and 'L3' in li[0] and 'P7' in li[0], li)
+    check('Visor: el mapa muestra la palma con su alerta', vz.evaluate("HVP.capa.getLayers().length")>0)
+    vz.click('#hvFil [data-f=cir]'); vz.wait_for_timeout(300)
+    check('Visor: filtro «Con cirugía»', vz.evaluate("document.querySelectorAll('#hvLista .it').length") == 1)
+    vz.click('#hvFil [data-f=plg]'); vz.wait_for_timeout(300); vz.fill('#hvQ', '3 9'); vz.wait_for_timeout(300)
+    check('Visor: búsqueda por línea y palma', vz.evaluate("document.querySelectorAll('#hvLista .it').length") == 0)
+    vz.fill('#hvQ', ''); vz.click('#hvFil [data-f=todas]'); vz.wait_for_timeout(300); vz.click('#hvLista .it'); vz.wait_for_timeout(300)
+    check('Visor: al elegir la palma muestra su hoja de vida', vz.evaluate("document.querySelectorAll('#hvCuerpo .ev').length") == 5)
+    vz.click('#btEnf'); vz.wait_for_timeout(200)
+    check('Visor: otro botón de la cabecera cierra la vista', vz.evaluate("document.querySelector('#hvPanel').hidden"))
     # Palma sin hoja de vida
     vz.evaluate("verHistoriaPalma({palma_id:'999',lote:'IT01',linea:1,palma:1,lat:1.5,lng:-78.7})"); vz.wait_for_timeout(500)
     check('Visor: palma sin diagnósticos ni novedades no tiene hoja de vida', 'no tiene hoja de vida' in vz.inner_text('#hvCuerpo'))
@@ -62,6 +78,13 @@ with sync_playwright() as p:
       cerrarHoja&&cerrarHoja();abrirPalma('502');await new Promise(r=>setTimeout(r,500));res.sinHV=!document.querySelector('#hojaCuerpo .hv');
       HV.mem.clear();const off=Object.getOwnPropertyDescriptor(Navigator.prototype,'onLine');Object.defineProperty(navigator,'onLine',{get:()=>false,configurable:true});
       cerrarHoja&&cerrarHoja();abrirPalma('501');await new Promise(r=>setTimeout(r,500));res.offline=!!document.querySelector('#hojaCuerpo .hv');
+      Object.defineProperty(navigator,'onLine',{get:()=>true,configurable:true});
+      const j={id:'JN',estado:'activa',evaluador:'Nuevo Censador',usuario:'op9',inicio:new Date().toISOString(),seleccion:[{lote:'IT01'}],densidad:115,buffer:5,km:0,sync:'pendiente'};await dbPut('jornadas',j);S.jornada=j;
+      S.gps={lat:1.50002,lng:-78.7,acc:4,t:Date.now()};
+      const n3de=async pid=>{cerrarHoja();await abrirFormulario({palma_id:pid});const frm=document.querySelector('#frm');
+        const sel=(n,v)=>{const i=frm.querySelector(`input[name=${n}][value="${v}"]`);if(!i)return false;i.checked=true;i.dispatchEvent(new Event('change',{bubbles:true}));return true;};
+        sel('n1','PC');await new Promise(r=>setTimeout(r,50));sel('n2','CRATER');await new Promise(r=>setTimeout(r,50));return (document.querySelector('#secN3')||{}).innerText||'';};
+      res.n3hv=await n3de('501');res.n3nuevo=await n3de('502');
       AUD.ids=new Set(['501']);AUD.m={id:'A1',palmas:[]};cerrarHoja&&cerrarHoja();abrirPalma('501');await new Promise(r=>setTimeout(r,500));res.aud=!document.querySelector('#hojaCuerpo .hv');
       return res;}""")
     check('App: la ficha de la palma muestra la hoja de vida con todos los registros', r['hay'] and r['n'] == 4 and 'GOMEZ' in r['txt'] and 'Cirugía' in r['txt'], r['txt'][:200])
@@ -69,6 +92,8 @@ with sync_playwright() as p:
     check('App: palma sin novedades no muestra hoja de vida', r['sinHV'])
     check('App: funciona sin internet (copia guardada)', r['offline'])
     check('App: oculta en palmas de auditoría', r['aud'])
+    check('App: cráter en palma con PC de otro operario (hoja de vida) → SEGUIMIENTO PC', 'SEGUIMIENTO PC' in r['n3hv'] and 'hoja de vida' in r['n3hv'], r['n3hv'])
+    check('App: cráter en palma sin registros → PC CASO NUEVO', 'CASO NUEVO' in r['n3nuevo'] and 'SEGUIMIENTO' not in r['n3nuevo'], r['n3nuevo'])
     check('Sin errores de JavaScript', not errores, errores[:4])
     nav.close()
 print('\nRESULTADO:', 'TODO OK' if ok else 'HAY FALLAS'); sys.exit(0 if ok else 1)
