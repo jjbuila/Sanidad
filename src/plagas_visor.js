@@ -32,7 +32,7 @@ function pintarPlagasGer(){
   const G=GER.plg;
   if(!G.datos&&!G.cargando){cargarPlagasVisor();}
   const sub=`<div class="ger-par"><button class="btn mini ${G.sub==='prog'?'prim':''}" data-psub="prog">Programación</button><button class="btn mini ${G.sub==='res'?'prim':''}" data-psub="res">Resultados</button></div>`;
-  if(G.sub==='prog')return sub+pintarProgPlagas();
+  if(G.sub==='prog')return sub+tarjetaModoProg('plagas')+pintarProgPlagas();
   return sub+pintarResPlagas();
 }
 function pintarResPlagas(){
@@ -76,7 +76,7 @@ function alternarCapaPlagas(){
 }
 ENLACES_GER.plagas=()=>{const G=GER.plg;
   $$('#gerPanel [data-psub]').forEach(b=>b.onclick=()=>{G.sub=b.dataset.psub;pintarGer();});
-  if(G.sub==='prog')enlazarProgPlagas();
+  if(G.sub==='prog'){enlazarModoProg();enlazarProgPlagas();}
   const d=$('#plgDias');if(d)d.onchange=()=>{G.dias=Number(d.value)||30;G.datos=null;cargarPlagasVisor();};
   const r=$('#plgRec');if(r)r.onclick=()=>{G.datos=null;cargarPlagasVisor();};
   const c=$('#plgCsv');if(c)c.onclick=exportarPlagasCSV;

@@ -287,6 +287,10 @@ Llega en 3 a 5 minutos y queda en la lista de reportes.
   Para que el avance cuente toda la vuelta, cargue las jornadas desde su inicio; el visor ofrece el botón. **📄 PDF del ciclo** abre la programación aprobada.
 - En la App, al planificar la jornada, el operario ve **«Su bloque de hoy D5·P3»** con los lotes y calles (por ejemplo *GU28 L1–L78 · GU27 L39–L59*), y **Usar mi bloque** lo deja seleccionado con esas líneas. Si ese día tiene dos bloques (titular + apoyo), ve **«Sus bloques de hoy D5·P3 + D4·P8 (apoyo)»** y **Usar mis bloques** selecciona las calles de ambos. En los lotes de RI sin numeración de líneas en la cartografía se indica cuántas palmas le corresponden.
 - La propuesta automática por días sin censo sigue disponible como alternativa.
+- **Elección de lotes: 🔓 Libre / 🔒 Según programación.** Arriba del programador hay un interruptor (también en Monitoreo de plagas, independiente):
+  - **Libre** (lo normal si nunca se ha tocado): el personal elige cualquier lote y su bloque de hoy aparece como sugerencia.
+  - **Según programación:** al abrir la labor la App deja seleccionado su bloque de hoy y no permite elegir otros lotes ni cambiar las líneas. Si la persona no tiene bloque en el plan del día, la App no inicia la jornada y le pide comunicarse con Coordinación.
+  - Lo cambian superadministrador, analista, administradores y coordinadores (con confirmación). Se guarda en `config/modo_programacion.json` con quién y cuándo, y un historial. Rige desde la siguiente jornada que se inicie; sin señal, la App usa el último modo que descargó. Cada jornada guarda el modo con que se inició (`modo_programacion`).
 
 **Historia de la palma.** En el visor, en la ficha de un diagnóstico, *🕘 Historia de la palma* muestra en orden sus censos y, si se cargó Cirugías, las cirugías y correcciones, con aviso si lleva más de 30 días en recuperación sin revisión. En la App, la ficha de la palma muestra la **línea de tiempo** con sus registros.
 
@@ -402,6 +406,7 @@ La **programación** está en 🧭 COORDINACIÓN → Monitoreo de plagas.
 - **Plan del día:** se puede cambiar la unidad, quitar a quien no asiste o agregar unidades de apoyo. **Guardar y enviar** escribe `plagas/plan/AAAA-MM-DD.json`.
 - **Avance:** una unidad queda hecha cuando se registró el 90 % de su muestra. También se marca terminada o se reabre con un clic.
 - **En la App** aparece **«Su bloque de hoy»** con su unidad y sus lotes. **Usar mi bloque** calcula la muestra solo dentro de las palmas de la unidad.
+- **Interruptor 🔓 Libre / 🔒 Según programación** (arriba de la programación): con la programación activa la App deja seleccionada su unidad, no permite agregar ni quitar lotes y, sin unidad asignada, no deja iniciar el monitoreo. Funciona igual que en el censo (ver 7.4).
 
 **Reportes:** el diario y el semanal incluyen la página **MONITOREO DE PLAGAS** (por plaga y por lote) y las hojas **Plagas** y **Plagas por lote** en el Excel.
 

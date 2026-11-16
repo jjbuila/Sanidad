@@ -701,7 +701,7 @@ function pintarPlanCenso(){
   if(P.ops==null&&!P.cargandoOps){P.cargandoOps=true;cirUsuarios().then(us=>{const O=resumenOperarios();
       P.ops=us.filter(x=>!x.inactivo&&x.rol==='operario'&&(!x.labores||!x.labores.length||x.labores.includes('censo'))).map(x=>{const r=O.find(o=>o.usuario===x.u);return {usuario:x.u,nombre:x.nombre,activo:true,meta:r&&r.ha_dia>0?+r.ha_dia.toFixed(1):15};});})
     .catch(e=>toast(e.message,6000)).finally(()=>{P.cargandoOps=false;pintarGer();});}
-  const ciclo=pintarCiclo();
+  const ciclo=tarjetaModoProg('censo')+pintarCiclo();
   if(GER.cic.c)return ciclo+`<details class="ger-sec"><summary style="cursor:pointer"><b>Propuesta automática por días sin censo</b> (alternativa al ciclo aprobado)</summary>${pintarPropuesta()}</details>`;
   return ciclo+pintarPropuesta();
 }
@@ -720,7 +720,7 @@ function pintarPropuesta(){
 function leerPlanEditado(){const P=GER.plan;if(!P.res)return;const cand=new Map(candidatosPlan().map(x=>[x.lote,x]));
   for(const a of P.res){const e=document.querySelector(`#gerPanel [data-pl="${CSS.escape(a.usuario)}"]`);if(!e)continue;
     a.lotes=e.value.split(/[,;\s]+/).map(x=>x.trim().toUpperCase()).filter(Boolean).map(l=>{const c=cand.get(l);return {lote:l,ha:c?c.ha:+haLote(l).toFixed(1),dias:c?c.dias:null};});}}
-ENLACES_GER.plan=()=>{enlazarRango();enlazarCiclo();const P=GER.plan;
+ENLACES_GER.plan=()=>{enlazarRango();enlazarCiclo();enlazarModoProg();const P=GER.plan;
   const f=$('#plFecha');if(f)f.onchange=()=>{P.fecha=f.value;P.guardado=false;};
   $$('#gerPanel [data-pa]').forEach(c=>c.onchange=()=>{const o=P.ops.find(x=>x.usuario===c.dataset.pa);if(o)o.activo=c.checked;});
   $$('#gerPanel [data-pm]').forEach(c=>c.onchange=()=>{const o=P.ops.find(x=>x.usuario===c.dataset.pm);if(o)o.meta=Number(c.value)||15;});
@@ -833,3 +833,43 @@ ENLACES_GER.reportes=()=>{const r=$('#repRecargar');if(r)r.onclick=()=>{GER.repo
       if(w){w.location.href=u;}else{const a=document.createElement('a');a.href=u;a.download=path.split('/').pop();document.body.appendChild(a);a.click();a.remove();}setTimeout(()=>URL.revokeObjectURL(u),120000);}
     catch(e){if(w)w.close();toast(e.message,6000);}b.disabled=false;});};
 
+
+/* =====================================================================
+   INTERRUPTOR «LIBRE / SEGÚN PROGRAMACIÓN» por labor (censo y plagas).
+   Se guarda en config/modo_programacion.json; la App lo lee al abrir la labor.
+   ===================================================================== */
+const MPROG={c:null,sha:null,cargando:false,err:null,guardando:false};
+async function cargarModoProg(){
+  const rama=encodeURIComponent(SES.repo.rama);
+  try{const j=await (await gh(`/contents/${MODO_PROG_RUTA}?ref=${rama}`)).json();MPROG.sha=j.sha;MPROG.c=JSON.parse(DEC.decode(deB64(j.content.replace(/\s/g,''))));}
+  catch(e){if(e.status!==404)throw e;MPROG.sha=null;MPROG.c={formato:'sanidad-modo-programacion-1',historial:[]};}
+  MPROG.c.historial=MPROG.c.historial||[];MPROG.err=null;
+}
+const fechaHoraCO=s=>{try{return new Date(s).toLocaleString('es-CO',{dateStyle:'short',timeStyle:'short'});}catch(e){return s;}};
+function tarjetaModoProg(labor){
+  if(MPROG.c==null&&!MPROG.cargando&&!MPROG.err){MPROG.cargando=true;cargarModoProg().catch(e=>{MPROG.err=e.message;}).finally(()=>{MPROG.cargando=false;pintarGer();});}
+  if(MPROG.err)return `<div class="ger-sec"><div class="ger-aviso ger-mal">⚠ No se pudo leer el modo de programación: ${esc(MPROG.err)} <button class="btn mini" data-mprog-re>Reintentar</button></div></div>`;
+  if(MPROG.c==null)return '<div class="ger-sec"><p class="tenue">Consultando el modo de programación…</p></div>';
+  const prog=modoProgDe(MPROG.c,labor)==='programado',x=MPROG.c[labor]||{},quien=labor==='plagas'?'auxiliar':'operario';
+  return `<div class="ger-sec" id="mprog_${labor}" style="border-left:4px solid ${prog?'#22d39a':'#ffc53d'}">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div><b>Elección de lotes en la App · ${esc(LABORES_MODO_PROG[labor])}:</b> <span class="ger-chip ${prog?'ok':'med'}" data-mprog-estado="${labor}">${prog?'🔒 SEGÚN PROGRAMACIÓN':'🔓 LIBRE'}</span>
+        <div class="tenue" style="margin-top:4px">${prog?`Cada ${quien} solo puede trabajar su bloque de hoy (el plan enviado). Si no tiene bloque asignado, la App no inicia la jornada.`:`Cada ${quien} elige los lotes que quiera; su bloque de hoy aparece como sugerencia.`}</div>
+        ${x.fecha?`<div class="tenue" style="font-size:12px;margin-top:2px">Último cambio: ${esc(x.nombre||x.por||'')} · ${esc(fechaHoraCO(x.fecha))}</div>`:''}</div>
+      <button class="btn ${prog?'':'prim'}" data-mprog="${labor}" ${MPROG.guardando?'disabled':''}>${prog?'🔓 Dejar libre':'🔒 Activar programación'}</button></div></div>`;
+}
+function enlazarModoProg(){
+  $$('#gerPanel [data-mprog-re]').forEach(b=>b.onclick=()=>{MPROG.err=null;MPROG.c=null;pintarGer();});
+  $$('#gerPanel [data-mprog]').forEach(b=>b.onclick=async()=>{
+    const labor=b.dataset.mprog,nuevo=modoProgDe(MPROG.c,labor)==='programado'?'libre':'programado',nom=LABORES_MODO_PROG[labor];
+    if(!confirm(nuevo==='programado'?`¿Activar la programación en ${nom}?\n\nDesde la próxima jornada cada persona solo podrá trabajar su bloque del plan del día.`:`¿Dejar libre ${nom}?\n\nDesde la próxima jornada cada persona podrá elegir cualquier lote.`))return;
+    MPROG.guardando=true;pintarGer();
+    try{await cargarModoProg();   // la versión más reciente, por si otra persona lo cambió
+      const ahora=new Date().toISOString(),c=MPROG.c;
+      c[labor]={modo:nuevo,por:SES.u,nombre:SES.nombre||SES.u,fecha:ahora};
+      c.historial=[{labor,modo:nuevo,por:SES.u,nombre:SES.nombre||SES.u,fecha:ahora},...c.historial].slice(0,200);c.actualizado=ahora;
+      MPROG.sha=await ghPut(MODO_PROG_RUTA,JSON.stringify(c,null,1),`${nom}: elección de lotes ${nuevo==='programado'?'según programación':'libre'} (${SES.u})`,MPROG.sha);
+      toast(nuevo==='programado'?`🔒 ${nom}: programación activa.`:`🔓 ${nom}: elección libre de lotes.`,4500);}
+    catch(e){MPROG.c=null;toast(e.message,6000);}
+    MPROG.guardando=false;pintarGer();});
+}

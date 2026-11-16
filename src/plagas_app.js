@@ -52,13 +52,16 @@ async function muestraDe(lote,k,rangos){const d=await leerChunk(lote);let m=mues
 async function planPlg(fecha){const clave='plg_plan_'+fecha;
   try{const p=await (await ghRaw(`plagas/plan/${fecha}.json`)).json();await dbPut('config',{clave,v:p});return p;}
   catch(e){try{const c=await dbGet('config',clave);if(c&&c.v)return c.v;}catch(_){}return null;}}
-function abrirInicioPlg(){
+async function abrirInicioPlg(){
   if(S.jornada){toast('Ya hay una jornada en curso.');return;}
-  if(!PLG.sel.length&&S.gps){const l=loteDe(S.gps.lat,S.gps.lng);if(l&&CARTO.lotes[l])PLG.sel=[{lote:l,muestreo:'10x10'}];}
+  await conTiempo(cargarModoProgApp(),5000);
+  const prog=PLG.prog=progActiva('plagas');if(prog)PLG.sel=[];
+  if(!prog&&!PLG.sel.length&&S.gps){const l=loteDe(S.gps.lat,S.gps.lng);if(l&&CARTO.lotes[l])PLG.sel=[{lote:l,muestreo:'10x10'}];}
   const lotes=Object.keys(CARTO.lotes||{}).sort(ordenNat);
   abrirHoja('Monitoreo de plagas',`
     <div class="banda-form" style="--bf:#5b6b12"><span>1</span><b>LOTES DE HOY Y TIPO DE MUESTREO</b></div>
-    <div style="display:flex;gap:8px"><input id="plgLote" list="plgLotes" placeholder="Escriba el lote (ej. IT05)" autocapitalize="characters" style="flex:1;padding:12px;border-radius:12px;background:#0a1d16;color:var(--texto);border:1px solid var(--borde)">
+    ${prog?'<div class="aviso" id="plgProgAviso">🔒 <b>Programación activa:</b> solo puede monitorear su bloque de hoy. Consultando su bloque…</div>':''}
+    <div style="display:${prog?'none':'flex'};gap:8px"><input id="plgLote" list="plgLotes" placeholder="Escriba el lote (ej. IT05)" autocapitalize="characters" style="flex:1;padding:12px;border-radius:12px;background:#0a1d16;color:var(--texto);border:1px solid var(--borde)">
       <button class="btn" id="plgAg" style="margin:0">Agregar</button></div>
     <datalist id="plgLotes">${lotes.map(l=>`<option value="${esc(l)}">`).join('')}</datalist>
     <div id="plgBloque"></div>
@@ -67,9 +70,9 @@ function abrirInicioPlg(){
     <button class="btn prim ancho grande" id="plgIni" style="margin-top:10px">${IC.play} INICIAR MONITOREO</button>`);
   const pintar=async()=>{const c=$('#plgSel');if(!c)return;
     const filas=[];for(const s of PLG.sel){const m=MUESTREOS.find(x=>x.id===s.muestreo)||MUESTREOS[0];const n=(await muestraDe(s.lote,m.k,s.rangos)).length;
-      filas.push(`<div class="plg-lote"><div style="display:flex;justify-content:space-between;align-items:center"><b>${esc(s.lote)}</b>${s.unidad?`<span class="tenue" style="font-size:11.5px">${esc(s.unidad)}</span>`:''}<span class="tenue" style="font-size:12.5px">${n?num(n)+' palmas en la muestra':'⚠ lote sin numeración de líneas: toque las palmas en el mapa'}</span><button class="btn mini" data-qp="${esc(s.lote)}" style="margin:0">✕</button></div>
+      filas.push(`<div class="plg-lote"><div style="display:flex;justify-content:space-between;align-items:center"><b>${esc(s.lote)}</b>${s.unidad?`<span class="tenue" style="font-size:11.5px">${esc(s.unidad)}</span>`:''}<span class="tenue" style="font-size:12.5px">${n?num(n)+' palmas en la muestra':'⚠ lote sin numeración de líneas: toque las palmas en el mapa'}</span>${prog?'':`<button class="btn mini" data-qp="${esc(s.lote)}" style="margin:0">✕</button>`}</div>
         <div class="seg2" style="margin:6px 0 0">${MUESTREOS.map(x=>`<label><input type="radio" name="m_${esc(s.lote)}" value="${x.id}" ${x.id===s.muestreo?'checked':''} data-lm="${esc(s.lote)}"><span>${x.t}</span></label>`).join('')}</div></div>`);}
-    c.innerHTML=filas.join('')||'<p class="tenue">Agregue los lotes que va a monitorear hoy.</p>';
+    c.innerHTML=filas.join('')||(prog?'':'<p class="tenue">Agregue los lotes que va a monitorear hoy.</p>');
     c.querySelectorAll('[data-qp]').forEach(b=>b.onclick=()=>{PLG.sel=PLG.sel.filter(x=>x.lote!==b.dataset.qp);pintar();});
     c.querySelectorAll('[data-lm]').forEach(i=>i.onchange=()=>{const s=PLG.sel.find(x=>x.lote===i.dataset.lm);if(s){s.muestreo=i.value;pintar();}});};
   const agregar=()=>{const l=String($('#plgLote').value||'').trim().toUpperCase();if(!l)return;
@@ -77,18 +80,25 @@ function abrirInicioPlg(){
     if(!PLG.sel.some(x=>x.lote===l))PLG.sel.push({lote:l,muestreo:'10x10'});$('#plgLote').value='';pintar();};
   $('#plgAg').onclick=agregar;$('#plgLote').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();agregar();}};pintar();
   // «Su bloque de hoy»: unidades de la programación asignadas a este auxiliar
-  planPlg(fechaISO(new Date())).then(p=>{const mias=p?(p.asignaciones||[]).filter(a=>a.usuario===SES.u):[];const c=$('#plgBloque');if(!c||!mias.length)return;
+  planPlg(fechaISO(new Date())).then(p=>{const mias=p?(p.asignaciones||[]).filter(a=>a.usuario===SES.u):[];const c=$('#plgBloque');if(!c)return;
+    const av=$('#plgProgAviso');
+    if(prog&&!mias.length){if(av)av.innerHTML='🔒 <b>Coordinación activó la programación del monitoreo.</b><br>No tiene bloque asignado hoy: comuníquese con Coordinación.';const b=$('#plgIni');if(b)b.disabled=true;return;}
+    if(!mias.length)return;
+    if(prog){PLG.sel=mias.flatMap(a=>a.lotes.map(l=>({lote:l.lote,muestreo:a.muestreo||'10x10',rangos:l.rangos,unidad:a.unidad})));
+      if(av)av.innerHTML=`🔒 <b>Programación activa:</b> ${mias.length>1?'sus bloques de hoy':'su bloque de hoy'} ${mias.map(a=>esc(a.unidad)+(a.tipo==='apoyo'?' (apoyo)':'')).join(' + ')} ya está seleccionado; no se pueden elegir otros lotes.<br><span class="tenue">${mias.map(a=>`${a.lotes.map(l=>esc(l.lote)).join(', ')} · ${num(a.palmas)} palmas (~${num(a.ha,0)} ha)`).join('<br>')}</span>`;
+      pintar();return;}
     c.innerHTML=`<div class="aviso">📋 <b>${mias.length>1?'Sus bloques de hoy':'Su bloque de hoy'}: ${mias.map(a=>esc(a.unidad)+(a.tipo==='apoyo'?' (apoyo)':'')).join(' + ')}</b><br>
       ${mias.map(a=>`${a.lotes.map(l=>esc(l.lote)).join(', ')} · ${num(a.palmas)} palmas (~${num(a.ha,0)} ha)`).join('<br>')}
       <button class="btn prim ancho" id="plgUsar" style="margin-top:8px">Usar ${mias.length>1?'mis bloques':'mi bloque'}</button></div>`;
     $('#plgUsar').onclick=()=>{PLG.sel=mias.flatMap(a=>a.lotes.map(l=>({lote:l.lote,muestreo:a.muestreo||'10x10',rangos:l.rangos,unidad:a.unidad})));pintar();toast('Bloque seleccionado: la muestra se calcula solo dentro de sus palmas.',3500);};});
-  $('#plgIni').onclick=async()=>{if(!PLG.sel.length){alert('Agregue al menos un lote.');return;}await iniciarPlg(PLG.sel.map(x=>({...x})));};
+  $('#plgIni').onclick=async()=>{if(prog&&(!PLG.sel.length||PLG.sel.some(x=>!x.unidad))){alert('Programación activa: espere a que cargue su bloque de hoy o comuníquese con Coordinación.');return;}
+    if(!PLG.sel.length){alert('Agregue al menos un lote.');return;}await iniciarPlg(PLG.sel.map(x=>({...x})));};
 }
 async function iniciarPlg(sel){
   {const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}}
   const muestra=[];for(const s of sel){const m=MUESTREOS.find(x=>x.id===s.muestreo)||MUESTREOS[0];
     (await muestraDe(s.lote,m.k,s.rangos)).forEach((x,i)=>muestra.push({...x,muestreo:s.muestreo,unidad:s.unidad||null,orden:i+1,estado:'pendiente'}));}
-  const j={id:idJornada(),labor:'plagas',lotes_muestreo:sel.map(s=>({lote:s.lote,muestreo:s.muestreo,unidad:s.unidad||null})),unidades:[...new Set(sel.map(s=>s.unidad).filter(Boolean))],muestra,inicio:new Date().toISOString(),fin:null,evaluador:SES.nombre,usuario:SES.u,dispositivo:S.cfg.dispositivo,
+  const j={id:idJornada(),labor:'plagas',lotes_muestreo:sel.map(s=>({lote:s.lote,muestreo:s.muestreo,unidad:s.unidad||null})),unidades:[...new Set(sel.map(s=>s.unidad).filter(Boolean))],modo_programacion:modoProgDe(MPROG_APP.c,'plagas'),muestra,inicio:new Date().toISOString(),fin:null,evaluador:SES.nombre,usuario:SES.u,dispositivo:S.cfg.dispositivo,
     seleccion:sel.map(s=>({lote:s.lote,desde:null,hasta:null})),estado:'activa',km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=SES.nombre;await guardarCfg();
   TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=null;PAR.lista=[];capaParadas.clearLayers();

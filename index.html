@@ -1021,7 +1021,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261115:1632</div>
+  <div id="splashVer">VERSIÓN 20261116:0549</div>
 </div>
 
 <div id="login" hidden>
@@ -1036,7 +1036,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261115:1632</div>
+  <div id="lgVer2">VERSIÓN 20261116:0549</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1153,7 +1153,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261115:1632';
+const VERSION='20261116:0549';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -1877,18 +1877,26 @@ async function avisoJornada(on){
    ===================================================================== */
 function lotesProgramas(){return [...new Set((S.lotes?S.lotes.features:[]).map(f=>f.properties.Programa).filter(Boolean))].sort(ordenNat);}
 function itemPlan(l){const m=CARTO.lotes[l]||{};return {lote:l,desde:m.linea_min??null,hasta:m.linea_max??null};}
+const bloqueDe=l=>misLotesPlan().find(x=>x.lote===l);
 function alternarPlan(l){
+  if(S.planProg&&!bloqueDe(l)){toast('🔒 Programación activa: solo puede elegir los lotes de su bloque de hoy.',4000);return;}
   if(!CARTO.lotes[l]){toast('El lote '+l+' no tiene palmas en la cartografía.');return;}
   const i=S.plan.findIndex(p=>p.lote===l);if(i>=0)S.plan.splice(i,1);else S.plan.push(itemPlan(l));
   S.plan.sort((a,b)=>ordenNat(a.lote,b.lote));dibujarLotes();pintarPlanLista();pintarPlanSel();
 }
 async function contarItem(it){const d=await leerChunk(it.lote);let n=0;for(const a of d)if(a[3]!==0&&enRango(a[1],it.desde,it.hasta))n++;return n;}
-function abrirPlanificador(modo){
+async function abrirPlanificador(modo){
   if(!S.lotes){toast('La cartografía aún no está cargada.');return;}
-  S.planModo=modo;if(modo==='agregar')S.plan=[];
+  await conTiempo(Promise.all([cargarModoProgApp(),cargarPlanCenso()]),5000);
+  const prog=progActiva('censo'),blq=prog?misLotesPlan().filter(x=>CARTO.lotes[x.lote]):[];
+  if(prog&&!blq.length){abrirHoja('Programación activa',`<div class="aviso" id="plSinBloque">🔒 <b>Coordinación activó la programación del censo.</b><br>No tiene bloque asignado hoy: comuníquese con Coordinación.</div>
+    <button class="btn ancho" id="plSinOk" style="margin-top:10px">Entendido</button>`);$('#plSinOk').onclick=cerrarHoja;return;}
+  S.planModo=modo;S.planProg=prog;if(modo==='agregar')S.plan=[];
+  else if(prog)S.plan=blq.map(x=>{const it=itemPlan(x.lote);return x.desde!=null&&x.hasta!=null?{...it,desde:Number(x.desde),hasta:Number(x.hasta)}:it;}).sort((a,b)=>ordenNat(a.lote,b.lote));
   abrirHoja(modo==='agregar'?'Agregar lotes a la jornada':'Planificar jornada',`
     <div class="pasos"><span><b>1</b>Toque los lotes en el mapa o búsquelos</span><span><b>2</b>Ajuste las líneas</span><span><b>3</b>${modo==='agregar'?'Agregue':'Inicie la jornada'}</span></div>
-    <div class="fila"><input type="text" id="plBusca" placeholder="Buscar: IT43, GU1…"><select id="plProg"><option value="">Todos los programas</option>${lotesProgramas().map(p=>`<option>${esc(p)}</option>`).join('')}</select></div>
+    ${prog?`<div class="aviso" id="plProgAviso">🔒 <b>Programación activa:</b> ${modo==='agregar'?'solo puede agregar lotes de su bloque de hoy.':'su bloque de hoy ya está seleccionado; no se pueden elegir otros lotes ni cambiar las líneas.'}</div>`:''}
+    <div class="fila" ${prog?'style="display:none"':''}><input type="text" id="plBusca" placeholder="Buscar: IT43, GU1…"><select id="plProg"><option value="">Todos los programas</option>${lotesProgramas().map(p=>`<option>${esc(p)}</option>`).join('')}</select></div>
     <div class="lista-lotes" id="plLista"></div>
     <h3>Lotes y palmas seleccionados</h3>
     <div id="plSel"></div>
@@ -1896,7 +1904,7 @@ function abrirPlanificador(modo){
     ${modo==='nueva'?`<div class="ficha" style="margin-top:8px">Evaluador: <b>${esc(SES?SES.nombre:'')}</b> <span class="tenue">(${esc(SES?SES.u:'')})</span></div>`:''}
     <button class="btn nar ancho grande" id="plOk" style="margin-top:14px">${modo==='agregar'?IC.mas+' AGREGAR A LA JORNADA':IC.play+' INICIAR JORNADA'}</button>
     <p class="tenue">${modo==='agregar'?'Si elige un lote que ya está en la jornada, se reemplaza su rango de líneas.':'Al iniciar, comienza a guardarse el recorrido (track) y se cargan solo las palmas elegidas.'}</p>`,
-    {media:true,alCerrar:()=>{S.planAbierto=false;dibujarLotes();}});
+    {media:true,alCerrar:()=>{S.planAbierto=false;S.planProg=false;dibujarLotes();}});
   S.planAbierto=true;
   $('#plBusca').oninput=pintarPlanLista;$('#plProg').onchange=pintarPlanLista;
   $('#plOk').onclick=confirmarPlan;
@@ -1906,16 +1914,16 @@ function abrirPlanificador(modo){
 function pintarPlanLista(){
   const c=$('#plLista');if(!c)return;
   const t=($('#plBusca').value||'').trim().toUpperCase(),pr=$('#plProg').value;
-  const ls=S.lotes.features.map(f=>f.properties).filter(p=>CARTO.lotes[p._lote]&&(!t||p._lote.toUpperCase().includes(t))&&(!pr||p.Programa===pr)).map(p=>p._lote).sort(ordenNat);
+  const ls=S.lotes.features.map(f=>f.properties).filter(p=>CARTO.lotes[p._lote]&&(!S.planProg||bloqueDe(p._lote))&&(!t||p._lote.toUpperCase().includes(t))&&(!pr||p.Programa===pr)).map(p=>p._lote).sort(ordenNat);
   c.innerHTML=`<div class="chips">${ls.slice(0,400).map(l=>`<label class="chip-op"><input type="checkbox" data-l="${esc(l)}" ${enPlan(l)?'checked':''}><span><b>${esc(l)}</b>${enJornada(l)?' ✓':''}&nbsp;<small>${num(CARTO.lotes[l].n-(CARTO.lotes[l].vacios||0))}</small></span></label>`).join('')}</div>${ls.length>400?'<p class="tenue">Use el buscador para ver más.</p>':''}`;
   c.querySelectorAll('input').forEach(i=>i.onchange=()=>{alternarPlan(i.dataset.l);const f=S.lotes.features.find(x=>x.properties._lote===i.dataset.l);if(f&&i.checked){const k=cajaDe([f]);if(k)mapa.fitBounds(k,{padding:[40,40],maxZoom:17});}});
 }
 async function pintarPlanSel(){
   const c=$('#plSel');if(!c)return;
   if(!S.plan.length){c.innerHTML='<p class="tenue">Aún no ha elegido lotes.</p>';$('#plTotal').innerHTML='';return;}
-  c.innerHTML=S.plan.map(it=>{const m=CARTO.lotes[it.lote]||{};return `<div class="sel-item" data-l="${esc(it.lote)}"><b>${esc(it.lote)}</b>
-    <span class="tenue">Líneas</span><input type="number" class="mini" data-k="desde" min="${m.linea_min??''}" max="${m.linea_max??''}" value="${it.desde??''}">
-    <span class="tenue">a</span><input type="number" class="mini" data-k="hasta" min="${m.linea_min??''}" max="${m.linea_max??''}" value="${it.hasta??''}">
+  c.innerHTML=S.plan.map(it=>{const m=CARTO.lotes[it.lote]||{},b=S.planProg&&bloqueDe(it.lote),ro=b&&b.desde!=null&&b.hasta!=null?'readonly title="Fijado por la programación"':'';return `<div class="sel-item" data-l="${esc(it.lote)}"><b>${esc(it.lote)}</b>
+    <span class="tenue">Líneas</span><input type="number" class="mini" data-k="desde" min="${m.linea_min??''}" max="${m.linea_max??''}" value="${it.desde??''}" ${ro}>
+    <span class="tenue">a</span><input type="number" class="mini" data-k="hasta" min="${m.linea_min??''}" max="${m.linea_max??''}" value="${it.hasta??''}" ${ro}>
     <span class="crece tenue" data-n>…</span><button class="icono" data-q aria-label="Quitar">✕</button></div>`;}).join('');
   c.querySelectorAll('.sel-item').forEach(row=>{const l=row.dataset.l;const it=S.plan.find(p=>p.lote===l);
     row.querySelectorAll('input').forEach(inp=>inp.onchange=()=>{const v=inp.value===''?null:parseInt(inp.value,10);it[inp.dataset.k]=isNaN(v)?null:v;pintarConteos();});
@@ -1930,6 +1938,8 @@ async function pintarConteos(){
 async function confirmarPlan(){
   if(!S.plan.length){alert('Elija al menos un lote.');return;}
   for(const it of S.plan)if(it.desde!=null&&it.hasta!=null&&it.desde>it.hasta){alert(`En el lote ${it.lote} la línea inicial es mayor que la final.`);return;}
+  if(S.planProg)for(const it of S.plan){const b=bloqueDe(it.lote);if(!b){alert(`Programación activa: el lote ${it.lote} no está en su bloque de hoy.`);return;}
+    if(b.desde!=null&&b.hasta!=null){it.desde=Number(b.desde);it.hasta=Number(b.hasta);}}   // las líneas del bloque, siempre
   if(S.planModo==='agregar'){
     const sel=S.jornada.seleccion.filter(p=>!enPlan(p.lote)).concat(S.plan.map(p=>({...p})));
     S.jornada.seleccion=sel.sort((a,b)=>ordenNat(a.lote,b.lote));S.jornada.sync='pendiente';await dbPut('jornadas',S.jornada);
@@ -1943,7 +1953,7 @@ function idJornada(){const d=new Date();return `${d.getFullYear()}${pad(d.getMon
 async function iniciarJornada(sel,evaluador){
   {const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}}
   const j={id:idJornada(),inicio:new Date().toISOString(),fin:null,evaluador,usuario:SES?SES.u:'',dispositivo:S.cfg.dispositivo,seleccion:sel,estado:'activa',
-    km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||5,bufferTerraza:Number(S.cfg.bufferTerraza)||8,metodoVisita:S.cfg.metodoVisita||'calle',paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
+    km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,modo_programacion:modoProgDe(MPROG_APP.c,'censo'),densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||5,bufferTerraza:Number(S.cfg.bufferTerraza)||8,metodoVisita:S.cfg.metodoVisita||'calle',paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=evaluador;await guardarCfg();
   TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita,j.bufferTerraza);PAR.lista=[];capaParadas.clearLayers();
   await cargarPalmasJornada();iniciarGPS();pantallaEncendida(true);actualizarJornadaUI();dibujarLotes();encuadrar(sel.map(s=>s.lote));
@@ -3846,6 +3856,16 @@ async function panelDia(){
 }
 /* ---------- Plan del censo: lotes asignados por la gerencia (censo/plan/AAAA-MM-DD.json) ---------- */
 const PLANC={p:null};
+/* Modo de programación por labor (config/modo_programacion.json, lo cambia Coordinación en el visor).
+   Sin señal se usa la última copia descargada; si nunca se descargó, queda libre. */
+const MPROG_APP={c:null};
+async function cargarModoProgApp(){let c;
+  if(S.cfg.gh&&S.cfg.gh.token&&navigator.onLine)try{c=JSON.parse(await (await ghRaw(MODO_PROG_RUTA)).text());}catch(e){if(e.status===404)c={};}
+  if(c!==undefined){MPROG_APP.c=c;try{await dbPut('config',{clave:'modo_prog',v:c});}catch(e){}return;}
+  try{const x=await dbGet('config','modo_prog');MPROG_APP.c=x&&x.v||null;}catch(e){}
+}
+const progActiva=labor=>modoProgDe(MPROG_APP.c,labor)==='programado';
+const conTiempo=(p,ms)=>Promise.race([Promise.resolve(p).catch(()=>{}),new Promise(r=>setTimeout(r,ms))]);
 async function cargarPlanCenso(){
   let p=null;const f=fechaLocal();
   if(S.cfg.gh&&S.cfg.gh.token&&navigator.onLine)try{p=JSON.parse(await (await ghRaw(`censo/plan/${f}.json`)).text());try{await dbPut('config',{clave:'plan_censo',v:p});}catch(e){}}catch(e){p=null;}
@@ -3866,7 +3886,8 @@ function bannerPlan(){
   const rango=x=>x.desde!=null&&x.hasta!=null?` L${x.desde}–L${x.hasta}`:(x.lineas_calculadas?` (lote sin líneas en la cartografía: su parte ≈ ${num(x.palmas)} palmas, ver mapa del bloque)`:'');
   $('#plLista').insertAdjacentHTML('beforebegin',`<div class="aviso" id="plAsig">📋 <b>${a.bloque?(bl.length>1?'Sus bloques de hoy ':'Su bloque de hoy ')+esc(a.bloque):'Lotes asignados para hoy'}:</b> ${ls.map(x=>`<b>${esc(x.lote)}</b>${esc(rango(x))}`).join(' · ')}
     <span class="tenue">(${pal?num(pal)+' palmas · ':''}${String(ha.toFixed(1)).replace('.',',')} ha aprox.)</span>
-    <button class="btn prim ancho" id="plUsar" style="margin-top:8px">Usar ${a.bloque?(bl.length>1?'mis bloques':'mi bloque'):'los lotes asignados'}</button></div>`);
+    ${S.planProg?'':`<button class="btn prim ancho" id="plUsar" style="margin-top:8px">Usar ${a.bloque?(bl.length>1?'mis bloques':'mi bloque'):'los lotes asignados'}</button>`}</div>`);
+  if(S.planProg){const fs=(S.lotes?S.lotes.features:[]).filter(f=>ls.some(x=>x.lote===f.properties._lote));const k=cajaDe(fs);if(k)mapa.fitBounds(k,{padding:[40,40],maxZoom:17});return;}
   $('#plUsar').onclick=()=>{for(const x of ls){if(!CARTO.lotes[x.lote])continue;if(!enPlan(x.lote))alternarPlan(x.lote);
       const it=S.plan.find(p=>p.lote===x.lote);if(it&&x.desde!=null&&x.hasta!=null){it.desde=Number(x.desde);it.hasta=Number(x.hasta);}}   // solo las calles del bloque
     pintarPlanLista();pintarPlanSel();
@@ -4361,6 +4382,11 @@ function muestraLote(d,k,muerta){
       usadas.add(String(a[0]));out.push({palma_id:String(a[0]),linea:Number(a[1]),palma:Number(a[2]),lng:a[4],lat:a[5]});}}
   return out;
 }
+
+/* ---------- Modo de programación por labor (config/modo_programacion.json, lo cambia Coordinación) ----------
+   'libre': el personal elige cualquier lote · 'programado': solo su bloque del plan del día. Sin archivo = libre. */
+const MODO_PROG_RUTA='config/modo_programacion.json',LABORES_MODO_PROG={censo:'Censo de enfermedades',plagas:'Monitoreo de plagas'};
+const modoProgDe=(c,labor)=>c&&c[labor]&&c[labor].modo==='programado'?'programado':'libre';
 
 /* =====================================================================
    MÓDULO DE CIRUGÍA (App de campo)
@@ -5200,13 +5226,16 @@ async function muestraDe(lote,k,rangos){const d=await leerChunk(lote);let m=mues
 async function planPlg(fecha){const clave='plg_plan_'+fecha;
   try{const p=await (await ghRaw(`plagas/plan/${fecha}.json`)).json();await dbPut('config',{clave,v:p});return p;}
   catch(e){try{const c=await dbGet('config',clave);if(c&&c.v)return c.v;}catch(_){}return null;}}
-function abrirInicioPlg(){
+async function abrirInicioPlg(){
   if(S.jornada){toast('Ya hay una jornada en curso.');return;}
-  if(!PLG.sel.length&&S.gps){const l=loteDe(S.gps.lat,S.gps.lng);if(l&&CARTO.lotes[l])PLG.sel=[{lote:l,muestreo:'10x10'}];}
+  await conTiempo(cargarModoProgApp(),5000);
+  const prog=PLG.prog=progActiva('plagas');if(prog)PLG.sel=[];
+  if(!prog&&!PLG.sel.length&&S.gps){const l=loteDe(S.gps.lat,S.gps.lng);if(l&&CARTO.lotes[l])PLG.sel=[{lote:l,muestreo:'10x10'}];}
   const lotes=Object.keys(CARTO.lotes||{}).sort(ordenNat);
   abrirHoja('Monitoreo de plagas',`
     <div class="banda-form" style="--bf:#5b6b12"><span>1</span><b>LOTES DE HOY Y TIPO DE MUESTREO</b></div>
-    <div style="display:flex;gap:8px"><input id="plgLote" list="plgLotes" placeholder="Escriba el lote (ej. IT05)" autocapitalize="characters" style="flex:1;padding:12px;border-radius:12px;background:#0a1d16;color:var(--texto);border:1px solid var(--borde)">
+    ${prog?'<div class="aviso" id="plgProgAviso">🔒 <b>Programación activa:</b> solo puede monitorear su bloque de hoy. Consultando su bloque…</div>':''}
+    <div style="display:${prog?'none':'flex'};gap:8px"><input id="plgLote" list="plgLotes" placeholder="Escriba el lote (ej. IT05)" autocapitalize="characters" style="flex:1;padding:12px;border-radius:12px;background:#0a1d16;color:var(--texto);border:1px solid var(--borde)">
       <button class="btn" id="plgAg" style="margin:0">Agregar</button></div>
     <datalist id="plgLotes">${lotes.map(l=>`<option value="${esc(l)}">`).join('')}</datalist>
     <div id="plgBloque"></div>
@@ -5215,9 +5244,9 @@ function abrirInicioPlg(){
     <button class="btn prim ancho grande" id="plgIni" style="margin-top:10px">${IC.play} INICIAR MONITOREO</button>`);
   const pintar=async()=>{const c=$('#plgSel');if(!c)return;
     const filas=[];for(const s of PLG.sel){const m=MUESTREOS.find(x=>x.id===s.muestreo)||MUESTREOS[0];const n=(await muestraDe(s.lote,m.k,s.rangos)).length;
-      filas.push(`<div class="plg-lote"><div style="display:flex;justify-content:space-between;align-items:center"><b>${esc(s.lote)}</b>${s.unidad?`<span class="tenue" style="font-size:11.5px">${esc(s.unidad)}</span>`:''}<span class="tenue" style="font-size:12.5px">${n?num(n)+' palmas en la muestra':'⚠ lote sin numeración de líneas: toque las palmas en el mapa'}</span><button class="btn mini" data-qp="${esc(s.lote)}" style="margin:0">✕</button></div>
+      filas.push(`<div class="plg-lote"><div style="display:flex;justify-content:space-between;align-items:center"><b>${esc(s.lote)}</b>${s.unidad?`<span class="tenue" style="font-size:11.5px">${esc(s.unidad)}</span>`:''}<span class="tenue" style="font-size:12.5px">${n?num(n)+' palmas en la muestra':'⚠ lote sin numeración de líneas: toque las palmas en el mapa'}</span>${prog?'':`<button class="btn mini" data-qp="${esc(s.lote)}" style="margin:0">✕</button>`}</div>
         <div class="seg2" style="margin:6px 0 0">${MUESTREOS.map(x=>`<label><input type="radio" name="m_${esc(s.lote)}" value="${x.id}" ${x.id===s.muestreo?'checked':''} data-lm="${esc(s.lote)}"><span>${x.t}</span></label>`).join('')}</div></div>`);}
-    c.innerHTML=filas.join('')||'<p class="tenue">Agregue los lotes que va a monitorear hoy.</p>';
+    c.innerHTML=filas.join('')||(prog?'':'<p class="tenue">Agregue los lotes que va a monitorear hoy.</p>');
     c.querySelectorAll('[data-qp]').forEach(b=>b.onclick=()=>{PLG.sel=PLG.sel.filter(x=>x.lote!==b.dataset.qp);pintar();});
     c.querySelectorAll('[data-lm]').forEach(i=>i.onchange=()=>{const s=PLG.sel.find(x=>x.lote===i.dataset.lm);if(s){s.muestreo=i.value;pintar();}});};
   const agregar=()=>{const l=String($('#plgLote').value||'').trim().toUpperCase();if(!l)return;
@@ -5225,18 +5254,25 @@ function abrirInicioPlg(){
     if(!PLG.sel.some(x=>x.lote===l))PLG.sel.push({lote:l,muestreo:'10x10'});$('#plgLote').value='';pintar();};
   $('#plgAg').onclick=agregar;$('#plgLote').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();agregar();}};pintar();
   // «Su bloque de hoy»: unidades de la programación asignadas a este auxiliar
-  planPlg(fechaISO(new Date())).then(p=>{const mias=p?(p.asignaciones||[]).filter(a=>a.usuario===SES.u):[];const c=$('#plgBloque');if(!c||!mias.length)return;
+  planPlg(fechaISO(new Date())).then(p=>{const mias=p?(p.asignaciones||[]).filter(a=>a.usuario===SES.u):[];const c=$('#plgBloque');if(!c)return;
+    const av=$('#plgProgAviso');
+    if(prog&&!mias.length){if(av)av.innerHTML='🔒 <b>Coordinación activó la programación del monitoreo.</b><br>No tiene bloque asignado hoy: comuníquese con Coordinación.';const b=$('#plgIni');if(b)b.disabled=true;return;}
+    if(!mias.length)return;
+    if(prog){PLG.sel=mias.flatMap(a=>a.lotes.map(l=>({lote:l.lote,muestreo:a.muestreo||'10x10',rangos:l.rangos,unidad:a.unidad})));
+      if(av)av.innerHTML=`🔒 <b>Programación activa:</b> ${mias.length>1?'sus bloques de hoy':'su bloque de hoy'} ${mias.map(a=>esc(a.unidad)+(a.tipo==='apoyo'?' (apoyo)':'')).join(' + ')} ya está seleccionado; no se pueden elegir otros lotes.<br><span class="tenue">${mias.map(a=>`${a.lotes.map(l=>esc(l.lote)).join(', ')} · ${num(a.palmas)} palmas (~${num(a.ha,0)} ha)`).join('<br>')}</span>`;
+      pintar();return;}
     c.innerHTML=`<div class="aviso">📋 <b>${mias.length>1?'Sus bloques de hoy':'Su bloque de hoy'}: ${mias.map(a=>esc(a.unidad)+(a.tipo==='apoyo'?' (apoyo)':'')).join(' + ')}</b><br>
       ${mias.map(a=>`${a.lotes.map(l=>esc(l.lote)).join(', ')} · ${num(a.palmas)} palmas (~${num(a.ha,0)} ha)`).join('<br>')}
       <button class="btn prim ancho" id="plgUsar" style="margin-top:8px">Usar ${mias.length>1?'mis bloques':'mi bloque'}</button></div>`;
     $('#plgUsar').onclick=()=>{PLG.sel=mias.flatMap(a=>a.lotes.map(l=>({lote:l.lote,muestreo:a.muestreo||'10x10',rangos:l.rangos,unidad:a.unidad})));pintar();toast('Bloque seleccionado: la muestra se calcula solo dentro de sus palmas.',3500);};});
-  $('#plgIni').onclick=async()=>{if(!PLG.sel.length){alert('Agregue al menos un lote.');return;}await iniciarPlg(PLG.sel.map(x=>({...x})));};
+  $('#plgIni').onclick=async()=>{if(prog&&(!PLG.sel.length||PLG.sel.some(x=>!x.unidad))){alert('Programación activa: espere a que cargue su bloque de hoy o comuníquese con Coordinación.');return;}
+    if(!PLG.sel.length){alert('Agregue al menos un lote.');return;}await iniciarPlg(PLG.sel.map(x=>({...x})));};
 }
 async function iniciarPlg(sel){
   {const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}}
   const muestra=[];for(const s of sel){const m=MUESTREOS.find(x=>x.id===s.muestreo)||MUESTREOS[0];
     (await muestraDe(s.lote,m.k,s.rangos)).forEach((x,i)=>muestra.push({...x,muestreo:s.muestreo,unidad:s.unidad||null,orden:i+1,estado:'pendiente'}));}
-  const j={id:idJornada(),labor:'plagas',lotes_muestreo:sel.map(s=>({lote:s.lote,muestreo:s.muestreo,unidad:s.unidad||null})),unidades:[...new Set(sel.map(s=>s.unidad).filter(Boolean))],muestra,inicio:new Date().toISOString(),fin:null,evaluador:SES.nombre,usuario:SES.u,dispositivo:S.cfg.dispositivo,
+  const j={id:idJornada(),labor:'plagas',lotes_muestreo:sel.map(s=>({lote:s.lote,muestreo:s.muestreo,unidad:s.unidad||null})),unidades:[...new Set(sel.map(s=>s.unidad).filter(Boolean))],modo_programacion:modoProgDe(MPROG_APP.c,'plagas'),muestra,inicio:new Date().toISOString(),fin:null,evaluador:SES.nombre,usuario:SES.u,dispositivo:S.cfg.dispositivo,
     seleccion:sel.map(s=>({lote:s.lote,desde:null,hasta:null})),estado:'activa',km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=SES.nombre;await guardarCfg();
   TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=null;PAR.lista=[];capaParadas.clearLayers();
@@ -5444,6 +5480,7 @@ async function despuesDeIngresar(){
   try{await cargarRamas();}catch(e){}
   try{await cargarAjustesExistencia();}catch(e){}
   try{await cargarPlanCenso();}catch(e){}
+  try{await cargarModoProgApp();}catch(e){}
   try{await cargarServiciosIA();}catch(e){}
   if(puedeAuditar()&&navigator.onLine)setTimeout(async()=>{try{const d=await (await ghFetch(`/contents/reportes/diario/${fechaLocal()}/resumen.json?ref=${encodeURIComponent(S.cfg.gh.rama)}`,{accept:'application/vnd.github.raw+json'})).json();if(d.alertas&&d.alertas.length)toast(`⚠ ${d.alertas.length} alerta(s) en el reporte de hoy. Menú → Panel del día.`,7000);}catch(e){}},9000);
   try{await cargarVias(v=>dbPut('config',{clave:'vias',v}),async()=>{const r=await dbGet('config','vias');return r&&r.v;});}catch(e){}
