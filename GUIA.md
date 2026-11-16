@@ -19,6 +19,10 @@
 
 **Módulos del visor:**
 - **📊 GERENCIA:** Tablero, Reportes y Sincronización. El Tablero incluye los **mapas de PC por lote, sin ortofoto**, al estilo de los mapas oficiales.
+  - **Barra de filtros** arriba del Tablero (también en Calidad y Auditoría): fechas con atajos (Hoy, 7, 30, 90 días, Este mes) y **CARGAR**, programa, lote, operario, estado, enfermedad, opción de la enfermedad y tipo de seguimiento. Son los mismos filtros del visor: al cambiar uno se actualizan el tablero, el mapa y las tablas. **✕ Quitar filtros** los limpia.
+  - El Tablero tiene tres secciones: **📊 Resumen** (lo de siempre), **🦠 Enfermedades** y **🗺️ Mapa de avance del censo**.
+  - **Enfermedades:** palmas por enfermedad (gráfico de barras con % y número de diagnósticos), palmas por semana apiladas por enfermedad, una tarjeta por enfermedad con sus **opciones** (nivel 2) y sus **tipos de seguimiento** (nivel 3) con palmas y porcentaje, y la tabla por lote. Clic en una enfermedad u opción filtra todo por ella.
+  - **Mapa de avance del censo:** cada palma según las veces que fue visitada en el periodo cargado: **1ra entrada**, **2da entrada** (días distintos), **3ra o más** si las hay, y **sin intervenir**. Convenciones con hectáreas y porcentaje (proporcionales a las palmas sobre el área oficial de los lotes) y **Total intervenido** en lotes. Respeta programa, lote y operario. **⬇ Descargar imagen (PNG)** genera el mapa con título, convenciones, escala y norte. Las jornadas antiguas sin detalle de palmas no se pueden ubicar y se avisa cuántas palmas son.
   - **Incidencia actual PC:** casos vigentes ÷ palmas del lote. Clases ≤ 1 %, 1–2 %, 2–3 %, 3–4 % y > 4 %.
   - **Casos nuevos PC:** en el periodo cargado. Clases ≤ 3, 3–6, 6–9, 9–12 y > 12.
   - Es una superficie interpolada (IDW) a partir del valor de cada lote, pintada sobre toda la plantación (límite de `cartografia/plantacion.geojson`), con los lotes y sus nombres encima, escala y norte.

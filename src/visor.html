@@ -664,7 +664,7 @@ const loteSel=l=>!FIL.lote.size||FIL.lote.has(l);
 const enProg=l=>!FIL.prog.size||FIL.prog.has(PROG.get(l));
 const diagEnf=d=>(!FIL.n1.size||FIL.n1.has(codN1(d)))&&(!FIL.n2.size||FIL.n2.has(d.nivel2||''))&&(!FIL.n3.size||FIL.n3.has(d.nivel3||''));
 function msTexto(k){const s=FIL[k];if(!s.size)return 'Todos';const o=MSOP[k]||[];if(s.size<=2)return [...s].map(v=>k==='n1'?v:(o.find(x=>x.v===v)||{t:v}).t).join(', ');return s.size+' seleccionados';}
-function msPintar(k){const c=document.querySelector(`.ms[data-k="${k}"]`);if(!c)return;const b=c.querySelector('.ms-bt');b.textContent=msTexto(k);b.title=msTexto(k);c.classList.toggle('activo',FIL[k].size>0);}
+function msPintar(k){document.querySelectorAll(`.ms[data-k="${k}"]`).forEach(c=>{const b=c.querySelector('.ms-bt');b.textContent=msTexto(k);b.title=msTexto(k);c.classList.toggle('activo',FIL[k].size>0);});}   /* el filtro aparece en el visor y en Gerencia */
 function msOpciones(k,ops){MSOP[k]=ops;for(const v of [...FIL[k]])if(!ops.some(o=>o.v===v))FIL[k].delete(v);msPintar(k);if(MSK===k)msLista();}
 function msCerrar(){const p=$('#msPop');if(p)p.remove();MSK=null;}
 function msCambio(k){msPintar(k);(MSCB[k]||(()=>aplicarFiltros(true)))();}

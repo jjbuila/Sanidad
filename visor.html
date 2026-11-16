@@ -874,7 +874,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261116:0549</div>
+    <div id="lgVer">VERSIÓN 20261116:0629</div>
   </div>
 </div>
 
@@ -969,7 +969,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261116:0549';
+const VERSION='20261116:0629';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1683,7 +1683,7 @@ const loteSel=l=>!FIL.lote.size||FIL.lote.has(l);
 const enProg=l=>!FIL.prog.size||FIL.prog.has(PROG.get(l));
 const diagEnf=d=>(!FIL.n1.size||FIL.n1.has(codN1(d)))&&(!FIL.n2.size||FIL.n2.has(d.nivel2||''))&&(!FIL.n3.size||FIL.n3.has(d.nivel3||''));
 function msTexto(k){const s=FIL[k];if(!s.size)return 'Todos';const o=MSOP[k]||[];if(s.size<=2)return [...s].map(v=>k==='n1'?v:(o.find(x=>x.v===v)||{t:v}).t).join(', ');return s.size+' seleccionados';}
-function msPintar(k){const c=document.querySelector(`.ms[data-k="${k}"]`);if(!c)return;const b=c.querySelector('.ms-bt');b.textContent=msTexto(k);b.title=msTexto(k);c.classList.toggle('activo',FIL[k].size>0);}
+function msPintar(k){document.querySelectorAll(`.ms[data-k="${k}"]`).forEach(c=>{const b=c.querySelector('.ms-bt');b.textContent=msTexto(k);b.title=msTexto(k);c.classList.toggle('activo',FIL[k].size>0);});}   /* el filtro aparece en el visor y en Gerencia */
 function msOpciones(k,ops){MSOP[k]=ops;for(const v of [...FIL[k]])if(!ops.some(o=>o.v===v))FIL[k].delete(v);msPintar(k);if(MSK===k)msLista();}
 function msCerrar(){const p=$('#msPop');if(p)p.remove();MSK=null;}
 function msCambio(k){msPintar(k);(MSCB[k]||(()=>aplicarFiltros(true)))();}
@@ -2437,6 +2437,7 @@ function aplicarPermisosGer(){
   #chCalor{cursor:pointer}
   .mc-etq{background:transparent;border:0;box-shadow:none;color:#111;font-size:8px;font-weight:600;padding:0;text-shadow:0 0 2px #fff,0 0 2px #fff}.mc-etq::before{display:none}
   .mc-sin-etq .mc-etq{display:none}
+  .leaflet-marker-icon.mc-etq span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;background:rgba(255,255,255,.85);border-radius:3px;padding:0 2px;line-height:1.25}
   #gerMapaCalor .leaflet-control-scale-line{background:rgba(255,255,255,.85);color:#222;border-color:#222}
   @media (max-width:900px){.mc-grid{grid-template-columns:1fr!important}}`;
   document.head.appendChild(css);
@@ -2470,9 +2471,10 @@ function pintarGer(){
   let cuerpo='';
   try{cuerpo={plagas:pintarPlagasGer,progerr:pintarProgErrGer,progcir:pintarProgCir,plan:pintarPlanCenso,tablero:pintarTablero,cirugia:pintarCirGer,sync:pintarSync,calidad:pintarCalidad,auditoria:pintarAuditoria,reportes:pintarReportes}[GER.tab]();}
   catch(e){console.error(e);cuerpo=`<div class="ger-aviso ger-mal">⚠ ${esc(e.message)}</div>`;}
-  P.innerHTML=cab+cuerpo;
+  P.innerHTML=cab+(usaFiltrosGer()?barraFiltrosGer():'')+cuerpo;
   $$('#gerPanel [data-gt]').forEach(b=>b.onclick=()=>{GER.tab=b.dataset.gt;pintarGer();});
   $('#gerX').onclick=()=>alternarGerencia(false);
+  if(usaFiltrosGer())enlazarFiltrosGer();
   (ENLACES_GER[GER.tab]||(()=>{}))();
 }
 const ENLACES_GER={};
@@ -2485,7 +2487,7 @@ function pintarTablero(){
   if(!JOR.length)return sinDatos();
   const L=resumenLotes(),O=resumenOperarios();
   const pc=L.reduce((a,x)=>a+(x.pc||0),0),tot=L.reduce((a,x)=>a+(x.total_lote||0),0);
-  const ha=JORF.reduce((a,j)=>a+(Number(j.ha)||0),0),palmas=JORF.reduce((a,j)=>a+(Number(j.palmas)||0),0),diags=JORF.reduce((a,j)=>a+j.diags.length,0);
+  const ha=JORF.reduce((a,j)=>a+(Number(j.ha)||0),0),palmas=JORF.reduce((a,j)=>a+(Number(j.palmas)||0),0),diags=DIAGF.length;
   const kp=`<div class="ger-kpis">${kpi(num(JORF.length),'Jornadas')}${kpi(num(new Set(JORF.map(j=>j.usuario)).size),'Operarios')}${kpi(num(ha,1),'Ha recorridas')}${kpi(num(palmas),'Palmas visitadas')}
     ${kpi(num(diags),'Diagnósticos')}${kpi(num(pc),'Casos de PC',pc?'mal':'ok')}${kpi(tot?num(pc/tot*100,2)+' %':'—','Incidencia PC (lotes con censo)')}${kpi(num(O.length?ha/Math.max(1,O.reduce((a,o)=>a+o.dias,0)):0,2),'Ha por operario-día')}</div>`;
   // Productividad por operario
@@ -2516,7 +2518,7 @@ function pintarTablero(){
   const nMal=ciclo.filter(x=>x.estado==='mal').length,nSin=ciclo.filter(x=>x.estado==='sin').length;
   const chipC=x=>x.estado==='sin'?'<span class="ger-chip gris">Sin censo en el periodo</span>':x.estado==='mal'?`<span class="ger-chip mal">${x.dias} días</span>`:x.estado==='med'?`<span class="ger-chip med">${x.dias} días</span>`:`<span class="ger-chip ok">${x.dias} días</span>`;
   const tCiclo=tablaGer([{t:'Lote',f:x=>`<b>${esc(x.lote)}</b>`},{t:'Programa',f:x=>esc(x.prog||'—')},{t:'Último censo',f:x=>esc(x.ultimo||'—')},{t:'Desde el último censo',f:chipC},{t:'Avance en el periodo',n:1,f:x=>x.avance==null?'—':num(x.avance,1)+' %'}],ciclo);
-  return `<p class="tenue">Datos: ${esc(rangoTxt())} · ${num(JORF.length)} jornadas con los filtros de la izquierda (programa, operario, lote).</p>${kp}
+  return `<p class="tenue">Datos: ${esc(rangoTxt())} · ${num(JORF.length)} jornadas con los filtros de arriba.</p>${kp}
     <div class="ger-sec"><h3>Productividad por operario</h3><p class="tenue">Ha/hora y palmas/hora sobre el tiempo efectivo (sin paradas). Ordenado de mayor a menor rendimiento.</p>${tProd}</div>
     <div class="ger-sec"><h3>Mapas de PC por lote</h3>
       <p class="tenue">Superficie interpolada (IDW) a partir del valor de cada lote, por clases, sobre toda la plantación (sin ortofoto). Con los filtros de la izquierda.
@@ -2584,6 +2586,8 @@ async function cargarPlantacionGer(){
     const fs=(g.type==='FeatureCollection'?g.features:g.type==='Feature'?[g]:[{type:'Feature',properties:{},geometry:g}]).filter(f=>f&&f.geometry&&/Polygon/.test(f.geometry.type));
     GER.plant=fs.length?fs:null;}catch(e){GER.plant=null;}
 }
+/* Nombre del lote en su centro (marcador de texto fijo, no tapa los clics) */
+function etiquetaLoteMC(m,lo){const c=centroLote(lo);if(c)L.marker(c,{icon:L.divIcon({className:'mc-etq',html:`<span>${esc(lo)}</span>`,iconSize:null}),interactive:false,keyboard:false}).addTo(m);}
 /* Control con la flecha del norte (como los mapas impresos) */
 const NorteMC=L.Control.extend({onAdd(){const d=L.DomUtil.create('div');d.innerHTML='<div style="font:700 13px sans-serif;color:#222;text-align:center;line-height:1">N<br><span style="font-size:24px">⬆</span></div>';return d;}});
 function montarMapaCalor(){
@@ -2607,7 +2611,7 @@ function montarMapaCalor(){
   const fmt=v=>modo==='incid'?num(v,2)+' %':num(v)+' caso'+(v===1?'':'s');
   capaL.eachLayer(l=>{const lo=l.feature.properties._lote,v=vals.get(lo)||0;
     l.bindTooltip(`<b>${esc(lo)}</b> · ${modo==='incid'?`${num(n.get(lo)||0)} casos activos · incidencia ${num(v,2)} %`:`${num(v)} casos nuevos`}`,{sticky:true});
-    if(GER.mcNombres!==false)l.bindTooltip(esc(lo),{permanent:true,direction:'center',className:'mc-etq'});});
+    if(GER.mcNombres!==false)etiquetaLoteMC(m,lo);});
   // Etiquetas solo con suficiente acercamiento (si no, se tapan)
   const etq=()=>{const z=m.getZoom();el.classList.toggle('mc-sin-etq',z<12);};m.on('zoomend',etq);
   // Cada palma con caso al acercarse (zoom 17 o más)
@@ -3251,6 +3255,235 @@ function enlazarModoProg(){
       toast(nuevo==='programado'?`🔒 ${nom}: programación activa.`:`🔓 ${nom}: elección libre de lotes.`,4500);}
     catch(e){MPROG.c=null;toast(e.message,6000);}
     MPROG.guardando=false;pintarGer();});
+}
+
+/* =====================================================================
+   FILTROS DE GERENCIA (fecha, programa, operario, lote, estado y enfermedad con sus opciones)
+   Son los mismos filtros del visor: cambian a la vez el tablero, el mapa y las tablas.
+   ===================================================================== */
+const usaFiltrosGer=()=>GER.mod==='ger'?GER.tab==='tablero':['calidad','auditoria'].includes(GER.tab);
+(function(){const css=document.createElement('style');css.textContent=`
+  .ger-fil{background:#081e16;border:1px solid var(--borde);border-radius:14px;padding:10px 12px;margin-top:10px}
+  .ger-fil .gf-fila{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+  .ger-fil .gf-fila+.gf-fila{margin-top:8px}
+  .ger-fil label.gf{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--tenue);min-width:150px;flex:1}
+  .ger-fil input[type=date]{background:#0a1d16;color:var(--texto);border:1px solid var(--borde);border-radius:9px;padding:6px 8px;min-height:34px}
+  .ger-fil .gf-res{font-size:12.5px;color:var(--tenue);margin-top:6px}
+  .ger-sub{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .ger-sub button{border:1px solid var(--borde);background:transparent;color:var(--texto);border-radius:10px;padding:6px 12px;font-weight:700;cursor:pointer}
+  .ger-sub button.on{background:rgba(34,211,154,.18);border-color:var(--acento);color:#bff5e0}
+  .enf-bar{display:grid;grid-template-columns:minmax(110px,34%) minmax(0,1fr) 112px;gap:8px;align-items:center;font-size:13px;padding:3px 0}
+  .enf-bar .b{height:14px;border-radius:4px;min-width:2px}
+  .enf-bar .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--texto)}
+  .enf-bar.clic{cursor:pointer}.enf-bar.clic:hover{background:rgba(255,255,255,.04)}
+  .enf-card{border:1px solid var(--borde);border-radius:14px;padding:10px 12px;margin-top:10px;background:rgba(255,255,255,.02)}
+  .enf-card h4{margin:0 0 6px;font-family:var(--t);letter-spacing:.8px;font-size:15.5px}
+  .enf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:10px}
+  #gerMapaAv .leaflet-control-scale-line{background:rgba(255,255,255,.85);color:#222;border-color:#222}`;document.head.appendChild(css);})();
+function barraFiltrosGer(){
+  const ms=(k,t)=>`<label class="gf">${t}<div class="ms" data-k="${k}"><button type="button" class="ms-bt" aria-haspopup="listbox">Todos</button></div></label>`;
+  const hay=Object.values(FIL).some(s=>s.size);
+  return `<div class="ger-fil" id="gerFil">
+    <div class="gf-fila"><label class="gf" style="flex:0 0 auto">Desde<input type="date" id="gDesde" value="${esc($('#fDesde').value||'')}"></label>
+      <label class="gf" style="flex:0 0 auto">Hasta<input type="date" id="gHasta" value="${esc($('#fHasta').value||'')}"></label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn mini" data-gd="0">Hoy</button><button class="btn mini" data-gd="6">7 días</button><button class="btn mini" data-gd="29">30 días</button><button class="btn mini" data-gd="89">90 días</button><button class="btn mini" data-gd="mes">Este mes</button>
+        <button class="btn mini prim" id="gCargar">CARGAR</button>${hay?'<button class="btn mini" id="gLimpiar" title="Quitar todos los filtros (no cambia las fechas)">✕ Quitar filtros</button>':''}</div></div>
+    <div class="gf-fila">${ms('prog','Programa')}${ms('lote','Lote')}${ms('op','Operario')}${ms('est','Estado')}</div>
+    <div class="gf-fila">${ms('n1','Enfermedad')}${ms('n2','Opción de la enfermedad')}${ms('n3','Tipo de seguimiento')}</div>
+    <div class="gf-res" id="gfRes">${esc(rangoTxt())} · <b>${num(JORF.length)}</b> jornadas · <b>${num(DIAGF.length)}</b> diagnósticos con los filtros</div></div>`;
+}
+function enlazarFiltrosGer(){
+  for(const k of Object.keys(FIL))msPintar(k);
+  const ir=async(d1,d2)=>{$('#fDesde').value=d1;$('#fHasta').value=d2;try{await cargar();}catch(e){toast(e.message,6000);}pintarGer();};
+  $$('#gerPanel [data-gd]').forEach(b=>b.onclick=()=>{const h=hoyISO();if(b.dataset.gd==='mes')return ir(h.slice(0,8)+'01',h);ir(hoyISO(new Date(Date.now()-Number(b.dataset.gd)*86400000)),h);});
+  const c=$('#gCargar');if(c)c.onclick=()=>{const a=$('#gDesde').value,b=$('#gHasta').value;if(!a||!b||a>b){toast('Revise el rango de fechas.');return;}c.disabled=true;c.textContent='Cargando…';ir(a,b);};
+  const l=$('#gLimpiar');if(l)l.onclick=()=>{for(const k of Object.keys(FIL))FIL[k].clear();opcionesLote();opcionesEnf();for(const k of Object.keys(FIL))msPintar(k);aplicarFiltros(true);};
+}
+/* Al cambiar cualquier filtro se repinta también el panel de Gerencia */
+{const _af=aplicarFiltros;aplicarFiltros=function(a){_af(a);if(GER.on){clearTimeout(GER._rep);GER._rep=setTimeout(()=>{if(GER.on)pintarGer();},60);}};}
+
+/* ---------- Tablero con secciones: Resumen · Enfermedades · Mapa de avance ---------- */
+{const _p=pintarTablero,_e=ENLACES_GER.tablero;
+  pintarTablero=function(){const s=GER.tsub||'resumen';
+    const sub=`<div class="ger-sub">${[['resumen','📊 Resumen'],['enf','🦠 Enfermedades'],['avance','🗺️ Mapa de avance del censo']].map(([k,t])=>`<button data-tsub="${k}" class="${s===k?'on':''}">${t}</button>`).join('')}</div>`;
+    if(!JOR.length)return sub+sinDatos();
+    return sub+(s==='enf'?pintarEnfGer():s==='avance'?pintarAvanceGer():_p());};
+  ENLACES_GER.tablero=()=>{$$('#gerPanel [data-tsub]').forEach(b=>b.onclick=()=>{GER.tsub=b.dataset.tsub;pintarGer();});
+    if(!JOR.length){enlazarRango();return;}
+    const s=GER.tsub||'resumen';if(s==='enf')enlazarEnfGer();else if(s==='avance')montarMapaAvance();else _e();};}
+
+/* ---------- ENFERMEDADES: datos y gráficos por enfermedad y sus opciones (nivel 2) y tipos (nivel 3) ---------- */
+const nomEnf=c=>PROBLEMAS[c]||c||'Sin enfermedad';
+const keyPalma=d=>String(d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma));
+function agruparEnf(ds){
+  const m=new Map();
+  for(const d of ds){const c=codN1(d)||'—';let e=m.get(c);if(!e)m.set(c,e={c,n:0,p:new Set(),lotes:new Set(),n2:new Map(),est:new Map(),sem:new Map()});
+    e.n++;e.p.add(keyPalma(d));e.lotes.add(d.lote);e.est.set(d.estado||'—',(e.est.get(d.estado||'—')||0)+1);
+    const s=semanaISO(String(d.creado||d._j&&d._j.fecha||'').slice(0,10)||hoyISO());e.sem.set(s,(e.sem.get(s)||new Set()).add(keyPalma(d)));
+    const k2=d.nivel2||'';if(k2){let o=e.n2.get(k2);if(!o)e.n2.set(k2,o={t:k2,n:0,p:new Set(),n3:new Map()});o.n++;o.p.add(keyPalma(d));
+      const k3=d.nivel3||'';if(k3){let q=o.n3.get(k3);if(!q)o.n3.set(k3,q={t:k3,n:0,p:new Set()});q.n++;q.p.add(keyPalma(d));}}}
+  return [...m.values()].sort((a,b)=>b.p.size-a.p.size);
+}
+const ESTN=id=>{try{return (ESTADOS.find(e=>e.id===id)||{}).n||id;}catch(e){return id;}};
+function barras(items,max,col,attr){return items.map((x,i)=>`<div class="enf-bar ${attr?'clic':''}" ${attr?attr(x):''}><span title="${esc(x.t)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.t)}</span>
+  <span><span class="b" style="display:inline-block;width:${Math.max(.5,x.v/max*100).toFixed(1)}%;background:${typeof col==='function'?col(x,i):col}"></span></span><span class="v">${x.txt}</span></div>`).join('');}
+function columnasSemana(enfs){   // palmas con diagnóstico por semana, apiladas por enfermedad (las 6 con más palmas)
+  const top=enfs.slice(0,6),sems=[...new Set(top.flatMap(e=>[...e.sem.keys()]))].sort();if(!sems.length)return '';
+  const tot=s=>top.reduce((a,e)=>a+((e.sem.get(s)||new Set()).size),0),max=Math.max(1,...sems.map(tot)),W=Math.max(320,sems.length*46),H=200;
+  const bw=Math.min(34,W/sems.length-10);let svg='';
+  sems.forEach((s,i)=>{let y=H-22;const x=i*(W/sems.length)+(W/sems.length-bw)/2;
+    top.forEach((e,k)=>{const v=(e.sem.get(s)||new Set()).size;if(!v)return;const h=v/max*(H-46);y-=h;svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${PALETA[k%PALETA.length]}"><title>${esc(nomEnf(e.c))} · ${s}: ${v} palmas</title></rect>`;});
+    svg+=`<text x="${(x+bw/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle" font-size="11" fill="#cfe">${tot(s)}</text><text x="${(x+bw/2).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="10.5" fill="#9bb">${s.slice(5)}</text>`;});
+  return `<div class="ger-sec"><h3>Palmas con diagnóstico por semana</h3><div style="overflow-x:auto"><svg width="${W}" height="${H}" role="img" aria-label="Palmas con diagnóstico por semana">${svg}</svg></div>
+    <div class="ger-par">${top.map((e,k)=>`<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${PALETA[k%PALETA.length]};vertical-align:middle;margin-right:4px"></span>${esc(nomEnf(e.c))}</span>`).join('')}</div></div>`;
+}
+function pintarEnfGer(){
+  const ds=DIAGF,enfs=agruparEnf(ds),pal=new Set(ds.map(keyPalma)).size;
+  if(!ds.length)return `<div class="ger-aviso">No hay diagnósticos con los filtros elegidos (${esc(rangoTxt())}).</div>`;
+  const maxP=Math.max(1,...enfs.map(e=>e.p.size));
+  const kp=`<div class="ger-kpis" style="margin-top:12px">${kpi(num(ds.length),'Diagnósticos')}${kpi(num(pal),'Palmas diagnosticadas')}${kpi(num(enfs.length),'Enfermedades')}${kpi(num(new Set(ds.map(d=>d.lote)).size),'Lotes')}</div>`;
+  const g1=`<div class="ger-sec"><h3>Palmas por enfermedad</h3><p class="tenue">Palmas distintas con diagnóstico en el periodo; entre paréntesis, el número de diagnósticos. Clic en una enfermedad para filtrar todo por ella.</p>
+    ${barras(enfs.map(e=>({t:nomEnf(e.c),c:e.c,v:e.p.size,txt:`${num(e.p.size)} · ${num(e.p.size/pal*100,1)} % (${num(e.n)})`})),maxP,(x,i)=>PALETA[i%PALETA.length],x=>`data-enf="${esc(x.c)}" title="Filtrar por ${esc(x.t)}"`)}</div>`;
+  const tarjetas=enfs.map((e,i)=>{const subs=[...e.n2.values()].sort((a,b)=>b.p.size-a.p.size),col=PALETA[i%PALETA.length];
+    const est=[...e.est.entries()].sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="ger-chip gris">${esc(ESTN(k))}: ${num(v)}</span>`).join(' ');
+    const sinSub=e.n-subs.reduce((a,o)=>a+o.n,0);
+    let cuerpo='';
+    if(subs.length){const mx=Math.max(1,...subs.map(o=>o.p.size));
+      cuerpo=barras(subs.map(o=>({t:o.t,v:o.p.size,txt:`${num(o.p.size)} · ${num(o.p.size/e.p.size*100,1)} %`})),mx,col,o=>`data-enf2="${esc(e.c)}|${esc(o.t)}" title="Filtrar por esta opción"`);
+      const con3=subs.filter(o=>o.n3.size);
+      if(con3.length)cuerpo+=`<div class="ger-tabla" style="margin-top:8px"><table><thead><tr><th>Opción</th><th>Tipo de seguimiento</th><th class="n">Palmas</th><th class="n">Diagnósticos</th><th class="n">% de la opción</th></tr></thead><tbody>${
+        con3.flatMap(o=>[...o.n3.values()].sort((a,b)=>b.p.size-a.p.size).map((q,k)=>`<tr><td>${k?'':`<b>${esc(o.t)}</b>`}</td><td>${esc(q.t)}</td><td class="n">${num(q.p.size)}</td><td class="n">${num(q.n)}</td><td class="n">${num(q.p.size/o.p.size*100,1)} %</td></tr>`)).join('')}</tbody></table></div>`;
+      if(sinSub>0)cuerpo+=`<p class="tenue" style="font-size:12px">${num(sinSub)} diagnóstico(s) sin opción registrada.</p>`;}
+    else cuerpo='<p class="tenue" style="font-size:12.5px">Esta enfermedad no tiene subdivisiones registradas.</p>';
+    return `<div class="enf-card" style="border-left:4px solid ${col}"><h4>${esc(nomEnf(e.c))}</h4>
+      <div class="ger-par" style="margin:0 0 6px"><b style="color:var(--texto)">${num(e.p.size)}</b> palmas · ${num(e.n)} diagnósticos · ${num(e.lotes.size)} lotes · ${est}</div>${cuerpo}</div>`;}).join('');
+  // Por lote: palmas diagnosticadas y las tres enfermedades principales
+  const pl=new Map();for(const d of ds){let x=pl.get(d.lote);if(!x)pl.set(d.lote,x={lote:d.lote,p:new Set(),c:new Map()});x.p.add(keyPalma(d));const c=codN1(d)||'—';x.c.set(c,(x.c.get(c)||new Set()).add(keyPalma(d)));}
+  const filasL=[...pl.values()].map(x=>({...x,tl:totalLote(x.lote)})).sort((a,b)=>b.p.size-a.p.size);
+  const tL=tablaGer([{t:'Lote',f:x=>`<b>${esc(x.lote)}</b>`},{t:'Programa',f:x=>esc(PROG.get(x.lote)||'—')},{t:'Palmas diagnosticadas',n:1,f:x=>num(x.p.size)},{t:'% del lote',n:1,f:x=>x.tl?num(x.p.size/x.tl*100,2)+' %':'—'},
+    {t:'Principales enfermedades',f:x=>[...x.c.entries()].sort((a,b)=>b[1].size-a[1].size).slice(0,3).map(([c,s])=>`${esc(c)} ${num(s.size)}`).join(' · ')}],filasL.slice(0,300));
+  return `${kp}${g1}${columnasSemana(enfs)}<div class="ger-sec"><h3>Detalle por enfermedad y sus opciones</h3><p class="tenue">Cada opción (nivel 2) con sus palmas y porcentaje dentro de la enfermedad; si tiene tipos de seguimiento (nivel 3), van en la tabla. Clic en una opción para filtrar todo por ella.</p>
+    <div class="enf-grid">${tarjetas}</div></div>
+    <div class="ger-sec"><h3>Por lote</h3>${tL}</div>`;
+}
+function enlazarEnfGer(){
+  $$('#gerPanel [data-enf]').forEach(b=>b.onclick=()=>{msSolo('n1',b.dataset.enf);FIL.n2.clear();FIL.n3.clear();opcionesEnf();aplicarFiltros(true);});
+  $$('#gerPanel [data-enf2]').forEach(b=>b.onclick=()=>{const [c,o]=b.dataset.enf2.split('|');msSolo('n1',c);opcionesEnf();msSolo('n2',o);FIL.n3.clear();opcionesEnf();aplicarFiltros(true);});
+}
+
+/* ---------- MAPA DE AVANCE DEL CENSO: palmas visitadas (1.ª, 2.ª… entrada) y sin intervenir, como los mapas oficiales ---------- */
+const AV_CLASES=[{k:0,t:'Sin intervenir',c:'#c8191f'},{k:1,t:'1ra Entrada',c:'#47c21b'},{k:2,t:'2da Entrada',c:'#24631b'},{k:3,t:'3ra Entrada o más',c:'#0c3a10'}];
+const fechaLarga=f=>{try{return new Date(f+'T12:00:00').toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'});}catch(e){return f;}};
+function pintarAvanceGer(){
+  const d1=$('#fDesde').value,d2=$('#fHasta').value;
+  return `<div class="ger-sec"><h3>Mapa de avance del censo</h3>
+    <p class="tenue">Cada palma según las veces que fue visitada en el periodo cargado (${esc(rangoTxt())}): <b>1ra entrada</b> = una visita, <b>2da entrada</b> = visitada en dos días distintos, <b>sin intervenir</b> = no visitada. Hectáreas en proporción a las palmas sobre el área oficial de los lotes. Con los filtros de programa, lote y operario.</p>
+    <div class="ger-par"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="avNombres" ${GER.avNombres!==false?'checked':''}> Nombres de lote</label>
+      <button class="btn mini" id="avPng" disabled>⬇ Descargar imagen (PNG)</button><span id="avEstado" class="tenue">Calculando las palmas visitadas…</span></div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:12px" class="mc-grid">
+      <div id="gerMapaAv" style="height:720px;border-radius:14px;border:1px solid var(--borde);background:#fff"></div>
+      <div><div id="avLeyenda"></div><div id="avTabla" class="ger-tabla" style="max-height:380px;overflow:auto;margin-top:10px"></div></div></div>
+    <input type="hidden" id="avRango" value="${esc(d1)}|${esc(d2)}"></div>`;
+}
+async function calcularAvanceMapa(feats){
+  const key=JORF.map(j=>j.id).join(',')+'|'+feats.map(f=>f.properties._lote).join(',');
+  if(GER.avCache&&GER.avCache.key===key)return GER.avCache;
+  // Veces visitada = días distintos con la palma en las palmas visitadas de las jornadas filtradas
+  const vis=new Map(),ult=new Map();let sinIds=0;const lotesSel=new Set(feats.map(f=>f.properties._lote));
+  for(const j of [...JORF].sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha))))for(const x of j.por_lote){if(!lotesSel.has(x.lote))continue;
+    const ids=x.ids_palmas_visitadas||[];if(!ids.length){sinIds+=Number(x.palmas_visitadas)||0;continue;}
+    for(const id0 of ids){const id=String(id0);if(ult.get(id)===j.fecha)continue;ult.set(id,j.fecha);vis.set(id,(vis.get(id)||0)+1);}}
+  const palmas=[],porLote=new Map();
+  for(const f of feats){const l=f.properties._lote;const d=await chunkLote(l);const r={lote:l,tot:0,v:0,c:[0,0,0,0]};
+    for(const a of d){if(a[3]===0||a[4]==null||(typeof VAJ!=='undefined'&&VAJ.has(String(a[0]))))continue;const n=Math.min(3,vis.get(String(a[0]))||0);
+      palmas.push(a[4],a[5],n);r.tot++;r.c[n]++;if(n)r.v++;}
+    porLote.set(l,r);}
+  GER.avCache={key,palmas,porLote,sinIds};return GER.avCache;
+}
+/* Lienzo con las palmas pintadas por clase (proyección simple, celdas de CEL metros) */
+function lienzoAvance(feats,palmas,CEL){
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;const an=f=>f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+  for(const f of feats)for(const pol of an(f))for(const r of pol)for(const [x,y] of r){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}
+  const mx=111320*Math.cos((y0+y1)/2*Math.PI/180),my=110540,dlon=CEL/mx,dlat=CEL/my,W=Math.ceil((x1-x0)/dlon)+1,H=Math.ceil((y1-y0)/dlat)+1;
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');const s=Math.max(2,Math.ceil(9.5/CEL));
+  for(let k=0;k<4;k++){g.fillStyle=AV_CLASES[k].c;for(let i=0;i<palmas.length;i+=3){if(palmas[i+2]!==k)continue;g.fillRect(Math.round((palmas[i]-x0)/dlon-s/2),Math.round((y1-palmas[i+1])/dlat-s/2),s,s);}}
+  return {cv,CEL,x0,y1,dlon,dlat,W,H,limites:[[y1-H*dlat,x0],[y1,x0+W*dlon]]};
+}
+async function montarMapaAvance(){
+  const el=$('#gerMapaAv');if(!el)return;
+  if(GER.av){try{GER.avVista={c:GER.av.getCenter(),z:GER.av.getZoom()};GER.av.off();GER.av.remove();}catch(e){}GER.av=null;}
+  if(GER.plant===undefined){GER.plant=null;cargarPlantacionGer().then(()=>{if(GER.plant&&$('#gerMapaAv'))montarMapaAvance();});}
+  const feats=LOTES?LOTES.features.filter(f=>f.geometry&&/Polygon/.test(f.geometry.type)&&enProg(f.properties._lote)&&loteSel(f.properties._lote)):[];
+  const sinFiltro=!FIL.lote.size&&!FIL.prog.size,plant=sinFiltro&&GER.plant?GER.plant:null;
+  if(!feats.length){$('#avEstado').textContent='No hay lotes con los filtros elegidos.';return;}
+  const A=await calcularAvanceMapa(feats);if(!$('#gerMapaAv')||$('#gerMapaAv')!==el)return;
+  const sup=lienzoAvance(feats,A.palmas,6);GER.avSup=sup;GER.avFeats=feats;GER.avPlant=plant;
+  const m=L.map(el,{zoomControl:true,attributionControl:false,preferCanvas:true,minZoom:11,maxZoom:20,zoomSnap:.25});GER.av=m;
+  L.control.scale({imperial:false,position:'bottomleft'}).addTo(m);new NorteMC({position:'topright'}).addTo(m);
+  L.imageOverlay(sup.cv.toDataURL(),sup.limites,{opacity:1,interactive:false}).addTo(m);
+  const capaL=L.geoJSON({type:'FeatureCollection',features:feats},{style:{color:'#111',weight:.8,fill:true,fillOpacity:0}}).addTo(m);
+  if(plant)L.geoJSON({type:'FeatureCollection',features:plant},{style:{color:'#000',weight:3,fill:false},interactive:false}).addTo(m);
+  capaL.eachLayer(l=>{const lo=l.feature.properties._lote,r=A.porLote.get(lo)||{tot:0,v:0,c:[0,0,0,0]};
+    l.bindTooltip(`<b>${esc(lo)}</b> · ${num(r.v)} de ${num(r.tot)} palmas visitadas (${r.tot?num(r.v/r.tot*100,1):0} %)${r.c[2]+r.c[3]?` · ${num(r.c[2]+r.c[3])} con 2 o más entradas`:''}`,{sticky:true});
+    if(GER.avNombres!==false)etiquetaLoteMC(m,lo);});
+  const etq=()=>el.classList.toggle('mc-sin-etq',m.getZoom()<12);m.on('zoomend',etq);
+  if(GER.avVista)m.setView(GER.avVista.c,GER.avVista.z);else m.fitBounds(capaL.getBounds(),{padding:[10,10]});etq();setTimeout(()=>m.invalidateSize(),60);
+  // Totales por clase: hectáreas proporcionales a las palmas sobre el área oficial (Area_ha)
+  const R=resumenAvance(feats,A);GER.avRes=R;
+  $('#avLeyenda').innerHTML=leyendaAvanceHTML(R);
+  $('#avEstado').innerHTML=`<b>${num(R.vis)}</b> de <b>${num(R.tot)}</b> palmas visitadas${A.sinIds?` · ⚠ ${num(A.sinIds)} palmas de jornadas antiguas sin el detalle de palmas no se pueden ubicar en el mapa`:''}`;
+  const filas=[...A.porLote.values()].map(r=>({...r,p:r.tot?r.v/r.tot*100:0})).sort((a,b)=>a.p-b.p||ordenNat(a.lote,b.lote));
+  $('#avTabla').innerHTML=tablaGer([{t:'Lote',f:x=>`<b>${esc(x.lote)}</b>`},{t:'Visitadas',n:1,f:x=>num(x.v)},{t:'Palmas',n:1,f:x=>num(x.tot)},{t:'Avance',n:1,f:x=>num(x.p,1)+' %'}],filas,x=>`class="clic" data-avl="${esc(x.lote)}"`);
+  $$('#avTabla [data-avl]').forEach(tr=>tr.onclick=()=>{let bb=null;capaL.eachLayer(y=>{if(y.feature.properties._lote===tr.dataset.avl)bb=y.getBounds();});if(bb)m.fitBounds(bb,{padding:[30,30],maxZoom:17});});
+  const nn=$('#avNombres');if(nn)nn.onchange=()=>{GER.avNombres=nn.checked;montarMapaAvance();};
+  const pb=$('#avPng');if(pb){pb.disabled=false;pb.onclick=()=>descargarAvancePNG();}
+}
+function resumenAvance(feats,A){
+  const c=[0,0,0,0];let tot=0,lotesI=0;for(const r of A.porLote.values()){for(let k=0;k<4;k++)c[k]+=r.c[k];tot+=r.tot;if(r.v)lotesI++;}
+  const oficial=feats.reduce((a,f)=>a+(Number(f.properties.Area_ha)||0),0),ha=c.map(n=>oficial&&tot?n/tot*oficial:n/115);
+  return {c,tot,vis:tot-c[0],ha,haTot:ha.reduce((a,b)=>a+b,0),lotes:A.porLote.size,lotesI};
+}
+function leyendaAvanceHTML(R){
+  const fila=k=>{const x=AV_CLASES[k];return `<tr data-avc="${k}"><td style="padding:5px 4px;vertical-align:top"><span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${x.c};margin-top:2px"></span></td>
+    <td style="padding:4px 6px"><div style="font-size:15px">${x.t}</div><div style="font-size:14px">${num(R.ha[k],0)} HA | ${num(R.haTot?R.ha[k]/R.haTot*100:0,1)}%</div></td></tr>`;};
+  const ks=[1,2,3].filter(k=>k<3||R.c[3]>0);
+  return `<div style="background:#fff;color:#222;border-radius:12px;padding:12px 14px">
+    <div style="font-family:var(--t);font-size:16px;letter-spacing:.8px;color:#555">AVANCE CENSO DE ENFERMEDADES</div>
+    <div style="font-size:12.5px;color:#666;margin-bottom:8px">${esc(rangoAvTxt())}</div>
+    <div style="font-size:16px;margin-bottom:2px">N° Entradas</div>
+    <table style="border-collapse:collapse">${ks.map(fila).join('')}${fila(0)}</table>
+    <div style="font-size:15px;margin-top:8px">Total Intervenido</div><div style="font-size:15px"><b>${num(R.lotesI)}</b> Lotes | ${num(R.lotes?R.lotesI/R.lotes*100:0,1)}%</div>
+    <div style="font-size:12px;color:#666;margin-top:4px">${num(R.vis)} de ${num(R.tot)} palmas visitadas (${num(R.tot?R.vis/R.tot*100:0,1)} %)</div></div>`;
+}
+function rangoAvTxt(){const d1=$('#fDesde').value,d2=$('#fHasta').value;if(!d1||!d2)return '';return d1===d2?fechaLarga(d1):`Del ${fechaLarga(d1)} al ${fechaLarga(d2)}`;}
+/* Imagen para imprimir o compartir: título, mapa con lotes y nombres, convenciones y escala */
+function descargarAvancePNG(){
+  const S=GER.avSup,R=GER.avRes,feats=GER.avFeats;if(!S||!R)return;
+  const k=Math.min(3,Math.max(1,2400/Math.max(S.W,S.H))),M=40,PW=380,TH=110,W=Math.round(S.W*k)+PW+M*3,H=Math.max(Math.round(S.H*k)+TH+M*2,760);
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);
+  const ox=M,oy=TH+M,P=(x,y)=>[ox+(x-S.x0)/S.dlon*k,oy+(S.y1-y)/S.dlat*k];
+  g.imageSmoothingEnabled=false;g.drawImage(S.cv,ox,oy,S.W*k,S.H*k);
+  const an=f=>f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+  const traza=(fs,w)=>{g.lineWidth=w;g.strokeStyle='#111';for(const f of fs)for(const pol of an(f))for(const r of pol){g.beginPath();r.forEach(([x,y],i)=>{const [a,b]=P(x,y);i?g.lineTo(a,b):g.moveTo(a,b);});g.closePath();g.stroke();}};
+  traza(feats,1);if(GER.avPlant)traza(GER.avPlant,4);
+  if(GER.avNombres!==false){g.font='600 10px sans-serif';g.textAlign='center';g.textBaseline='middle';
+    for(const f of feats){const c=centroLote(f.properties._lote);if(!c)continue;const [a,b]=P(c[1],c[0]);const t=f.properties._lote;const w=g.measureText(t).width+6;
+      g.fillStyle='rgba(255,255,255,.9)';g.fillRect(a-w/2,b-7,w,14);g.fillStyle='#111';g.fillText(t,a,b);}}
+  g.textAlign='center';g.textBaseline='alphabetic';g.fillStyle='#6b6b6b';g.font='700 34px sans-serif';g.fillText('AVANCE CENSO DE ENFERMEDADES',W/2,M+30);
+  g.font='700 24px sans-serif';g.fillText(rangoAvTxt().toUpperCase(),W/2,M+66);
+  // Convenciones
+  let x=W-PW-M,y=oy+10;g.textAlign='left';g.fillStyle='#111';g.font='26px sans-serif';g.fillText('N° Entradas',x,y+24);y+=46;
+  const ks=[1,2,3].filter(q=>q<3||R.c[3]>0).concat([0]);
+  for(const q of ks){g.fillStyle=AV_CLASES[q].c;g.beginPath();g.arc(x+12,y+12,11,0,7);g.fill();g.fillStyle='#111';g.font='24px sans-serif';g.fillText(AV_CLASES[q].t,x+36,y+20);
+    g.fillText(`${num(R.ha[q],0)} HA | ${num(R.haTot?R.ha[q]/R.haTot*100:0,1)}%`,x+36,y+50);y+=74;}
+  y+=10;g.fillText('Total Intervenido',x,y+20);g.fillText(`${num(R.lotesI)} Lotes | ${num(R.lotes?R.lotesI/R.lotes*100:0,1)}%`,x,y+50);
+  // Escala (1 km) y norte
+  let u=1;while(1000*u/S.CEL*k*2>PW-70&&u>0.05)u/=2;const pu=1000*u/S.CEL*k,et=v=>v>=1?num(v,v%1?1:0)+' km':num(v*1000)+' m';   // escala que cabe en el panel
+  y+=100;g.fillStyle='#555';g.fillRect(x,y,pu,10);g.strokeStyle='#111';g.lineWidth=1;g.strokeRect(x,y,pu*2,10);
+  g.fillStyle='#111';g.font='18px sans-serif';g.textAlign='center';g.fillText('0',x,y-6);g.fillText(et(u).replace(/ k?m$/,''),x+pu,y-6);g.fillText(et(2*u),x+pu*2,y-6);
+  g.font='700 22px sans-serif';g.textAlign='center';g.fillText('N',W-M-20,TH+M-10);g.beginPath();g.moveTo(W-M-20,TH+M);g.lineTo(W-M-32,TH+M+36);g.lineTo(W-M-20,TH+M+28);g.lineTo(W-M-8,TH+M+36);g.closePath();g.fill();
+  g.font='13px sans-serif';g.fillStyle='#888';g.fillText('Palmas de Tumaco S.A.S. · Sanidad Vegetal · generado desde el visor',W/2,H-14);
+  cv.toBlob(b=>bajar(b,`avance_censo_${($('#fDesde').value||'')}_${($('#fHasta').value||'')}.png`),'image/png');
 }
 
 /* =====================================================================
