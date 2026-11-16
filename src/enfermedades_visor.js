@@ -29,7 +29,7 @@
   setInterval(estadoBtEnf,600);
 })();
 const otroModoOn=()=>(typeof GER!=='undefined'&&GER.on)||(typeof CIR!=='undefined'&&CIR.on)||(typeof ERR!=='undefined'&&ERR.on)||(typeof PLM!=='undefined'&&PLM.on);
-function estadoBtEnf(){const b=$('#btEnf');if(b)b.classList.toggle('prim',!otroModoOn());const f=$('#critFranja');if(f)f.classList.toggle('on',!otroModoOn()&&CRIT.lista.length>0);}
+function estadoBtEnf(){const b=$('#btEnf');if(b)b.classList.toggle('prim',!otroModoOn());const f=$('#critFranja');if(f)f.classList.toggle('on',!otroModoOn()&&!(typeof REP!=='undefined'&&REP.on)&&CRIT.lista.length>0);}
 function verCensoEnf(){
   if(GER.on)alternarGerencia(false);if(typeof PLM!=='undefined'&&PLM.on)alternarPlgMapa(false);if(ERR.on)alternarErr(false);if(CIR.on)alternarCirugia(false);
   estadoBtEnf();

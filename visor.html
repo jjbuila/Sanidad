@@ -817,6 +817,13 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 #rep .ops{display:flex;gap:6px;flex-wrap:wrap;max-height:58px;overflow:auto;font-size:12px}
 #rep .ops span{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--borde);border-radius:999px;padding:1px 8px}
 #rep .ops span.inact{opacity:.4}
+#rep .acu{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+#rep .acu div{border:1px solid var(--borde);border-radius:10px;padding:4px 8px;font-size:11.5px;color:var(--tenue);line-height:1.25}
+#rep .acu div b{display:block;color:var(--texto);font-family:var(--t);font-size:16px;font-variant-numeric:tabular-nums}
+#rep .critRep{display:none;align-items:center;gap:8px;flex-wrap:wrap;background:#b71c1c;color:#fff;border:2px solid #ff5252;border-radius:10px;padding:5px 10px;font-weight:800;font-size:13px;animation:critLatido 1.2s ease-out infinite}
+#rep .critRep.on{display:flex}
+#rep .critRep.nuevo{animation:critLatido 1.2s ease-out infinite,critParpadeo .35s linear 6}
+@media (max-width:560px){#rep .acu{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .rep-etq{background:rgba(6,20,15,.82);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;font-family:var(--t);font-weight:700;font-size:12px;padding:0 5px;box-shadow:none}
 .rep-etq::before{display:none}
 .ppFoto{margin:-2px 0 8px}
@@ -874,7 +881,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261116:0705</div>
+    <div id="lgVer">VERSIÓN 20261116:1054</div>
   </div>
 </div>
 
@@ -969,7 +976,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261116:0705';
+const VERSION='20261116:1054';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1886,7 +1893,9 @@ function prepararRep(){
     const diags=j.diags.map(d=>({d,t:Date.parse(d.creado)-o,m:null})).filter(x=>Number.isFinite(x.t)).sort((a,b)=>a.t-b.t);
     const acum=[0];for(let q=1;q<ll.length;q++){const d=dist(ll[q-1][0],ll[q-1][1],ll[q][0],ll[q][1]);acum.push(acum[q-1]+(d<500?d:0));}
     return {j,t,ll,col,estela,marca,k:-1,acum,diags,dN:0,activa:false};});
-  if(REP.modo==='uno')precargarFotos(REP.lista[REP.i]);
+  if(REP.modo==='uno'){precargarFotos(REP.lista[REP.i]);const jx=REP.lista[REP.i],ix=REP.i;REP.vis=null;
+    palmasVisitadasJ(jx).then(v=>{if(!REP.on||REP.modo!=='uno'||REP.i!==ix)return;REP.vis=v.filter(q=>Number.isFinite(q.t)).map(q=>q.t);REP.visTot=v.length;ponerRep(REP.T);}).catch(()=>{});}
+  REP.critUlt=null;
   REP.T0=Math.min(...REP.js.map(x=>x.t[0]));REP.T1=Math.max(...REP.js.map(x=>x.t[x.t.length-1]));REP.T=REP.T0;
   const caja=L.latLngBounds(REP.js.flatMap(x=>x.ll));try{mapa.fitBounds(caja,{padding:[40,40],maxZoom:REP.modo==='todos'?17:18});}catch(e){}
   pintarBarraRep();ponerRep(REP.T0);
@@ -1900,7 +1909,10 @@ function pintarBarraRep(){
       <input type="range" id="repRg" min="0" max="1000" value="0" aria-label="Avance de la reproducción"><span class="reloj" id="repReloj">--:--:--</span></div>
     <div class="r3"><label>Velocidad <select id="repVel" style="padding:2px 6px;font-size:12.5px">${[60,180,300,600,1200,3600].map(v=>`<option value="${v}" ${v===REP.vel?'selected':''}>×${v}</option>`).join('')}</select></label>
       ${uno?'<label><input type="checkbox" id="repSeg" checked> Seguir al operario</label><label><input type="checkbox" id="repDiag" checked> Mostrar diagnósticos</label>':''}
-      <span>Activos <b id="repAct">0</b></span><span>Diagnósticos <b id="repND">0</b></span><span>Km <b id="repKm">0.00</b></span>${uno?'':'<span class="tenue">Las horas son del día; cada color es un operario.</span>'}</div>
+      ${uno?'':'<span>Activos <b id="repAct">0</b></span><span>Diagnósticos <b id="repND">0</b></span><span>Km <b id="repKm">0.00</b></span><span class="tenue">Las horas son del día; cada color es un operario.</span>'}</div>
+    ${uno?`<div class="acu" id="repAcu"><div>Inicio<b>${esc(j.hora_inicio||'--')}</b></div><div>Fin<b>${esc(j.hora_fin||'--')}</b></div><div>Transcurrido<b id="rqTr">00:00:00</b></div><div>Km recorridos<b id="repKm">0.00</b></div>
+      <div>Velocidad prom.<b id="rqVel">0.0 km/h</b></div><div>Hectáreas<b id="rqHa">0.00</b></div><div>Palmas visitadas<b id="rqPal">0</b></div><div>Diagnósticos<b id="repND">0</b></div></div>`:''}
+    <div class="critRep" id="repCrit" title="Clic: ir al último caso crítico"></div>
     ${uno?'':`<div class="ops" id="repOps">${REP.js.map((x,k)=>`<span data-k="${k}"><i class="punto" style="background:${x.col}"></i>${esc(nombreCorto(x.j.evaluador))} · ${esc(x.j.hora_inicio)}</span>`).join('')}</div>`}`;
   $('#repX').onclick=()=>detenerRep();
   $('#repBt').onclick=()=>REP.run?pausarRep():iniciarRep();
@@ -1923,7 +1935,10 @@ function ponerRep(T){REP.T=T;let act=0,nd=0,km=0;const uno=REP.modo==='uno';
       km+=x.acum[i]/1000;}
     // Diagnósticos que van apareciendo
     let k=x.dN;const nuevos=[];
-    while(k<x.diags.length&&x.diags[k].t<=T){const q=x.diags[k];q.m=L.circleMarker([q.d.lat,q.d.lng],{renderer:rend,radius:6,color:'#fff',weight:1.5,fillColor:colorD(q.d),fillOpacity:1}).addTo(REP.capa);
+    while(k<x.diags.length&&x.diags[k].t<=T){const q=x.diags[k];const cr=typeof criticoDe==='function'?criticoDe(q.d):null;
+      q.m=cr&&typeof iconoCritico==='function'?L.marker([q.d.lat,q.d.lng],{icon:iconoCritico(cr),zIndexOffset:2000,keyboard:false}).addTo(REP.capa)
+        :L.circleMarker([q.d.lat,q.d.lng],{renderer:rend,radius:6,color:'#fff',weight:1.5,fillColor:colorD(q.d),fillOpacity:1}).addTo(REP.capa);
+      if(cr&&REP.run)avisoCritRep(q,x,cr);
       q.m.on('click',ev=>{L.DomEvent.stopPropagation(ev);popupDiag({...q.d,_j:x.j},ev.latlng);});nuevos.push(q);k++;}
     while(k>0&&x.diags[k-1].t>T){k--;const q=x.diags[k];if(q.m){REP.capa.removeLayer(q.m);q.m=null;}}
     x.dN=k;nd+=k;
@@ -1934,6 +1949,25 @@ function ponerRep(T){REP.T=T;let act=0,nd=0,km=0;const uno=REP.modo==='uno';
   const rg=$('#repRg');if(rg)rg.value=Math.round(1000*(T-REP.T0)/Math.max(1,REP.T1-REP.T0));
   if($('#repAct'))$('#repAct').textContent=act;if($('#repND'))$('#repND').textContent=nd;if($('#repKm'))$('#repKm').textContent=km.toFixed(2);
   $$('#repOps span').forEach(s=>{const x=REP.js[+s.dataset.k];s.classList.toggle('inact',!x||!x.activa);});
+  pintarCritRep();if(uno)acumuladosRep(T,km,nd);
+}
+/* Uno a uno: datos acumulados de la jornada hasta el instante T. */
+function acumuladosRep(T,km,nd){const x=REP.js[0];if(!x)return;const j=x.j,t0=x.t[0],tf=x.t[x.t.length-1],ms=Math.max(0,Math.min(T,tf)-t0),h=ms/3600000;
+  const kmT=x.acum[x.acum.length-1]/1000,haT=Number(j.ha)||0;let pal=null,ha;
+  if(REP.vis&&REP.vis.length){pal=0;for(const t of REP.vis)if(t<=T)pal++;ha=REP.visTot?haT*pal/REP.visTot:0;}
+  else ha=kmT>0?haT*Math.min(1,km/kmT):0;
+  if(pal==null)pal=Math.round((Number(j.palmas)||0)*(kmT>0?Math.min(1,km/kmT):0));
+  const s=(id,v)=>{const e=$('#'+id);if(e)e.textContent=v;};
+  s('rqTr',hms(ms));s('rqVel',(h>0.005?km/h:0).toFixed(1)+' km/h');s('rqHa',ha.toFixed(2));s('rqPal',num(pal));}
+/* Casos críticos (PE partida y PC cráter) que van apareciendo en la reproducción. */
+function pintarCritRep(){const e=$('#repCrit');if(!e)return;let np=0,nc=0;
+  for(const x of REP.js)for(let k=0;k<x.dN;k++){const c=typeof criticoDe==='function'?criticoDe(x.diags[k].d):null;if(c==='PE_PARTIDA')np++;else if(c==='CRATER')nc++;}
+  const txt=(np?`✝ ${np} PE PARTIDA (palma${np>1?'s':''} muerta${np>1?'s':''})`:'')+(np&&nc?' · ':'')+(nc?`⚠ ${nc} PC CRÁTER (erradicar)`:'');
+  const u=REP.critUlt;const h=`<span style="font-size:17px">🚨</span><span>${txt}</span>${u?`<span style="font-weight:600">· último: ${esc(nombreCorto(u.op))} · lote ${esc(u.d.lote)} L${esc(u.d.linea)} P${esc(u.d.palma)}</span>`:''}`;
+  if(e.dataset.h!==h){e.dataset.h=h;e.innerHTML=h;}e.classList.toggle('on',np+nc>0);
+  e.onclick=()=>{const q=REP.critUlt;if(q){mapa.setView([q.d.lat,q.d.lng],19,{animate:true});popupDiag({...q.d,_j:q.j},[q.d.lat,q.d.lng]);}};}
+function avisoCritRep(q,x,cr){REP.critUlt={d:q.d,j:x.j,op:x.j.evaluador};const e=$('#repCrit');
+  if(e){e.classList.remove('nuevo');void e.offsetWidth;e.classList.add('nuevo');}
 }
 function iniciarRep(){if(!REP.on)return;if(REP.T>=REP.T1)ponerRep(REP.T0);REP.run=true;const b=$('#repBt');if(b)b.textContent='❚❚';
   let prev=performance.now();const paso=now=>{if(!REP.run)return;const dt=now-prev;prev=now;
@@ -4074,7 +4108,7 @@ mapa.on('popupopen',e=>{const b=e.popup.getElement()&&e.popup.getElement().query
   setInterval(estadoBtEnf,600);
 })();
 const otroModoOn=()=>(typeof GER!=='undefined'&&GER.on)||(typeof CIR!=='undefined'&&CIR.on)||(typeof ERR!=='undefined'&&ERR.on)||(typeof PLM!=='undefined'&&PLM.on);
-function estadoBtEnf(){const b=$('#btEnf');if(b)b.classList.toggle('prim',!otroModoOn());const f=$('#critFranja');if(f)f.classList.toggle('on',!otroModoOn()&&CRIT.lista.length>0);}
+function estadoBtEnf(){const b=$('#btEnf');if(b)b.classList.toggle('prim',!otroModoOn());const f=$('#critFranja');if(f)f.classList.toggle('on',!otroModoOn()&&!(typeof REP!=='undefined'&&REP.on)&&CRIT.lista.length>0);}
 function verCensoEnf(){
   if(GER.on)alternarGerencia(false);if(typeof PLM!=='undefined'&&PLM.on)alternarPlgMapa(false);if(ERR.on)alternarErr(false);if(CIR.on)alternarCirugia(false);
   estadoBtEnf();
