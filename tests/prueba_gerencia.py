@@ -113,7 +113,7 @@ with sync_playwright() as p:
     check('Cirugía: tiempo caso → cirugía ≈ 0,8 días', '0,8 d' in T, re.findall(r'[\d,]+ d', T)[:3])
     # Sincronización (módulo de análisis de datos)
     vz.click('#btDatos'); time.sleep(.3)
-    check('Módulos: Análisis de datos con Sincronización', 'ANÁLISIS DE DATOS' in txt().upper() and [b.inner_text() for b in vz.query_selector_all('#gerPanel [data-gt]')] == ['SINCRONIZACIÓN'])
+    check('Módulos: Análisis de datos con Sincronización', 'ANÁLISIS DE DATOS' in txt().upper() and [b.inner_text() for b in vz.query_selector_all('#gerPanel [data-gt]')] == ['SINCRONIZACIÓN', 'PALMAS PENDIENTES POR MARCAR INEXISTENTES'])
     vz.click('[data-gt=sync]'); vz.wait_for_function("!!GER.sync", timeout=15000); time.sleep(.4); T = txt()
     check('Sincronización: solo operarios activos (3)', vz.evaluate("GER.sync.filas.length") == 3, vz.evaluate("GER.sync.filas.map(x=>x.u)"))
     check('Sincronización: estados hoy / 6 días / sin envíos', 'Hoy' in T and '6 días sin sincronizar' in T and 'Sin envíos en 30 días' in T, re.sub(r'\s+', ' ', T)[:200])

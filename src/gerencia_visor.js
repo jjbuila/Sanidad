@@ -90,7 +90,7 @@ function pintarGer(){
   const cab=`<div class="ger-cab"><h2>${M.icono} ${M.titulo}</h2><div class="ger-tabs">${TABS_GER.filter(([k])=>M.tabs.includes(k)).sort((a,b)=>M.tabs.indexOf(a[0])-M.tabs.indexOf(b[0])).map(([k,t])=>`<button data-gt="${k}" class="${GER.tab===k?'on':''}">${t}</button>`).join('')}</div>
     <button class="btn mini" id="gerX" title="Cerrar y volver al mapa">✕ Cerrar</button></div>`;
   let cuerpo='';
-  try{cuerpo={plagas:pintarPlagasGer,progerr:pintarProgErrGer,progcir:pintarProgCir,plan:pintarPlanCenso,tablero:pintarTablero,cirugia:pintarCirGer,sync:pintarSync,calidad:pintarCalidad,auditoria:pintarAuditoria,reportes:pintarReportes}[GER.tab]();}
+  try{cuerpo=({plagas:pintarPlagasGer,progerr:pintarProgErrGer,progcir:pintarProgCir,plan:pintarPlanCenso,tablero:pintarTablero,cirugia:pintarCirGer,sync:pintarSync,calidad:pintarCalidad,auditoria:pintarAuditoria,reportes:pintarReportes}[GER.tab]||PINTAR_GER[GER.tab])();}
   catch(e){console.error(e);cuerpo=`<div class="ger-aviso ger-mal">⚠ ${esc(e.message)}</div>`;}
   P.innerHTML=cab+(usaFiltrosGer()?barraFiltrosGer():'')+cuerpo;
   $$('#gerPanel [data-gt]').forEach(b=>b.onclick=()=>{GER.tab=b.dataset.gt;pintarGer();});
@@ -98,7 +98,7 @@ function pintarGer(){
   if(usaFiltrosGer())enlazarFiltrosGer();
   (ENLACES_GER[GER.tab]||(()=>{}))();
 }
-const ENLACES_GER={};
+const ENLACES_GER={},PINTAR_GER={};   /* PINTAR_GER: pestañas que agregan otros módulos */
 const sinDatos=()=>`<div class="ger-aviso">No hay jornadas cargadas. Cargue un rango de fechas (a la izquierda) o use un atajo:
   <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn mini prim" data-rango="30">Últimos 30 días</button><button class="btn mini" data-rango="60">60 días</button><button class="btn mini" data-rango="90">90 días</button></div></div>`;
 function enlazarRango(){$$('#gerPanel [data-rango]').forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent='Cargando…';try{await cargarRango(+b.dataset.rango);}catch(e){toast(e.message,6000);}});}
@@ -339,11 +339,11 @@ async function cargarSync(){
       if(x.rol!=='operario')continue; // solo operarios de campo
       const f=ult.get(x.u)||null;filas.push({u:x.u,nombre:x.nombre,cargo:x.cargo||'',lab,ult:f&&f.t||null,fecha:f&&f.fecha,n7:f?f.n7:0,n30:f?f.n30:0});}
     GER.sync={filas,cuando:Date.now(),envios:envios.length};
-  }catch(e){toast(e.message,6000);GER.sync=GER.sync||null;}
+  GER.syncErr=null;}catch(e){toast(e.message,6000);GER.sync=GER.sync||null;GER.syncErr=e.message;}   // sin reintento automático: se consulta con el botón
   finally{GER.cargandoSync=false;pintarGer();}
 }
 function pintarSync(){
-  if(!GER.sync)return `<div class="ger-aviso">${GER.cargandoSync?'Consultando los envíos de los últimos 30 días en GitHub…':'Revisa cuándo envió cada operario su última jornada (últimos 30 días).'}
+  if(!GER.sync)return `<div class="ger-aviso ${GER.syncErr&&!GER.cargandoSync?'ger-mal':''}">${GER.syncErr&&!GER.cargandoSync?'⚠ No se pudo consultar: '+esc(GER.syncErr)+'<br>':''}${GER.cargandoSync?'Consultando los envíos de los últimos 30 días en GitHub…':'Revisa cuándo envió cada operario su última jornada (últimos 30 días).'}
     ${GER.cargandoSync?'':'<div style="margin-top:8px"><button class="btn mini prim" id="gerSyncCargar">Consultar sincronización</button></div>'}</div>`;
   const N=GER.umbralSync,ahora=Date.now();
   const filas=GER.sync.filas.map(f=>{const dias=f.ult?Math.floor((ahora-f.ult)/86400000):null;return {...f,dias,estado:f.ult==null?'nunca':dias>N?'mal':dias>=1?'med':'ok'};})
@@ -360,7 +360,7 @@ function pintarSync(){
     <p class="tenue">Cuenta las jornadas que llegaron al repositorio de datos. Una jornada en curso, sin finalizar o en un celular sin internet no aparece hasta que se envía.</p>${t}`;
 }
 ENLACES_GER.sync=()=>{const b=$('#gerSyncCargar');if(b)b.onclick=()=>cargarSync();const n=$('#gerSyncN');if(n)n.onchange=()=>{GER.umbralSync=Math.max(1,Number(n.value)||2);pintarGer();};
-  if(!GER.sync&&!GER.cargandoSync)cargarSync();};
+  if(!GER.sync&&!GER.cargandoSync&&!GER.syncErr)cargarSync();};
 
 /* ---------------- CALIDAD: diagnósticos sospechosos ---------------- */
 const MOTIVOS={lejos:'Lejos de la palma',gps:'GPS impreciso',foto:'Sin foto',rapido:'Muy rápido',racha:'Racha de iguales',fuera:'Fuera del horario de la jornada'};

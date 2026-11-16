@@ -380,3 +380,24 @@ function geoErradicacion(j,regs,pts,ahora,archivoFotos){
 }
 /* El botón INICIAR: panel de la labor en curso o elección de labor. */
 $('#btJornada').onclick=()=>{if(PLAY.on)return;if(S.jornada){if(esErr())panelErr();else if(esCir())panelCirugia();else panelJornada();}else{const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}elegirLabor();}};
+
+/* ---------- App: las palmas cuyo último diagnóstico es PE partida o PC cráter titilan en el mapa ---------- */
+const capaCrit=L.layerGroup().addTo(mapa);
+(function(){const css=document.createElement('style');css.textContent=`
+  @keyframes critOnda{0%{transform:scale(.5);opacity:1}100%{transform:scale(2.4);opacity:0}}
+  @keyframes critParpadeo{0%,49%{opacity:1}50%,100%{opacity:.15}}
+  .alerta-critica{background:none;border:0;pointer-events:none}
+  .alerta-critica i{position:absolute;border-radius:50%;pointer-events:none}
+  .alerta-critica .a1{left:-16px;top:-16px;width:32px;height:32px;border:4px solid #ff1744;animation:critOnda .8s ease-out infinite}
+  .alerta-critica .a2{left:-9px;top:-9px;width:18px;height:18px;background:#ff1744;border:2px solid #fff;box-shadow:0 0 12px 4px rgba(255,23,68,.9);animation:critParpadeo .5s linear infinite}
+  .alerta-critica.crater .a1{border-color:#ff9100}.alerta-critica.crater .a2{background:#ff9100;box-shadow:0 0 12px 4px rgba(255,145,0,.9)}
+  .alerta-critica .et{position:absolute;left:14px;top:-26px;white-space:nowrap;font:800 11px/1 sans-serif;color:#fff;background:#d50000;padding:3px 6px;border-radius:5px;border:1px solid #fff;animation:critParpadeo 1s linear infinite;pointer-events:none}
+  .alerta-critica.crater .et{background:#e65100}`;document.head.appendChild(css);})();
+function dibujarCriticas(){
+  capaCrit.clearLayers();const b=mapa.getBounds().pad(.25);
+  for(const [id,r] of S.ultimo){const t=criticoDe(r);if(!t||AJ_EXIST.has(String(id)))continue;
+    const f=S.idx.get(id)||S.idx.get(String(id));const ll=f?[f.geometry.coordinates[1],f.geometry.coordinates[0]]:(r.lat!=null?[r.lat,r.lng]:null);if(!ll||!b.contains(ll))continue;
+    L.marker(ll,{icon:L.divIcon({className:'alerta-critica '+(t==='CRATER'?'crater':'partida'),html:`<i class="a1"></i><i class="a2"></i><b class="et">${t==='CRATER'?'⚠ CRÁTER · ERRADICAR':'✝ PE PARTIDA · MUERTA'}</b>`,iconSize:[0,0]}),interactive:false,keyboard:false}).addTo(capaCrit);}
+}
+{const _d=dibujarPalmas;dibujarPalmas=function(){const x=_d.apply(this,arguments);dibujarCriticas();return x;};}
+{const _r=repintarPalma;repintarPalma=function(){const x=_r.apply(this,arguments);dibujarCriticas();return x;};}

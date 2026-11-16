@@ -61,6 +61,7 @@ vis = vis.replace('/*CIRUGIA_VISOR_JS*/', leer(os.path.join(RAIZ, 'src', 'cirugi
 vis = vis.replace('/*GERENCIA_VISOR_JS*/', leer(os.path.join(RAIZ, 'src', 'gerencia_visor.js')), 1)
 vis = vis.replace('/*ERRADICACION_VISOR_JS*/', leer(os.path.join(RAIZ, 'src', 'erradicacion_visor.js')), 1)
 vis = vis.replace('/*PLAGAS_VISOR_JS*/', leer(os.path.join(RAIZ, 'src', 'plagas_visor.js')), 1)
+vis = vis.replace('/*ENFERMEDADES_VISOR_JS*/', leer(os.path.join(RAIZ, 'src', 'enfermedades_visor.js')), 1)
 with open(os.path.join(RAIZ, 'visor.html'), 'w', encoding='utf-8') as f:
     f.write(vis)
 

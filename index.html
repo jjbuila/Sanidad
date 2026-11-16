@@ -1021,7 +1021,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261116:0629</div>
+  <div id="splashVer">VERSIÓN 20261116:0705</div>
 </div>
 
 <div id="login" hidden>
@@ -1036,7 +1036,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261116:0629</div>
+  <div id="lgVer2">VERSIÓN 20261116:0705</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1153,7 +1153,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261116:0629';
+const VERSION='20261116:0705';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -4388,6 +4388,13 @@ function muestraLote(d,k,muerta){
 const MODO_PROG_RUTA='config/modo_programacion.json',LABORES_MODO_PROG={censo:'Censo de enfermedades',plagas:'Monitoreo de plagas'};
 const modoProgDe=(c,labor)=>c&&c[labor]&&c[labor].modo==='programado'?'programado':'libre';
 
+/* ---------- Casos críticos que titilan en el mapa: PE partida (la palma murió) y PC cráter (próxima a morir; se erradica) ---------- */
+const CRITICOS={PE_PARTIDA:{t:'PE partida',nota:'La palma murió: pendiente de marcar como inexistente'},CRATER:{t:'PC cráter',nota:'Próxima a morir: se erradica el día hábil siguiente'}};
+function criticoDe(d){if(!d)return null;const n2=String(d.nivel2||d.n2||'').toUpperCase().trim(),c=String(d.n1_codigo||(Array.isArray(d.problemas)?d.problemas[0]:'')||'').toUpperCase(),n1=String(d.nivel1||d.n1||'').toUpperCase();
+  if(n2==='PE PARTIDA'&&(!c||c==='PE'||/EST[IÍ]PITE/.test(n1)))return 'PE_PARTIDA';
+  if((n2==='CRATER'||n2==='CRÁTER')&&(!c||c==='PC'||/COGOLLO/.test(n1)))return 'CRATER';
+  return null;}
+
 /* =====================================================================
    MÓDULO DE CIRUGÍA (App de campo)
    Cirujano y auxiliar, cada uno con su celular. La pareja recibe la programación del día (ruta optimizada desde la
@@ -5171,6 +5178,27 @@ function geoErradicacion(j,regs,pts,ahora,archivoFotos){
 }
 /* El botón INICIAR: panel de la labor en curso o elección de labor. */
 $('#btJornada').onclick=()=>{if(PLAY.on)return;if(S.jornada){if(esErr())panelErr();else if(esCir())panelCirugia();else panelJornada();}else{const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}elegirLabor();}};
+
+/* ---------- App: las palmas cuyo último diagnóstico es PE partida o PC cráter titilan en el mapa ---------- */
+const capaCrit=L.layerGroup().addTo(mapa);
+(function(){const css=document.createElement('style');css.textContent=`
+  @keyframes critOnda{0%{transform:scale(.5);opacity:1}100%{transform:scale(2.4);opacity:0}}
+  @keyframes critParpadeo{0%,49%{opacity:1}50%,100%{opacity:.15}}
+  .alerta-critica{background:none;border:0;pointer-events:none}
+  .alerta-critica i{position:absolute;border-radius:50%;pointer-events:none}
+  .alerta-critica .a1{left:-16px;top:-16px;width:32px;height:32px;border:4px solid #ff1744;animation:critOnda .8s ease-out infinite}
+  .alerta-critica .a2{left:-9px;top:-9px;width:18px;height:18px;background:#ff1744;border:2px solid #fff;box-shadow:0 0 12px 4px rgba(255,23,68,.9);animation:critParpadeo .5s linear infinite}
+  .alerta-critica.crater .a1{border-color:#ff9100}.alerta-critica.crater .a2{background:#ff9100;box-shadow:0 0 12px 4px rgba(255,145,0,.9)}
+  .alerta-critica .et{position:absolute;left:14px;top:-26px;white-space:nowrap;font:800 11px/1 sans-serif;color:#fff;background:#d50000;padding:3px 6px;border-radius:5px;border:1px solid #fff;animation:critParpadeo 1s linear infinite;pointer-events:none}
+  .alerta-critica.crater .et{background:#e65100}`;document.head.appendChild(css);})();
+function dibujarCriticas(){
+  capaCrit.clearLayers();const b=mapa.getBounds().pad(.25);
+  for(const [id,r] of S.ultimo){const t=criticoDe(r);if(!t||AJ_EXIST.has(String(id)))continue;
+    const f=S.idx.get(id)||S.idx.get(String(id));const ll=f?[f.geometry.coordinates[1],f.geometry.coordinates[0]]:(r.lat!=null?[r.lat,r.lng]:null);if(!ll||!b.contains(ll))continue;
+    L.marker(ll,{icon:L.divIcon({className:'alerta-critica '+(t==='CRATER'?'crater':'partida'),html:`<i class="a1"></i><i class="a2"></i><b class="et">${t==='CRATER'?'⚠ CRÁTER · ERRADICAR':'✝ PE PARTIDA · MUERTA'}</b>`,iconSize:[0,0]}),interactive:false,keyboard:false}).addTo(capaCrit);}
+}
+{const _d=dibujarPalmas;dibujarPalmas=function(){const x=_d.apply(this,arguments);dibujarCriticas();return x;};}
+{const _r=repintarPalma;repintarPalma=function(){const x=_r.apply(this,arguments);dibujarCriticas();return x;};}
 
 /* =====================================================================
    MÓDULO DE MONITOREO DE PLAGAS (App de campo)

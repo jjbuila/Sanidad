@@ -248,3 +248,10 @@ function muestraLote(d,k,muerta){
    'libre': el personal elige cualquier lote · 'programado': solo su bloque del plan del día. Sin archivo = libre. */
 const MODO_PROG_RUTA='config/modo_programacion.json',LABORES_MODO_PROG={censo:'Censo de enfermedades',plagas:'Monitoreo de plagas'};
 const modoProgDe=(c,labor)=>c&&c[labor]&&c[labor].modo==='programado'?'programado':'libre';
+
+/* ---------- Casos críticos que titilan en el mapa: PE partida (la palma murió) y PC cráter (próxima a morir; se erradica) ---------- */
+const CRITICOS={PE_PARTIDA:{t:'PE partida',nota:'La palma murió: pendiente de marcar como inexistente'},CRATER:{t:'PC cráter',nota:'Próxima a morir: se erradica el día hábil siguiente'}};
+function criticoDe(d){if(!d)return null;const n2=String(d.nivel2||d.n2||'').toUpperCase().trim(),c=String(d.n1_codigo||(Array.isArray(d.problemas)?d.problemas[0]:'')||'').toUpperCase(),n1=String(d.nivel1||d.n1||'').toUpperCase();
+  if(n2==='PE PARTIDA'&&(!c||c==='PE'||/EST[IÍ]PITE/.test(n1)))return 'PE_PARTIDA';
+  if((n2==='CRATER'||n2==='CRÁTER')&&(!c||c==='PC'||/COGOLLO/.test(n1)))return 'CRATER';
+  return null;}
