@@ -881,7 +881,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261116:1304</div>
+    <div id="lgVer">VERSIÓN 20261117:1708</div>
   </div>
 </div>
 
@@ -976,7 +976,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261116:1304';
+const VERSION='20261117:1708';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1769,13 +1769,41 @@ MSCB.n1=()=>{opcionesEnf();aplicarFiltros(true);};
 MSCB.n2=()=>{opcionesEnf();aplicarFiltros(true);};
 
 
+/* ---------- Cortes del GPS en el recorrido ----------
+   Un tramo de más de 90 s sin puntos no es camino recorrido: se dibuja punteado en gris con su duración y su causa
+   (la causa la anota la App desde la APK con registro protegido). */
+function partesTrack(j){
+  const tr=j.track;const ll=tr.c.map(c=>[c[1],c[0]]);const t=tr.t||[];const partes=[];const huecos=[];let cur=[ll[0]];
+  const causas=(j.header&&j.header.cortes_gps)||[];
+  for(let i=1;i<ll.length;i++){
+    if(t[i]&&t[i-1]&&t[i]-t[i-1]>90000){partes.push(cur);cur=[ll[i]];
+      const c=causas.find(x=>Math.abs(Date.parse(x.inicio)-t[i-1])<5000);
+      huecos.push({ll:[ll[i-1],ll[i]],min:Math.round((t[i]-t[i-1])/60000),a:hhmm(new Date(t[i-1]).toISOString()),b:hhmm(new Date(t[i]).toISOString()),causa:c?c.causa:''});}
+    else cur.push(ll[i]);}
+  partes.push(cur);
+  return {ll,partes:partes.filter(p=>p.length>1),huecos};
+}
+/* Bloque del detalle: cortes del GPS (más de 90 s sin puntos) y equipo con que se hizo la jornada. */
+function bloqueCortes(j){
+  if(!j.track||j.track.c.length<2)return '';const hs=partesTrack(j).huecos;const eq=(j.header&&j.header.equipo)||null;
+  const equipo=eq?`<div class="tenue" style="font-size:12px">Equipo: ${eq.modo==='navegador'?'Navegador'+(eq.navegador?' ('+esc(eq.navegador)+')':''):'APK '+esc(eq.apk||'')}${eq.fabricante||eq.modelo?' · '+esc([eq.fabricante,eq.modelo].filter(Boolean).join(' ')):''}${eq.android?' · Android API '+esc(eq.android):''}${eq.registro==='nativo'?' · registro protegido':eq.modo==='apk'?' · <b>sin registro protegido (APK antigua)</b>':''}${eq.ubicacion_siempre===false?' · <b>ubicación sin «todo el tiempo»</b>':''}</div>`:'';
+  if(!hs.length)return equipo?`<div style="margin-top:6px">${equipo}</div>`:'';
+  const tot=hs.reduce((a,h)=>a+h.min,0);
+  return `<div class="aviso" style="margin-top:8px"><b>⚠ ${hs.length} corte(s) del GPS · ${tot} min sin registro</b>
+    <div style="font-size:12.5px;margin-top:4px">${hs.map(h=>`${esc(h.a)}–${esc(h.b)} · ${h.min} min${h.causa?' · '+esc(h.causa):''}`).join('<br>')}</div>
+    <div class="tenue" style="font-size:11.5px;margin-top:4px">En el mapa se ven punteados en gris: no es camino recorrido y no cuenta palmas visitadas.</div>${equipo}</div>`;
+}
+function pintarHuecos(huecos,capa,j){
+  for(const h of huecos)L.polyline(h.ll,{renderer:rend,color:'#9e9e9e',weight:3,opacity:.95,dashArray:'2 7'}).addTo(capa)
+    .bindTooltip(`⚠ Sin GPS ${h.min} min · ${esc(h.a)}–${esc(h.b)}${h.causa?'<br>'+esc(h.causa):''}${j?'<br>'+esc(j.evaluador):''}`,{sticky:true});
+}
 /* ---------- Pintar en el mapa ---------- */
 function pintarMapa(ajustar){
   capaRec.clearLayers();capaDiag.clearLayers();capaPar.clearLayers();
   const caja=L.latLngBounds([]);const hayL=FIL.lote.size>0;
   for(const j of JORF){
-    if(j.track&&j.track.c.length>1){const ll=j.track.c.map(c=>[c[1],c[0]]);
-      const pl=L.polyline(ll,{renderer:rend,color:colorOp(j.usuario),weight:3,opacity:.85}).addTo(capaRec);
+    if(j.track&&j.track.c.length>1){const pt=partesTrack(j);
+      const pl=L.polyline(pt.partes.length?pt.partes:[pt.ll],{renderer:rend,color:colorOp(j.usuario),weight:3,opacity:.85}).addTo(capaRec);pintarHuecos(pt.huecos,capaRec,j);
       pl.on('click',e=>{L.DomEvent.stopPropagation(e);abrirDetalle(j);});pl.bindTooltip(`${esc(j.evaluador)} · ${esc(j.fecha)} ${esc(j.hora_inicio)}–${esc(j.hora_fin)}`,{sticky:true});
       if(!hayL)caja.extend(pl.getBounds());}
     for(const p of j.paradas){if(hayL&&!FIL.lote.has(p.lote))continue;
@@ -1857,8 +1885,8 @@ function abrirDetalle(j){
   if(REP.on)detenerRep();
   SEL=j;pararPlay();capaSel.clearLayers();
   const tr=j.track;let caja=null;
-  if(tr&&tr.c.length){const ll=tr.c.map(c=>[c[1],c[0]]);
-    L.polyline(ll,{renderer:rend,color:'#ffffff',weight:7,opacity:.35,interactive:false}).addTo(capaSel);
+  if(tr&&tr.c.length){const pt=partesTrack(j),ll=pt.ll;
+    L.polyline(pt.partes.length?pt.partes:[ll],{renderer:rend,color:'#ffffff',weight:7,opacity:.35,interactive:false}).addTo(capaSel);pintarHuecos(pt.huecos,capaSel,null);
     PLAY.estela=L.polyline([],{renderer:rend,color:'#00e5ff',weight:4,interactive:false}).addTo(capaSel);
     PLAY.marca=L.marker(ll[0],{icon:iconoFlecha('#2f93d5'),interactive:false,keyboard:false,zIndexOffset:1000}).addTo(capaSel);
     caja=L.latLngBounds(ll);}
@@ -1877,6 +1905,7 @@ function abrirDetalle(j){
       <div><b>Despl. inicial:</b> ${minHM(j.tiempos.min_desplazamiento_inicial)}</div><div><b>Despl. entre lotes:</b> ${minHM(j.tiempos.min_desplazamiento_entre_lotes)}</div>
       <div><b>Despl. final:</b> ${minHM(j.tiempos.min_desplazamiento_final)}</div><div><b>Efectivo en lotes:</b> ${minHM(j.tiempos.min_efectivo_labor)}</div>`:''}
       <div><b>Método:</b> ${j.metodo==='calle_entre_lineas'?'Por calle':'Buffer'}</div><div>${j.comp?`<b>Buffer ${esc(j.comp.buffer_m)} m:</b> ${num(j.comp.palmas_visitadas)} palmas`:''}</div></div>
+    ${bloqueCortes(j)}
     ${conT?`<div class="play"><div class="play-res"><span>Inicio <b>${esc(j.hora_inicio||hhmm(j.inicio))}</b></span><span>Fin <b>${esc(j.hora_fin||hhmm(j.fin))}</b></span><span>Ha <b>${num(j.ha,2)}</b></span><span>T. efectivo <b>${efecJ(j,sq)}</b></span></div>
       <div class="fila"><button class="btn mini prim" id="pBt">▶</button><input type="range" id="pRg" min="0" max="1000" value="0"><span class="reloj" id="pRel">${esc(hhmm(tr.t[0]))}</span></div>
       <div class="fila"><span class="tenue" style="font-size:12px">Velocidad</span><select id="pVel" style="padding:3px 6px;font-size:12.5px"><option value="30">×30</option><option value="60" selected>×60</option><option value="180">×180</option><option value="600">×600</option></select>

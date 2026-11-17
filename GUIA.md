@@ -184,7 +184,15 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 - **DATOS → Resumen por lote**: avance e incidencia, calculada como (enfermas + en tratamiento) / evaluadas.
 
 ### Registro con la pantalla bloqueada (APK)
-- Durante la jornada el APK usa un **servicio de ubicación en primer plano** (notificación «Jornada en curso») y mantiene la CPU activa (bloqueo parcial) hasta finalizar, para que el recorrido no se corte con el celular bloqueado.
+- **Registro protegido (APK 1.0.N nueva en adelante):** el GPS lo graba un servicio propio de la APK (notificación «Jornada en curso», CPU activa) que **guarda cada punto en el celular**. Si Android duerme o cierra la App con la pantalla bloqueada, al volver la App **recupera todos los puntos** con su hora real: el recorrido queda completo, sin líneas rectas.
+- **Vigilancia cada minuto:** una alarma del sistema (funciona aun con el celular en reposo) revisa el registro cada 60 s:
+  - si pasa **más de 1 minuto sin GPS**, el celular **vibra fuerte, avisa por voz** («el recorrido no se está grabando») y muestra una alerta, aunque esté bloqueado; se repite cada minuto hasta que vuelva el GPS. Si la ubicación del celular está apagada, lo dice;
+  - si **Android cerró el registro**, lo **reanuda solo** (requiere ubicación «Permitir todo el tiempo»); si no puede, avisa para que el operario toque la alerta y vuelva a la App.
+  - Así un corte se detecta en **1 a 2 minutos**. Mientras haya jornada, Android muestra el ícono de alarma (⏰) en la barra: es la vigilancia.
+- **Vibración de confirmación (opcional):** en *Menú › Pantalla bloqueada*, «Vibración corta cada minuto mientras graba»: el celular vibra suave cada minuto solo si el recorrido se está grabando.
+- **Cortes y equipo en la jornada:** cada jornada guarda el **equipo** (APK o navegador, marca, modelo, versión de Android, si tiene registro protegido y ubicación «todo el tiempo») y los **cortes del GPS** de más de 90 s con hora, minutos y **causa** (Android cerró el registro, sin señal de GPS, ubicación apagada, sin permiso…). En el **visor** los cortes se dibujan **punteados en gris** (no son camino recorrido) y el detalle de la jornada los lista con su causa y el equipo.
+- Límite: si el fabricante **fuerza el cierre** de la App (limpieza de Xiaomi/Samsung sin las exenciones), Android borra también la alarma: por eso siguen siendo necesarias las opciones de *Pantalla bloqueada*.
+- Con una APK anterior (sin registro protegido) se mantiene el método anterior: servicio de ubicación en primer plano (notificación «Jornada en curso») y CPU activa (bloqueo parcial) hasta finalizar.
 - Al iniciar la jornada, si Android aún limita la App, aparece **«Registro con la pantalla bloqueada»** con botones para: batería **sin restricciones**; en Xiaomi/Redmi/POCO, **Inicio automático**, **Ahorro de batería: Sin restricciones** y **bloquear la App en recientes** (candado); y los permisos de ubicación. También está en *Menú › Pantalla bloqueada*.
 - Los huecos de señal de más de 90 s no barren palmas en línea recta.
 - En el **navegador** (sin APK), Android detiene el GPS con la pantalla bloqueada; la App lo advierte y ofrece descargar el APK.

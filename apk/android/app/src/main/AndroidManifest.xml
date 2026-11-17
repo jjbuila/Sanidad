@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -24,6 +25,15 @@
             </intent-filter>
 
         </activity>
+
+        <!-- Registro nativo del recorrido (puntos guardados en el celular) y vigilancia cada 60 s -->
+        <service
+            android:name=".RecorridoService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+        <receiver
+            android:name=".VigiaReceiver"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -51,6 +61,9 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" tools:ignore="ExactAlarm" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 </manifest>

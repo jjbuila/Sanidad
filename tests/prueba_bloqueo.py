@@ -30,7 +30,7 @@ with sync_playwright() as p:
         txt = pg.evaluate("document.querySelector('#hojaCuerpo').innerText")
         fichas = pg.evaluate("document.querySelectorAll('#hojaCuerpo .ficha').length")
         check(f'{fab}: aparecen todas las opciones ({esperado})', fichas == esperado, fichas)
-        for t in ['Batería sin restricciones', 'Segundo plano e inicio automático', 'Ahorro de batería', 'Ubicación en segundo plano', 'Notificaciones', 'Todos los permisos']:
+        for t in ['Batería sin restricciones', 'Segundo plano e inicio automático', 'Ahorro de batería', 'Ubicación todo el tiempo', 'Notificaciones', 'Todos los permisos']:
             if t not in txt: check(f'{fab}: falta «{t}»', False)
         check(f'{fab}: estado de la batería', ('✔ LISTO' if sin else 'PENDIENTE') in txt)
         pg.evaluate("window.__llamadas=[]")

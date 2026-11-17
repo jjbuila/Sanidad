@@ -1021,7 +1021,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261116:1304</div>
+  <div id="splashVer">VERSIÓN 20261117:1708</div>
 </div>
 
 <div id="login" hidden>
@@ -1036,7 +1036,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261116:1304</div>
+  <div id="lgVer2">VERSIÓN 20261117:1708</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1153,7 +1153,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261116:1304';
+const VERSION='20261117:1708';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -1163,7 +1163,7 @@ if(EN_APK&&!NATIVO){try{if(navigator.onLine&&!sessionStorage.getItem('sv_puente'
 // registerPlugin solo existe si se carga @capacitor/core, por eso se usa como alternativa.
 const NAT=NATIVO?(()=>{const C=window.Capacitor;const r=n=>{try{const p=C.Plugins&&C.Plugins[n];if(p)return p;}catch(e){}
   try{return typeof C.registerPlugin==='function'?C.registerPlugin(n):null;}catch(e){return null;}};
-  return {get bg(){return r('BackgroundGeolocation');},get tts(){return r('TextToSpeech');},get ln(){return r('LocalNotifications');},get en(){return r('Energia');}};})():null;
+  return {get bg(){return r('BackgroundGeolocation');},get tts(){return r('TextToSpeech');},get ln(){return r('LocalNotifications');},get en(){return r('Energia');},get rec(){return r('Recorrido');}};})():null;
 /* Si un service worker antiguo entregó la app en la dirección del visor o de administración, se actualiza y se recarga una vez. */
 if(/\/(visor|admin)\.html$/.test(location.pathname)){try{if(!sessionStorage.getItem('sv_redir')){sessionStorage.setItem('sv_redir','1');
   (navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.update()))):Promise.resolve()).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),1200));}}catch(e){}}
@@ -1739,8 +1739,9 @@ async function revisarSegundoPlano(forzar){
     $('#sbApk').onclick=()=>window.open('https://github.com/jjbuila/Sanidad/releases/latest/download/SanidadVegetal.apk','_blank');$('#sbOk').onclick=cerrarHoja;}return;}
   if(!NAT.en){if(forzar)toast('Actualice el APK para revisar la batería y el bloqueo de pantalla.',6000);return;}
   let e={};try{e=await NAT.en.estado();}catch(x){}
+  let rc=null;if(recDisponible()){try{rc=await NAT.rec.estado();}catch(x){}}
   const xiaomi=/xiaomi|redmi|poco/i.test((e.fabricante||'')+' '+(e.modelo||''));
-  if(!forzar&&e.sinRestriccion&&(!xiaomi||S.cfg.miuiOk))return;
+  if(!forzar&&e.sinRestriccion&&(!xiaomi||S.cfg.miuiOk)&&(!rc||rc.ubicacionFondo))return;
   /* Todas las opciones siempre visibles (aunque ya estén listas), para poder revisarlas o volver a activarlas. */
   const item=(n,tit,estado,txt,bt)=>`<div class="ficha" style="margin-top:8px"><b>${n}. ${tit}</b> ${estado===true?'<span class="sello ok">✔ LISTO</span>':estado===false?'<span class="sello pend">PENDIENTE</span>':''}
     <div class="tenue">${txt}</div>${bt}</div>`;
@@ -1751,10 +1752,14 @@ async function revisarSegundoPlano(forzar){
     ${item(++n,'Batería sin restricciones',!!e.sinRestriccion,'Android no debe dormir la app para ahorrar batería. Toque el botón y elija «Permitir» o «Sin restricciones».',bt('sbBat',e.sinRestriccion?'Revisar batería sin restricciones':'Permitir sin restricciones',!e.sinRestriccion))}
     ${item(++n,'Segundo plano e inicio automático',null,xiaomi?'Active el interruptor de «Sanidad Vegetal» en Inicio automático.':'Permita que la app siga funcionando en segundo plano (en algunas marcas: «Inicio automático» o «Actividad en segundo plano»).',bt('sbAuto','Abrir segundo plano / inicio automático'))}
     ${item(++n,'Ahorro de batería',null,xiaomi?'Elija «Sin restricciones».':'En «Batería» de la app elija «Sin restricciones» o «No optimizar».',bt('sbAhorro','Abrir ahorro de batería'))}
-    ${item(++n,'Ubicación en segundo plano',null,'Permisos → Ubicación → «Permitir siempre» (o «Mientras se usa la app») y active «Usar ubicación precisa».',bt('sbUbic','Abrir permiso de ubicación'))}
+    ${item(++n,'Ubicación todo el tiempo',rc?!!rc.ubicacionFondo:null,'Permisos → Ubicación → «Permitir todo el tiempo» y active «Usar ubicación precisa». Así la App puede reanudar el GPS sola si Android lo cierra.',bt('sbUbic','Abrir permiso de ubicación',rc&&!rc.ubicacionFondo))}
     ${item(++n,'Notificaciones',null,'Permita las notificaciones: el aviso «Jornada en curso» mantiene vivo el registro del recorrido.',bt('sbNotif','Permitir notificaciones'))}
     ${item(++n,'Todos los permisos',null,'Cámara (fotos), micrófono (diagnóstico por voz), ubicación y notificaciones deben estar en «Permitir».',bt('sbApp','Abrir todos los permisos de la app'))}
     ${xiaomi?item(++n,'Xiaomi · Bloquear la app en recientes',null,'Abra las apps recientes, mantenga presionada Sanidad Vegetal y toque el candado 🔒.',''):''}
+    ${rc?`<div class="ficha" style="margin-top:8px"><b>Vigilancia del recorrido</b> <span class="sello ok">✔ ACTIVA</span>
+      <div class="tenue">Si pasa más de 1 minuto sin GPS, el celular vibra, avisa por voz y muestra una alerta, aunque esté bloqueado. Si Android cierra el registro, se reanuda solo.</div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="sbPulso" ${S.cfg.pulsoGps?'checked':''}> Vibración corta cada minuto mientras graba (confirma que el recorrido se está grabando)</label></div>`
+    :`<div class="aviso" style="margin-top:8px">Esta APK no tiene el registro protegido del recorrido ni la vigilancia cada minuto. Instale la APK nueva desde Menú → App Android.</div>`}
     <p class="tenue" style="margin-top:10px">${esc([e.fabricante,e.modelo].filter(Boolean).join(' '))}${e.android?' · Android API '+esc(e.android):''} · APK ${esc(textoApkInst())}${e.activo?' · registro activo':''}</p>
     <button class="btn prim ancho" id="sbListo" style="margin-top:6px">Listo</button>`);
   const vuelve=()=>setTimeout(()=>{if(document.visibilityState==='visible'&&$('#sbListo'))revisarSegundoPlano(true);},1500);
@@ -1766,8 +1771,82 @@ async function revisarSegundoPlano(forzar){
   $('#sbNotif').onclick=async()=>{try{const ln=NAT.ln;if(ln&&ln.requestPermissions){const r=await ln.requestPermissions();toast(r&&r.display==='granted'?'✅ Notificaciones permitidas.':'Active las notificaciones en los ajustes de la app.',4000);if(!r||r.display!=='granted')await NAT.en.abrirAjustesApp();}else await NAT.en.abrirAjustesApp();}catch(x){await NAT.en.abrirAjustesApp();}alVolver();};
   $('#sbApp').onclick=async()=>{await NAT.en.abrirAjustesApp();alVolver();};
   $('#sbListo').onclick=()=>{if(xiaomi){S.cfg.miuiOk=1;guardarCfg();}cerrarHoja();};
+  const pu=$('#sbPulso');if(pu)pu.onchange=async()=>{S.cfg.pulsoGps=pu.checked;await guardarCfg();try{await NAT.rec.configurar({pulso:pu.checked});}catch(x){}
+    toast(pu.checked?'El celular vibrará suave cada minuto mientras el recorrido se graba.':'Vibración de confirmación desactivada.',3500);};
+}
+/* ---------- Registro nativo del recorrido (APK con el complemento «Recorrido») ----------
+   El GPS lo graba un servicio de la APK en un archivo del celular. La App recibe cada punto en vivo y, al volver de segundo
+   plano y cada minuto, recupera los que no recibió (Android puede dormir la página con la pantalla bloqueada).
+   Una alarma cada 60 s avisa con vibración, voz y notificación si el recorrido deja de grabarse y reinicia el GPS si Android lo cerró. */
+const REC={on:false,jid:null,ult:0,cola:Promise.resolve(),sub:null,tmr:null};
+const recDisponible=()=>!!(NATIVO&&NAT&&NAT.rec);
+function recUltimo(){return Math.max(REC.ult,TRACK.ultimo?TRACK.ultimo.t:0);}
+function recEncolar(arr){
+  if(!arr||!arr.length)return REC.cola;
+  REC.cola=REC.cola.then(async()=>{let n=0;
+    for(const p of arr){if(!S.jornada||S.jornada.id!==REC.jid)break;const t=Number(p.t);if(!(t>recUltimo()))continue;REC.ult=t;
+      const g={lat:Number(p.lat),lng:Number(p.lng),acc:Number(p.acc)||99,t,nat:1};S.gps=g;try{await registrarPunto(g);}catch(e){}n++;}
+    if(n){if(document.visibilityState==='visible'){try{pintarGPS();if(S.seguir)centrarOperario();}catch(e){}}try{guiaGPS();}catch(e){}}
+  }).catch(()=>{});
+  return REC.cola;}
+async function recDrenar(){
+  if(!REC.on||!REC.jid)return;
+  for(let i=0;i<60;i++){let r;try{r=await NAT.rec.puntos({jornada:REC.jid,desde:recUltimo()});}catch(e){return;}
+    await recEncolar((r&&r.puntos)||[]);if(!(r&&r.mas))break;}
+}
+async function recIniciar(){
+  const j=S.jornada;REC.jid=j.id;REC.ult=0;
+  try{const e=await NAT.rec.estado();if(!e.ubicacion&&navigator.geolocation)await new Promise(r=>navigator.geolocation.getCurrentPosition(r,r,{timeout:20000}));}catch(e){}
+  await NAT.rec.iniciar({jornada:j.id,pulso:!!S.cfg.pulsoGps,titulo:'Sanidad Vegetal · Jornada en curso',mensaje:'Registrando el recorrido. Toque para volver a la aplicación.'});
+  REC.on=true;
+  if(!REC.sub){try{REC.sub=await NAT.rec.addListener('punto',p=>{if(REC.on)recEncolar([p]);});}catch(e){}}
+  clearInterval(REC.tmr);REC.tmr=setInterval(()=>{recDrenar();},60000);
+  recDrenar();
+}
+async function recDetener(){
+  REC.on=false;clearInterval(REC.tmr);REC.tmr=null;
+  try{if(REC.sub&&REC.sub.remove)await REC.sub.remove();}catch(e){}REC.sub=null;
+  try{await NAT.rec.detener();}catch(e){}REC.jid=null;
+}
+/* Antes de cerrar la jornada: trae los puntos que falten del celular y anota los cortes del GPS con su causa. */
+async function cerrarRecorrido(j){
+  if(REC.on&&REC.jid===j.id){try{await recDrenar();await REC.cola;}catch(e){}}
+  let ev=[];if(recDisponible()){try{const r=await NAT.rec.eventos({jornada:j.id});ev=(r&&r.eventos)||[];}catch(e){}}
+  try{j.cortes_gps=cortesGps(await puntosTrack(j.id),ev,j);j.eventos_gps=ev.slice(-200);}catch(e){}
+}
+/* Cortes de más de 90 s sin puntos del recorrido, con la causa según lo que anotó la APK. */
+const CAUSA_GPS={reinicio:'Android cerró el registro (se reanudó solo)',servicio_detenido:'Android cerró el registro',detenido_sin_reinicio:'Android cerró el registro (sin poder reanudar)',
+  gps_apagado:'Ubicación del celular apagada',sin_gps:'Sin señal de GPS',sin_permiso:'Sin permiso de ubicación',gps_error:'Error del GPS'};
+function cortesGps(pts,ev,j){
+  const out=[];const eq=j.equipo||{};
+  for(let i=1;i<pts.length;i++){const a=pts[i-1].t,b=pts[i].t;if(b-a<=90000)continue;
+    const cerca=(ev||[]).filter(e=>e.t>=a-60000&&e.t<=b+60000&&CAUSA_GPS[e.e]);
+    const pri=['detenido_sin_reinicio','reinicio','servicio_detenido','gps_apagado','sin_permiso','sin_gps','gps_error'].find(k=>cerca.some(e=>e.e===k));
+    const causa=pri?CAUSA_GPS[pri]:eq.modo==='navegador'?'Pantalla bloqueada o App en segundo plano (navegador)':eq.registro==='nativo'?'Sin puntos (la APK no anotó la causa)':'Android detuvo el GPS (APK sin registro protegido)';
+    const ia=new Date(a).toISOString(),ib=new Date(b).toISOString();
+    out.push({inicio:ia,fin:ib,hora_inicio:hhmm(ia),hora_fin:hhmm(ib),minutos:Math.round((b-a)/600)/100,
+      metros:Math.round(dist(pts[i-1].lat,pts[i-1].lng,pts[i].lat,pts[i].lng)),causa});}
+  return out;
+}
+/* Equipo con que se hizo la jornada (para saber qué celulares hay que revisar). */
+async function anotarEquipo(j){
+  if(!j||j.equipo)return;const e={modo:NATIVO?'apk':(EN_APK?'apk_sin_puente':'navegador')};
+  if(NATIVO){e.apk=textoApkInst();e.registro=recDisponible()?'nativo':'complemento';
+    try{const x=NAT.en?await NAT.en.estado():{};e.fabricante=x.fabricante||null;e.modelo=x.modelo||null;e.android=x.android||null;e.bateria_sin_restriccion=!!x.sinRestriccion;}catch(x){}
+    if(recDisponible()){try{const x=await NAT.rec.estado();e.ubicacion_siempre=!!x.ubicacionFondo;e.alarmas_exactas=!!x.alarmasExactas;}catch(x){}}}
+  else{const ua=navigator.userAgent||'';const m=ua.match(/Android [\d.]+; ([^;)]+)/);const c=ua.match(/Chrome\/(\d+)/);e.navegador=c?'Chrome '+c[1]:'otro';if(m)e.modelo=m[1].trim();}
+  j.equipo=e;try{if(S.jornada===j)await dbPut('jornadas',j);}catch(x){}
 }
 async function gpsFondo(on){
+  if(on&&recDisponible()&&S.jornada){
+    if(bgWatcher)return true;
+    if(gpsWatch!==null&&gpsWatch!=='bg'){try{navigator.geolocation.clearWatch(gpsWatch);}catch(e){}}
+    gpsWatch='bg';bgWatcher='rec';
+    try{if(NAT.ln){const p=await NAT.ln.checkPermissions();if(p.display!=='granted')await NAT.ln.requestPermissions();}}catch(e){}
+    try{await recIniciar();return true;}
+    catch(e){gpsWatch=null;bgWatcher=null;REC.on=false;toast('No se pudo iniciar el registro del recorrido: '+e.message,6000);return false;}
+  }
+  if(!on&&bgWatcher==='rec'){await recDetener();bgWatcher=null;gpsWatch=null;iniciarGPS();return false;}
   if(!NATIVO||!NAT.bg)return false;
   try{
     if(on&&!bgWatcher){
@@ -1785,6 +1864,7 @@ async function gpsFondo(on){
   return false;
 }
 function iniciarGPS(){
+  if(S.jornada&&!S.jornada.equipo)anotarEquipo(S.jornada).catch(()=>{});
   if(NATIVO&&S.jornada){if(!bgWatcher)gpsFondo(true);return;}
   if(!navigator.geolocation){toast('Este dispositivo no permite usar el GPS en el navegador.');return;}
   if(gpsWatch!==null)return;
@@ -1867,7 +1947,7 @@ async function pantallaEncendida(on){
 let OCULTA_DESDE=0;
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden'){OCULTA_DESDE=Date.now();if(S.jornada)avisoJornada(true);return;}
-  if(S.jornada||VOZ.activa)pantallaEncendida(true);programarSync(1500);
+  if(S.jornada||VOZ.activa)pantallaEncendida(true);programarSync(1500);if(REC.on)recDrenar();
   if(S.jornada&&OCULTA_DESDE&&!bgWatcher){const m=(Date.now()-OCULTA_DESDE)/60000;if(m>=1.5){const t=`Atención: la aplicación estuvo en segundo plano ${Math.round(m)} minutos y el recorrido pudo cortarse. Mantenga la aplicación abierta y la pantalla encendida.`;toast('⚠ '+t,8000);hablar(t);if(navigator.vibrate)navigator.vibrate([300,150,300]);}}
   OCULTA_DESDE=0;});
 /* Aviso persistente mientras hay jornada: permite volver a la app con un toque desde la barra de notificaciones. */
@@ -2035,6 +2115,7 @@ async function finalizarJornada(){
   const j=S.jornada;if(!j)return;
   const c=censoTotal();
   if(!confirm(`¿Finalizar la jornada?\n\nCensadas: ${c.hec} de ${c.tot} palmas.\nSe detendrá el registro del recorrido.`))return;
+  await cerrarRecorrido(j);
   j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';j.cierre={modo:'boton',usuario:SES?SES.u:'',fecha:j.fin};
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
   const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion,j.bufferTerraza);const par=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);
@@ -2083,7 +2164,7 @@ function prepararTrack(latlngs){
 async function registrarPunto(g){
   if(!S.jornada||!g)return;
   const maxAcc=Number(S.cfg.precisionTrack)||30;if(g.acc>maxAcc)return;
-  const t=(g.t&&Math.abs(Date.now()-g.t)<10*60000)?g.t:Date.now(),u=TRACK.ultimo; // hora del GPS: en segundo plano Android puede entregar varios puntos juntos
+  const t=(g.t&&(g.nat||Math.abs(Date.now()-g.t)<10*60000))?g.t:Date.now(),u=TRACK.ultimo; // g.nat: punto guardado por la APK (puede llegar tarde, con su hora real) // hora del GPS: en segundo plano Android puede entregar varios puntos juntos
   if(u&&t<=u.t)return;
   if(u){const d=dist(u.lat,u.lng,g.lat,g.lng),dt=(t-u.t)/1000;
     if(d<3&&dt<60)return;
@@ -3403,7 +3484,7 @@ function geoJornada(j,regs,pts,ahora,archivoFotos){
     jornada:{id:j.id,evaluador:j.evaluador,usuario:j.usuario||'',dispositivo:j.dispositivo||S.cfg.dispositivo,fecha:fechaLocal(j.inicio),
       hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),duracion_min:j.fin?Math.round((Date.parse(j.fin)-Date.parse(j.inicio))/60000):null,inicio:j.inicio,fin:j.fin,
       km:+(j.km||0).toFixed(3),...(j.visita||{}),...(j.resumen_paradas||{}),secuencias:j.secuencias||[],tiempos:j.tiempos||null,velocidad_kmh:j.tiempos?j.tiempos.velocidad_kmh:null,lotes_seleccionados:j.seleccion,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
-      archivo_fotos:archivoFotos||null,cartografia:j.carto_version||'',app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
+      archivo_fotos:archivoFotos||null,cartografia:j.carto_version||'',equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
     features:feats};
 }
 async function sincronizar(manual){
@@ -4801,6 +4882,7 @@ async function finalizarCirugia(){
   const j=S.jornada;if(!esCir())return;const pend=ordenesCir().filter(o=>o.estado==='pendiente').length;
   if(!confirm(`¿Finalizar la jornada de cirugía?${pend?`\n\nQuedan ${pend} palma(s) programadas sin atender: pasarán a la programación del siguiente día hábil.`:''}\nSe detendrá el registro del recorrido.`))return;
   j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';j.cierre={modo:'boton',usuario:SES?SES.u:'',fecha:j.fin};
+  await cerrarRecorrido(j);
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
   j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);
   j.visita={};j.secuencias=[];j.tiempos={};
@@ -4836,7 +4918,7 @@ function geoCirugia(j,regs,pts,ahora,archivoFotos){
       hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),inicio:j.inicio,fin:j.fin,km:+(j.km||0).toFixed(3),...(j.resumen_paradas||{}),
       ordenes:(j.ordenes||[]).map(o=>({id:o.id,orden:o.orden,palma_id:o.palma_id,lote:o.lote,linea:o.linea,palma:o.palma,diagnostico:o.diagnostico,vence:o.vence,estado:o.estado,registro:o.registro||null})),
       cirugias:cirs.length,correcciones:regs.filter(r=>r.origen==='correccion').length,casos_nuevos:regs.filter(r=>r.tipo==='diagnostico'&&r.origen==='caso_nuevo').length,marcas:regs.filter(r=>r.tipo==='marca').length,
-      fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
+      fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
     features:feats};
 }
 /* El botón INICIAR elige la labor; el panel superior muestra la ruta de cirugía. */
@@ -5192,6 +5274,7 @@ async function finalizarErr(){
   const j=S.jornada;if(!esErr())return;const pend=ordenesErr().filter(o=>o.estado==='pendiente').length;
   if(!confirm(`¿Finalizar la jornada de erradicación?${pend?`\n\nQuedan ${pend} palma(s) programadas sin atender: pasarán a la programación del siguiente día hábil.`:''}\nSe detendrá el registro del recorrido.`))return;
   j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';j.cierre={modo:'boton',usuario:SES?SES.u:'',fecha:j.fin};
+  await cerrarRecorrido(j);
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
   j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);
   j.visita={};j.secuencias=[];j.tiempos={};
@@ -5219,7 +5302,7 @@ function geoErradicacion(j,regs,pts,ahora,archivoFotos){
     hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),inicio:j.inicio,fin:j.fin,km:+(j.km||0).toFixed(3),...(j.resumen_paradas||{}),
     ordenes:(j.ordenes||[]).map(o=>({id:o.id,orden:o.orden,palma_id:o.palma_id,lote:o.lote,linea:o.linea,palma:o.palma,tipo:o.tipo,diagnostico:o.diagnostico,vence:o.vence,estado:o.estado,registro:o.registro||null})),
     erradicaciones:errs.length,quimicas:errs.filter(r=>r.metodo==='Química').length,correcciones:regs.filter(r=>r.origen==='correccion').length,casos_nuevos:regs.filter(r=>r.tipo==='diagnostico'&&r.origen==='caso_nuevo').length,
-    marcas:regs.filter(r=>r.tipo==='marca').length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
+    marcas:regs.filter(r=>r.tipo==='marca').length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
   return g;
 }
 /* El botón INICIAR: panel de la labor en curso o elección de labor. */
@@ -5488,6 +5571,7 @@ async function finalizarPlg(){
   const j=S.jornada;if(!esPlg())return;const pend=muestraPlg().filter(x=>x.estado==='pendiente').length;
   if(!confirm(`¿Finalizar el monitoreo de plagas?${pend?`\n\nQuedan ${pend} palma(s) de la muestra sin registrar.`:''}\nSe detendrá el registro del recorrido.`))return;
   j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';j.cierre={modo:'boton',usuario:SES?SES.u:'',fecha:j.fin};
+  await cerrarRecorrido(j);
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
   j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);j.visita={};j.secuencias=[];j.tiempos={};
   await dbPut('jornadas',j);
@@ -5511,7 +5595,7 @@ function geoPlagas(j,regs,pts,ahora,archivoFotos){
   g.jornada={id:j.id,labor:'plagas',evaluador:j.evaluador,usuario:j.usuario,dispositivo:j.dispositivo,fecha:fechaLocal(j.inicio),hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),inicio:j.inicio,fin:j.fin,
     km:+(j.km||0).toFixed(3),...(j.resumen_paradas||{}),lotes_muestreo:j.lotes_muestreo,unidades:j.unidades||[],
     muestra:(j.muestra||[]).map(m=>({palma_id:m.palma_id,lote:m.lote,linea:m.linea,palma:m.palma,muestreo:m.muestreo,estado:m.estado,registro:m.registro||null})),
-    palmas_registradas:ms.length,con_dano:ms.filter(r=>r.dano).length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
+    palmas_registradas:ms.length,con_dano:ms.filter(r=>r.dano).length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
   return g;
 }
 /* El botón INICIAR: panel de la labor en curso o elección de labor. */

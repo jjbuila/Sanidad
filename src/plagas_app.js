@@ -240,6 +240,7 @@ async function finalizarPlg(){
   const j=S.jornada;if(!esPlg())return;const pend=muestraPlg().filter(x=>x.estado==='pendiente').length;
   if(!confirm(`¿Finalizar el monitoreo de plagas?${pend?`\n\nQuedan ${pend} palma(s) de la muestra sin registrar.`:''}\nSe detendrá el registro del recorrido.`))return;
   j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';j.cierre={modo:'boton',usuario:SES?SES.u:'',fecha:j.fin};
+  await cerrarRecorrido(j);
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
   j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);j.visita={};j.secuencias=[];j.tiempos={};
   await dbPut('jornadas',j);
@@ -263,7 +264,7 @@ function geoPlagas(j,regs,pts,ahora,archivoFotos){
   g.jornada={id:j.id,labor:'plagas',evaluador:j.evaluador,usuario:j.usuario,dispositivo:j.dispositivo,fecha:fechaLocal(j.inicio),hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),inicio:j.inicio,fin:j.fin,
     km:+(j.km||0).toFixed(3),...(j.resumen_paradas||{}),lotes_muestreo:j.lotes_muestreo,unidades:j.unidades||[],
     muestra:(j.muestra||[]).map(m=>({palma_id:m.palma_id,lote:m.lote,linea:m.linea,palma:m.palma,muestreo:m.muestreo,estado:m.estado,registro:m.registro||null})),
-    palmas_registradas:ms.length,con_dano:ms.filter(r=>r.dano).length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
+    palmas_registradas:ms.length,con_dano:ms.filter(r=>r.dano).length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
   return g;
 }
 /* El botón INICIAR: panel de la labor en curso o elección de labor. */

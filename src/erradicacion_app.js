@@ -348,6 +348,7 @@ async function finalizarErr(){
   const j=S.jornada;if(!esErr())return;const pend=ordenesErr().filter(o=>o.estado==='pendiente').length;
   if(!confirm(`¿Finalizar la jornada de erradicación?${pend?`\n\nQuedan ${pend} palma(s) programadas sin atender: pasarán a la programación del siguiente día hábil.`:''}\nSe detendrá el registro del recorrido.`))return;
   j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';j.cierre={modo:'boton',usuario:SES?SES.u:'',fecha:j.fin};
+  await cerrarRecorrido(j);
   const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
   j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);
   j.visita={};j.secuencias=[];j.tiempos={};
@@ -375,7 +376,7 @@ function geoErradicacion(j,regs,pts,ahora,archivoFotos){
     hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),inicio:j.inicio,fin:j.fin,km:+(j.km||0).toFixed(3),...(j.resumen_paradas||{}),
     ordenes:(j.ordenes||[]).map(o=>({id:o.id,orden:o.orden,palma_id:o.palma_id,lote:o.lote,linea:o.linea,palma:o.palma,tipo:o.tipo,diagnostico:o.diagnostico,vence:o.vence,estado:o.estado,registro:o.registro||null})),
     erradicaciones:errs.length,quimicas:errs.filter(r=>r.metodo==='Química').length,correcciones:regs.filter(r=>r.origen==='correccion').length,casos_nuevos:regs.filter(r=>r.tipo==='diagnostico'&&r.origen==='caso_nuevo').length,
-    marcas:regs.filter(r=>r.tipo==='marca').length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
+    marcas:regs.filter(r=>r.tipo==='marca').length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
   return g;
 }
 /* El botón INICIAR: panel de la labor en curso o elección de labor. */
