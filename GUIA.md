@@ -184,7 +184,7 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 - **DATOS → Resumen por lote**: avance e incidencia, calculada como (enfermas + en tratamiento) / evaluadas.
 
 ### Registro con la pantalla bloqueada (APK)
-- **Registro protegido (APK 1.0.N nueva en adelante):** el GPS lo graba un servicio propio de la APK (notificación «Jornada en curso», CPU activa) que **guarda cada punto en el celular**. Si Android duerme o cierra la App con la pantalla bloqueada, al volver la App **recupera todos los puntos** con su hora real: el recorrido queda completo, sin líneas rectas.
+- **Registro protegido (APK 1.0.8 en adelante):** el GPS lo graba un servicio propio de la APK (notificación «Jornada en curso», CPU activa) que **guarda cada punto en el celular**. Si Android duerme o cierra la App con la pantalla bloqueada, al volver la App **recupera todos los puntos** con su hora real: el recorrido queda completo, sin líneas rectas.
 - **Vigilancia cada minuto:** una alarma del sistema (funciona aun con el celular en reposo) revisa el registro cada 60 s:
   - si pasa **más de 1 minuto sin GPS**, el celular **vibra fuerte, avisa por voz** («el recorrido no se está grabando») y muestra una alerta, aunque esté bloqueado; se repite cada minuto hasta que vuelva el GPS. Si la ubicación del celular está apagada, lo dice;
   - si **Android cerró el registro**, lo **reanuda solo** (requiere ubicación «Permitir todo el tiempo»); si no puede, avisa para que el operario toque la alerta y vuelva a la App.
