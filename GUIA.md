@@ -320,6 +320,11 @@ El servicio solo atiende a quien tenga el token de la App con escritura en el re
 
 ## 7.3 Módulo de cirugía
 
+**Cirugías realizadas en el mapa del visor.** Cada palma operada aparece con una **cruz verde ✚**:
+- **Mapa principal:** las cirugías del rango DESDE–HASTA cargado (se leen al pulsar CARGAR). Respetan los filtros de programa y lote. La casilla **Cirugías realizadas** de las capas las muestra u oculta e indica cuántas hay.
+- **Módulo ✚ CIRUGÍAS:** las de los últimos 45 días, junto a los casos pendientes y la programación.
+- Al tocar la cruz: palma, fecha y horas (foto antes–después), tipo de cirugía, producto, cirujano y auxiliar, duración y **📷 Ver fotos**.
+
 **Quién lo usa.** Los auxiliares de remoción de tejidos enfermos (cirujanos) y los auxiliares de fumigación como auxiliares de cirugía. En el paquete de acceso cada usuario lleva `labores` (`censo`, `cirugia`, `fumigacion`) y `rol_cirugia` (`cirujano` o `auxiliar`). El administrador entra a todos los módulos sin importar su rol ni sus labores; el supervisor también, salvo que se le asignen labores específicas.
 
 **Qué genera una cirugía.** El último diagnóstico de la palma con PC inicial, PC avanzada o PC reincidente, sea del censo o de un caso nuevo del cirujano, sin cirugía posterior. Plazo: D+1 hábil, de lunes a sábado sin domingos ni festivos de Colombia; los festivos se calculan con la Ley Emiliani y la Semana Santa.

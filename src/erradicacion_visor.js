@@ -28,7 +28,7 @@ const tipoErrTxt=t=>(TIPOS_ERR[t]||{}).t||t||'';
 function alternarErr(on){
   ERR.on=on==null?!ERR.on:on;if(ERR.on&&typeof CIR!=='undefined'&&CIR.on)alternarCirugia(false);
   document.body.classList.toggle('modo-err',ERR.on);{const b=$('#btErr');if(b)b.classList.toggle('prim',ERR.on);}
-  for(const c of [capaRec,capaDiag,capaPar])ERR.on?mapa.removeLayer(c):(c.addTo(mapa));
+  for(const c of [capaRec,capaDiag,capaPar,capaCirR])ERR.on?mapa.removeLayer(c):(c.addTo(mapa));
   if(ERR.on){ERR.capa.addTo(mapa);if(!ERR.cargado&&!ERR.cargando)errCargar();else pintarErr();}
   else mapa.removeLayer(ERR.capa);
 }

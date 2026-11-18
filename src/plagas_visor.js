@@ -229,7 +229,7 @@ function alternarPlgMapa(on){
   PLM.on=on==null?!PLM.on:on;
   if(PLM.on){if(typeof ERR!=='undefined'&&ERR.on)alternarErr(false);if(typeof CIR!=='undefined'&&CIR.on)alternarCirugia(false);if(GER.on)alternarGerencia(false);}
   document.body.classList.toggle('modo-plg',PLM.on);{const b=$('#btPlg');if(b)b.classList.toggle('prim',PLM.on);}
-  for(const c of [capaRec,capaDiag,capaPar])PLM.on?mapa.removeLayer(c):(c.addTo(mapa));
+  for(const c of [capaRec,capaDiag,capaPar,capaCirR])PLM.on?mapa.removeLayer(c):(c.addTo(mapa));
   if(PLM.on){PLM.capa.addTo(mapa);if(!GER.plg.datos&&!GER.plg.cargando)cargarPlagasVisor().then(()=>{pintarPlgMapa(true);});pintarPlgMapa(true);}
   else mapa.removeLayer(PLM.capa);
 }

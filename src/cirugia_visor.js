@@ -43,7 +43,7 @@ const etqPalma=o=>`${o.lote} · L${o.linea??'?'} · P${o.palma??'?'}`;
 })();
 function alternarCirugia(on){
   CIR.on=on==null?!CIR.on:on;if(CIR.on&&typeof ERR!=='undefined'&&ERR.on)alternarErr(false);document.body.classList.toggle('modo-cir',CIR.on);$('#btCir').classList.toggle('prim',CIR.on);
-  for(const c of [capaRec,capaDiag,capaPar])CIR.on?mapa.removeLayer(c):(c.addTo(mapa));
+  for(const c of [capaRec,capaDiag,capaPar,capaCirR])CIR.on?mapa.removeLayer(c):(c.addTo(mapa));
   if(CIR.on){CIR.capa.addTo(mapa);if(!CIR.cargado&&!CIR.cargando)cirCargar();else pintarCir();}
   else{mapa.removeLayer(CIR.capa);}
 }
@@ -212,7 +212,45 @@ function pintarMapaCir(){
       .bindPopup(`<b>${esc(etqPalma(o))}</b><br>Sin programar · ${esc(o.diagnostico)} · vence ${fechaCorta(o.vence)}${htmlHistoria(o.palma_id)}`,{maxWidth:300}).addTo(CIR.capa);}
   else for(const o of CIR.pend)if(o.lat!=null)L.circleMarker([o.lat,o.lng],{renderer:rend,radius:6,color:'#fff',weight:1.5,fillColor:o.vence<CIR.fecha?'#ff1744':'#e53935',fillOpacity:.9})
       .bindPopup(`<b>${esc(etqPalma(o))}</b><br>${esc(o.diagnostico)} · censo ${fechaCorta(o.fecha_censo)} · vence ${fechaCorta(o.vence)}<br>${esc(nombreCorto(o.censador))}${htmlHistoria(o.palma_id)}`,{maxWidth:300}).addTo(CIR.capa);
+  for(const c of CIR.cirugias)if(c.lat!=null)marcadorCruz(c,CIR.capa); // cirugías realizadas (45 días)
   const of=oficinaCentral();
+}
+/* ---------- Cirugías realizadas en el mapa: cruz verde ✚ en cada palma operada ----------
+   Mapa principal: las cirugías del rango DESDE–HASTA cargado (respeta programa y lote). Módulo de cirugías: las de los últimos 45 días. */
+const SVG_CRUZ=(s=22)=>`<svg width="${s}" height="${s}" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="9.6" fill="#0f8a5f" stroke="#ffffff" stroke-width="2"/><path d="M11 5.6v10.8M5.6 11h10.8" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/></svg>`;
+const ICONO_CRUZ=L.divIcon({className:'cir-cruz',iconSize:[22,22],iconAnchor:[11,11],popupAnchor:[0,-10],html:SVG_CRUZ(22)});
+function htmlCirugia(c){
+  const f=new Date(tDe(c));const fot=String(c.fotos||'').split('|').filter(Boolean).length;
+  return `<b class="h">✚ Cirugía realizada</b><br><b>${esc(etqPalma(c))}</b><br>${esc(fechaCorta(f))}${c.hora_foto_antes||c.hora_foto_despues?' · '+esc(c.hora_foto_antes||'')+'–'+esc(c.hora_foto_despues||''):' · '+esc(hhmm(f))}`+
+    `<br>${esc(c.tipo_cirugia||'Cirugía')}${c.producto?' · '+esc(c.producto):''}${c.origen==='caso_nuevo'?' · caso nuevo':''}`+
+    `<br><span class="tenue">${esc(nombreCorto(c.cirujano_nombre||c.cirujano||''))}${c.auxiliar_nombre?' + '+esc(nombreCorto(c.auxiliar_nombre)):''}${c.duracion_min!=null?' · '+esc(c.duracion_min)+' min':''}</span>`+
+    (fot?`<br><button class="btn mini" data-cirfot style="margin-top:6px">📷 Ver fotos (${fot})</button>`:'');
+}
+function marcadorCruz(c,capa){
+  const m=L.marker([c.lat,c.lng],{icon:ICONO_CRUZ,zIndexOffset:1500,keyboard:false,title:'Cirugía realizada · '+etqPalma(c)}).bindPopup(htmlCirugia(c),{maxWidth:280}).addTo(capa);
+  m.on('popupopen',e=>{const b=e.popup.getElement()&&e.popup.getElement().querySelector('[data-cirfot]');if(b)b.onclick=()=>verFotos({...c,_j:c._j,lote:c.lote,linea:c.linea,palma:c.palma});});
+  return m;
+}
+const CIRM={lista:[],rango:null,cargando:null};
+async function cargarCirMapa(d1,d2){
+  const k=d1+'|'+d2;if(CIRM.rango===k){pintarCirMapa();return;}if(CIRM.cargando)await CIRM.cargando.catch(()=>{});
+  CIRM.cargando=(async()=>{
+    const dias=await listarDias('cirugia/jornadas',d1,d2);const arch=[];
+    await enParalelo(dias,6,async d=>{for(const f of await arbol(d.sha))if(f.type==='blob')arch.push({...f,dia:d.path});});
+    const zips=new Map(arch.filter(f=>f.path.endsWith('_fotos.zip')).map(f=>[f.dia+'/'+f.path,f.sha]));const out=[];
+    await enParalelo(arch.filter(f=>f.path.endsWith('.geojson')),6,async f=>{try{const g=JSON.parse(await blobTexto(f.sha));const h=g.jornada||{};
+      const j={...h,zipSha:zips.get(f.dia+'/'+f.path.replace(/\.geojson$/,'_fotos.zip')),ruta:f.dia+'/'+f.path};
+      for(const ft of g.features||[]){const p=ft.properties||{};if(p.tipo!=='cirugia'||!ft.geometry||ft.geometry.type!=='Point')continue;
+        out.push({...p,lng:ft.geometry.coordinates[0],lat:ft.geometry.coordinates[1],_j:j});}}catch(e){console.warn('cirugía ilegible',f.path,e);}});
+    CIRM.lista=out;CIRM.rango=k;
+  })();
+  try{await CIRM.cargando;}finally{CIRM.cargando=null;}
+  pintarCirMapa();
+}
+function pintarCirMapa(){
+  capaCirR.clearLayers();let n=0;
+  for(const c of CIRM.lista){if(c.lat==null||!loteSel(c.lote)||!enProg(c.lote))continue;marcadorCruz(c,capaCirR);n++;}
+  const e=$('#cCirN');if(e)e.textContent=CIRM.rango?`(${num(n)})`:'';
 }
 function pintarCir(msg){
   const P=$('#cirPanel');if(!P)return;

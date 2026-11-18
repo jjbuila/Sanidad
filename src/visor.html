@@ -271,6 +271,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
         <label><input type="checkbox" id="cRec" checked> Recorridos</label>
         <label><input type="checkbox" id="cDiag" checked> Diagnósticos</label>
         <label><input type="checkbox" id="cPar" checked> Paradas</label>
+        <label><input type="checkbox" id="cCir" checked> Cirugías realizadas <span class="tenue" id="cCirN"></span></label>
         <label><input type="checkbox" id="cPalmas"> Palmas (zoom 17+)</label>
         <label style="margin-top:2px"><select id="cBase" style="padding:3px 6px;font-size:12.5px"><option value="dron">Ortofoto dron</option><option value="no">Sin fondo</option></select></label>
       </div>
@@ -473,9 +474,9 @@ function ponerBase(){if(capaBase)mapa.removeLayer(capaBase);capaBase=null;const 
   if(b==='dron'){capaBase=capaOrto('teselas/orto/','3',ORTO_B,17).addTo(mapa);capaBase.bringToBack();return;}
   if(BASES[b]){capaBase=BASES[b]().addTo(mapa);capaBase.bringToBack();}}
 $('#cBase').onchange=ponerBase;
-const capaLotes=L.layerGroup().addTo(mapa),capaRec=L.layerGroup().addTo(mapa),capaDiag=L.layerGroup().addTo(mapa),capaPar=L.layerGroup().addTo(mapa),capaPalmas=L.layerGroup(),capaSel=L.layerGroup().addTo(mapa);
+const capaLotes=L.layerGroup().addTo(mapa),capaRec=L.layerGroup().addTo(mapa),capaDiag=L.layerGroup().addTo(mapa),capaPar=L.layerGroup().addTo(mapa),capaPalmas=L.layerGroup(),capaSel=L.layerGroup().addTo(mapa),capaCirR=L.layerGroup().addTo(mapa);
 const vis=(id,capa)=>{$(id).onchange=()=>{$(id).checked?capa.addTo(mapa):mapa.removeLayer(capa);if(id==='#cPalmas')dibujarPalmas();};};
-vis('#cLotes',capaLotes);vis('#cRec',capaRec);vis('#cDiag',capaDiag);vis('#cPar',capaPar);vis('#cPalmas',capaPalmas);
+vis('#cLotes',capaLotes);vis('#cRec',capaRec);vis('#cDiag',capaDiag);vis('#cPar',capaPar);vis('#cPalmas',capaPalmas);vis('#cCir',capaCirR);
 /*VIAS_JS*/
 /*NUCLEO_JS*/
 $('#cVias').onchange=()=>mostrarVias($('#cVias').checked);
@@ -483,7 +484,7 @@ mapa.on('zoomend moveend',()=>{mapa.getContainer().classList.toggle('sin-etq',ma
 function pintarLeyenda(){
   $('#leyenda').innerHTML='<b class="tit" style="font-size:13px">Enfermedad principal</b>'+Object.entries(COLOR_N1).map(([k,c])=>`<div><span class="punto" style="background:${c}"></span>${esc(PROBLEMAS[k]||k)}</div>`).join('')+
   `<div><span class="punto" style="background:${COLOR_ALTA}"></span>De alta</div><div><span class="punto" style="background:#4dd0e1"></span>Palma visitada (reproducción)</div><div><span style="display:inline-block;vertical-align:-5px;margin-right:4px">${SVG_FLECHA('#2f93d5',22)}</span>Operario y rumbo (reproducción)</div>`+
-  '<div style="margin-top:4px">'+pillParada('#ff9f1c','min')+'Parada sin actividad</div><div>'+pillParada('#2f93d5','min')+'Parada con diagnóstico</div><div class="tenue">Recorridos: un color por operario.</div>'+leyendaVias();
+  '<div style="margin-top:4px"><span style="display:inline-block;vertical-align:-6px;margin-right:4px">'+SVG_CRUZ(18)+'</span>Cirugía realizada</div><div>'+pillParada('#ff9f1c','min')+'Parada sin actividad</div><div>'+pillParada('#2f93d5','min')+'Parada con diagnóstico</div><div class="tenue">Recorridos: un color por operario.</div>'+leyendaVias();
 }
 
 /* ---------- Cartografía (cifrada) ---------- */
@@ -569,6 +570,7 @@ async function cargar(){
     progreso(1,`${num(JOR.length)} jornada(s) del ${d1} al ${d2} · ${num(dias.length)} día(s) con datos.`);
     $('#chDatosTxt').textContent=`${num(JOR.length)} jornadas`;
     aplicarFiltros(true);
+    if(typeof cargarCirMapa==='function')cargarCirMapa(d1,d2).catch(e=>console.warn('cirugías en el mapa',e));
   }catch(e){progreso(0,'⚠ '+e.message);toast(e.message,6000);}
   finally{$('#btCargar').disabled=false;}
 }
@@ -665,7 +667,7 @@ function aplicarFiltros(ajustar){
   JORF=JOR.filter(j=>(!FIL.op.size||FIL.op.has(j.usuario))&&(!FIL.lote.size||[...j.lotes].some(l=>FIL.lote.has(l)))&&(!FIL.prog.size||[...j.lotes].some(enProg)));
   DIAGF=[];for(const j of JORF)for(const d of j.diags)if(loteSel(d.lote)&&enProg(d.lote)&&(!FIL.est.size||FIL.est.has(d.estado))&&diagEnf(d))DIAGF.push({...d,_j:j});
   if(SEL&&!JORF.includes(SEL))cerrarDetalle();
-  pintarMapa(ajustar);pintarPanel();dibujarPalmas();
+  pintarMapa(ajustar);pintarPanel();dibujarPalmas();if(typeof pintarCirMapa==='function')pintarCirMapa();
 }
 /* ---------- Filtros de selección múltiple: nada marcado = Todos; «solo este» = una opción; casillas = varias ---------- */
 const FIL={prog:new Set(),op:new Set(),lote:new Set(),est:new Set(),n1:new Set(),n2:new Set(),n3:new Set()};
@@ -887,7 +889,7 @@ function abrirRep(modo){
   if(!lista.length){toast('No hay jornadas con recorrido para reproducir en el filtro actual. Cargue fechas o ajuste los filtros.');return;}
   cerrarDetalle();detenerRep(true);REP.on=true;REP.modo=modo||REP.modo;REP.lista=lista;REP.i=0;
   // Mientras se reproduce, se ocultan los recorridos, diagnósticos y paradas estáticos
-  REP.ocultas=[capaRec,capaDiag,capaPar].filter(c=>mapa.hasLayer(c));REP.ocultas.forEach(c=>mapa.removeLayer(c));
+  REP.ocultas=[capaRec,capaDiag,capaPar,capaCirR].filter(c=>mapa.hasLayer(c));REP.ocultas.forEach(c=>mapa.removeLayer(c));
   REP.capa=L.layerGroup().addTo(mapa);REP.leyenda=!$('#leyenda').hidden;$('#leyenda').hidden=true; // la barra ocupa la parte baja del mapa
   $('#rep').hidden=false;prepararRep();
 }
