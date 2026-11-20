@@ -2,7 +2,8 @@
    ENFERMEDADES (visor web)
    · Botón 🦠 ENFERMEDADES en la cabecera: vuelve al censo de enfermedades en el mapa (cierra los otros modos).
    · Casos críticos que titilan en el mapa: PE partida (la palma murió) y PC cráter (próxima a morir; se erradica).
-   · DATOS → Palmas pendientes por marcar inexistentes: las PE partida pasan a existencia 0 con la aprobación del
+   · DATOS → Palmas pendientes por marcar inexistentes: las PE partida y los sitios vacíos / faltantes (espacio vacío)
+     pasan a existencia 0 con la aprobación del
      analista de datos o del super administrador (cartografia/ajustes_existencia.json, el mismo archivo de la erradicación).
    ===================================================================== */
 (function montarEnfermedades(){
@@ -60,35 +61,49 @@ function pintarCriticos(){
 }
 {const _pm=pintarMapa;pintarMapa=function(a){_pm(a);pintarCriticos();};}
 
-/* ---------- DATOS → Palmas pendientes por marcar inexistentes (PE partida) ---------- */
+/* ---------- DATOS → Palmas pendientes por marcar inexistentes (PE partida y sitio vacío / faltante) ---------- */
+const TIPOS_INX={PE_PARTIDA:{t:'PE partida',chip:'mal',motivo:'PE partida'},ESPACIO_VACIO:{t:'Sitio vacío / faltante',chip:'',motivo:'Sitio vacío / faltante'}};
+/* Tipo del último diagnóstico que lleva la palma a existencia 0. */
+function tipoInexist(d){
+  if(criticoDe(d)==='PE_PARTIDA')return 'PE_PARTIDA';
+  const c=String(d.n1_codigo||'').toUpperCase(),n1=String(d.nivel1||'').toUpperCase();
+  if(d.estado==='faltante'||c==='EV'||Number(d.p_EV)===1||/ESPACIO VAC|SITIO VAC|FALTANTE/.test(n1))return 'ESPACIO_VACIO';
+  return null;
+}
+/* ¿La palma ya tiene existencia 0 en la cartografía? (undefined si el lote aún no se ha leído) */
+function cartoExiste(k,lote){const c=CHUNK.get(lote);if(!c)return undefined;const r=c.find(a=>String(a[0])===String(k));return r?Number(r[3])!==0:undefined;}
 TABS_GER.push(['inexist','PALMAS PENDIENTES POR MARCAR INEXISTENTES']);MODS_GER.datos.tabs.push('inexist');
 MODS_GER.datos.ayuda='Analistas de datos: sincronización y palmas pendientes por marcar inexistentes';
 GER.inx={sel:new Set()};
 function pendientesInexist(){
   const ult=new Map();for(const j of JOR)for(const d of j.diags){const k=String(d.palma_id??(d.lote+'|'+d.linea+'|'+d.palma));const u=ult.get(k);if(!u||String(d.creado)>String(u.creado))ult.set(k,{...d,_j:j});}
   const rech=(ERR.aj&&ERR.aj.rechazos)||[];
-  return [...ult.entries()].filter(([k,d])=>criticoDe(d)==='PE_PARTIDA'&&!VAJ.has(k)&&!rech.some(r=>r.diagnostico_id&&r.diagnostico_id===d.id))
-    .map(([k,d])=>({...d,_k:k})).sort((a,b)=>String(a.creado).localeCompare(String(b.creado)));
+  return [...ult.entries()].map(([k,d])=>({...d,_k:k,_t:tipoInexist(d)}))
+    .filter(d=>d._t&&!VAJ.has(d._k)&&!rech.some(r=>r.diagnostico_id&&r.diagnostico_id===d.id)&&cartoExiste(d._k,d.lote)!==false) // las que la cartografía ya tiene en 0 no se repiten
+    .sort((a,b)=>String(a.creado).localeCompare(String(b.creado)));
 }
 PINTAR_GER.inexist=function(){
   if(!ERR.aj&&!GER.inx.cargando){GER.inx.cargando=true;cargarAjustesVisor().finally(()=>{GER.inx.cargando=false;pintarGer();});}
-  const aviso=`<p class="tenue">Palmas cuyo último diagnóstico es <b>PE PARTIDA</b> (la palma murió), en las jornadas cargadas (${esc(rangoTxt())}). Al aprobarlas quedan con <b>existencia 0</b>: salen de la cartografía activa, de la incidencia y de los conteos en la App, el visor y los reportes.
+  // Lotes de las jornadas cargadas que aún no se han leído de la cartografía (para no repetir sitios que ya tienen existencia 0)
+  if(JOR.length&&PALMASZIP&&!GER.inx.leyendoC){const faltan=[...new Set(JOR.flatMap(j=>j.diags.filter(d=>tipoInexist(d)).map(d=>d.lote)))].filter(l=>l&&!CHUNK.has(l));
+    if(faltan.length){GER.inx.leyendoC=true;Promise.all(faltan.map(l=>chunkLote(l).catch(()=>[]))).finally(()=>{GER.inx.leyendoC=false;pintarGer();});}}
+  const aviso=`<p class="tenue">Palmas cuyo último diagnóstico es <b>PE PARTIDA</b> (la palma murió) o <b>SITIO VACÍO / FALTANTE</b> (espacio vacío), en las jornadas cargadas (${esc(rangoTxt())}). No aparecen las que la cartografía ya tiene con existencia 0. Al aprobarlas quedan con <b>existencia 0</b>: salen de la cartografía activa, de la incidencia y de los conteos en la App, el visor y los reportes.
     Solo el <b>analista de datos</b> o el <b>super administrador</b> aprueban. Las de <b>PC cráter</b> no van aquí: se erradican (🪓 ERRADICACIÓN) y su existencia 0 se aprueba allá.</p>
     <div class="ger-par">Buscar en: <button class="btn mini" data-rango="30">30 días</button><button class="btn mini" data-rango="90">90 días</button><button class="btn mini" data-rango="180">180 días</button></div>`;
   if(!JOR.length)return `<div class="ger-sec"><h3>Palmas pendientes por marcar inexistentes</h3>${aviso}</div>${sinDatos()}`;
   if(!ERR.aj)return `<div class="ger-sec"><h3>Palmas pendientes por marcar inexistentes</h3><p class="tenue">Leyendo los ajustes de existencia…</p></div>`;
   const P=pendientesInexist(),pa=puedeAprobarErr(),S=GER.inx.sel;for(const k of [...S])if(!P.some(d=>d._k===k))S.delete(k);
-  const hechas=ERR.aj.ajustes.filter(a=>a.tipo==='PE_PARTIDA').slice(-30).reverse();
+  const hechas=ERR.aj.ajustes.filter(a=>TIPOS_INX[a.tipo]).slice(-30).reverse();
   const tP=P.length?tablaGer([...(pa?[{t:`<input type="checkbox" id="inxTodas" ${S.size===P.length?'checked':''} aria-label="Seleccionar todas">`,f:d=>`<input type="checkbox" data-inx="${esc(d._k)}" ${S.has(d._k)?'checked':''}>`}]:[]),
-      {t:'Palma',f:d=>`<b>${esc(etiquetaDiag(d))}</b>`},{t:'Programa',f:d=>esc(PROG.get(d.lote)||'—')},{t:'Diagnóstico',f:d=>`<span class="ger-chip mal">${esc(d.nivel2||'PE PARTIDA')}</span>`},
+      {t:'Palma',f:d=>`<b>${esc(etiquetaDiag(d))}</b>`},{t:'Programa',f:d=>esc(PROG.get(d.lote)||'—')},{t:'Diagnóstico',f:d=>d._t==='PE_PARTIDA'?`<span class="ger-chip mal">${esc(d.nivel2||'PE PARTIDA')}</span>`:`<span class="ger-chip">${esc(d.nivel1||'SITIO VACÍO / FALTANTE')}</span>`},
       {t:'Fecha',f:d=>esc(String(d.creado||'').slice(0,10))},{t:'Días',n:1,f:d=>num(Math.max(0,Math.floor((Date.now()-Date.parse(d.creado))/864e5)))},{t:'Evaluador',f:d=>esc(d.evaluador||'')},
       {t:'Fotos',n:1,f:d=>num(Number(d.n_fotos)||0)},
       {t:'',f:d=>`<button class="btn mini" data-inxver="${esc(d._k)}">Ver en el mapa</button>${pa?` <button class="btn mini" data-inxrech="${esc(d._k)}">Rechazar</button>`:''}`}],P)
-    :'<div class="ger-aviso">✅ No hay palmas PE partida pendientes en las jornadas cargadas.</div>';
-  const tH=hechas.length?tablaGer([{t:'Palma',f:a=>`${esc(a.lote)} · L${esc(a.linea??'?')} · P${esc(a.palma??'?')}`},{t:'Diagnóstico',f:a=>esc(a.fecha_diagnostico||'')},{t:'Evaluador',f:a=>esc(a.evaluador||'')},
-      {t:'Aprobó',f:a=>esc(a.aprobado_nombre||a.aprobado_por||'')},{t:'Fecha de aprobación',f:a=>esc(String(a.aprobado||'').slice(0,16).replace('T',' '))}],hechas):'<p class="tenue">Aún no hay palmas PE partida aprobadas.</p>';
+    :'<div class="ger-aviso">✅ No hay palmas PE partida ni sitios vacíos pendientes en las jornadas cargadas.</div>';
+  const tH=hechas.length?tablaGer([{t:'Palma',f:a=>`${esc(a.lote)} · L${esc(a.linea??'?')} · P${esc(a.palma??'?')}`},{t:'Tipo',f:a=>esc(TIPOS_INX[a.tipo].t)},{t:'Diagnóstico',f:a=>esc(a.fecha_diagnostico||'')},{t:'Evaluador',f:a=>esc(a.evaluador||'')},
+      {t:'Aprobó',f:a=>esc(a.aprobado_nombre||a.aprobado_por||'')},{t:'Fecha de aprobación',f:a=>esc(String(a.aprobado||'').slice(0,16).replace('T',' '))}],hechas):'<p class="tenue">Aún no hay palmas aprobadas.</p>';
   return `<div class="ger-sec"><h3>Palmas pendientes por marcar inexistentes</h3>${aviso}
-      <div class="ger-kpis">${kpi(num(P.length),'Pendientes de aprobar',P.length?'mal':'ok')}${kpi(num(ERR.aj.ajustes.filter(a=>a.tipo==='PE_PARTIDA').length),'PE partida aprobadas (total)')}</div>
+      <div class="ger-kpis">${kpi(num(P.length),'Pendientes de aprobar',P.length?'mal':'ok')}${kpi(num(P.filter(d=>d._t==='PE_PARTIDA').length),'PE partida pendientes')}${kpi(num(P.filter(d=>d._t==='ESPACIO_VACIO').length),'Sitios vacíos pendientes')}${kpi(num(ERR.aj.ajustes.filter(a=>TIPOS_INX[a.tipo]).length),'Aprobadas (total)')}</div>
       ${pa&&P.length?`<div class="ger-par"><button class="btn mini nar" id="inxAprob" ${S.size?'':'disabled'}>✔ Aprobar existencia 0 (${S.size})</button></div>`:''}
       ${!pa&&P.length?'<div class="ger-aviso">Solo el analista de datos o el super administrador pueden aprobar.</div>':''}${tP}</div>
     <div class="ger-sec"><h3>Últimas aprobadas</h3>${tH}</div>`;
@@ -102,19 +117,20 @@ ENLACES_GER.inexist=()=>{enlazarRango();const P=ERR.aj?pendientesInexist():[],S=
 };
 async function aprobarInexist(lista){
   if(!puedeAprobarErr()||!lista.length)return;
-  if(!confirm(`¿Aprobar existencia 0 para ${lista.length} palma(s) con PE partida?\n\nSalen de la cartografía activa, de la incidencia y de los conteos en la App, el visor y los reportes.`))return;
+  const nP=lista.filter(d=>d._t==='PE_PARTIDA').length,nV=lista.length-nP;
+  if(!confirm(`¿Aprobar existencia 0 para ${lista.length} palma(s)${nP?` · ${nP} PE partida`:''}${nV?` · ${nV} sitio(s) vacío(s)`:''}?\n\nSalen de la cartografía activa, de la incidencia y de los conteos en la App, el visor y los reportes.`))return;
   try{const ahora=new Date().toISOString();
     await guardarAjustes(aj=>{for(const d of lista){if(aj.ajustes.some(x=>String(x.palma_id)===d._k&&Number(x.existe)===0))continue;
-      aj.ajustes.push({palma_id:d._k,lote:d.lote,linea:d.linea,palma:d.palma,existe:0,motivo:'PE partida',tipo:'PE_PARTIDA',diagnostico_id:d.id||'',fecha_diagnostico:String(d.creado||'').slice(0,10),
-        evaluador:d.evaluador||'',aprobado_por:SES.u,aprobado_nombre:SES.nombre,aprobado:ahora});}},`Existencia 0 aprobada: ${lista.length} palma(s) PE partida · ${SES.nombre}`);
+      aj.ajustes.push({palma_id:d._k,lote:d.lote,linea:d.linea,palma:d.palma,existe:0,motivo:(TIPOS_INX[d._t]||TIPOS_INX.PE_PARTIDA).motivo,tipo:d._t||'PE_PARTIDA',diagnostico_id:d.id||'',fecha_diagnostico:String(d.creado||'').slice(0,10),
+        evaluador:d.evaluador||'',aprobado_por:SES.u,aprobado_nombre:SES.nombre,aprobado:ahora});}},`Existencia 0 aprobada: ${lista.length} palma(s) (PE partida / sitio vacío) · ${SES.nombre}`);
     GER.inx.sel.clear();toast(`✓ ${lista.length} palma(s) marcadas como inexistentes.`,4500);aplicarFiltros(false);}
   catch(e){toast('No se pudo guardar: '+e.message,6000);}
   pintarGer();
 }
 async function rechazarInexist(d){
-  if(!d||!puedeAprobarErr())return;const m=prompt('Motivo del rechazo (la palma sigue existiendo; si en un censo posterior vuelve a salir PE partida, aparecerá otra vez):','');if(m==null)return;
-  try{await guardarAjustes(aj=>{if(!aj.rechazos.some(r=>r.diagnostico_id===d.id))aj.rechazos.push({diagnostico_id:d.id||'',palma_id:d._k,lote:d.lote,linea:d.linea,palma:d.palma,tipo:'PE_PARTIDA',motivo:m.trim(),por:SES.u,por_nombre:SES.nombre,fecha:new Date().toISOString()});},
-      `PE partida rechazada: ${d.lote} L${d.linea} P${d.palma} · ${SES.nombre}`);GER.inx.sel.delete(d._k);toast('Rechazada: la palma sigue con existencia.',4000);}
+  if(!d||!puedeAprobarErr())return;const m=prompt(`Motivo del rechazo (la palma sigue existiendo; si en un censo posterior vuelve a salir ${d._t==='ESPACIO_VACIO'?'sitio vacío':'PE partida'}, aparecerá otra vez):`,'');if(m==null)return;
+  try{await guardarAjustes(aj=>{if(!aj.rechazos.some(r=>r.diagnostico_id===d.id))aj.rechazos.push({diagnostico_id:d.id||'',palma_id:d._k,lote:d.lote,linea:d.linea,palma:d.palma,tipo:d._t||'PE_PARTIDA',motivo:m.trim(),por:SES.u,por_nombre:SES.nombre,fecha:new Date().toISOString()});},
+      `${d._t==='ESPACIO_VACIO'?'Sitio vacío':'PE partida'} rechazado: ${d.lote} L${d.linea} P${d.palma} · ${SES.nombre}`);GER.inx.sel.delete(d._k);toast('Rechazada: la palma sigue con existencia.',4000);}
   catch(e){toast('No se pudo guardar: '+e.message,6000);}
   pintarGer();
 }
