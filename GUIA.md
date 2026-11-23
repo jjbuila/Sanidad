@@ -183,6 +183,16 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 - **DATOS → Jornadas y recorridos**: cada jornada con su duración, kilómetros, puntos y diagnósticos. El botón **▶ Reproducir recorrido** muestra el track animado con hora, distancia y diagnósticos que aparecen en el momento en que se registraron. Tiene velocidades de ×10 a ×300 y una barra para adelantar o retroceder.
 - **DATOS → Resumen por lote**: avance e incidencia, calculada como (enfermas + en tratamiento) / evaluadas.
 
+### Modo jornada y modo ahorro (APK 1.0.9 en adelante)
+- **Modo jornada:** al iniciar la jornada (cualquier labor):
+  - se ocultan los botones que no son de la labor. «Datos» se cambia por **«Ahorro»** y el menú queda solo con *Jornada en curso* y *Pantalla bloqueada*;
+  - no se puede abrir otra labor, la sincronización ni otras pantallas hasta finalizar;
+  - en la APK la **App queda fijada** (fijación de pantalla de Android): no se puede ir al inicio ni abrir otras apps. La primera vez Android pide confirmar «Fijar la app»; si no aparece, active *Ajustes › Seguridad › Fijar aplicaciones*. Al finalizar la jornada se libera sola. Si alguien la desfija, se vuelve a fijar al regresar a la App.
+- **Botón de encendido:** la App se muestra encima de la pantalla de bloqueo. Si el operario presiona el botón de encendido, la pantalla se apaga un instante y se vuelve a encender sola con la App en **modo ahorro**. Si el celular no tiene PIN ni patrón, tampoco queda la pantalla de bloqueo. Android no deja que una App anule el botón de encendido; por eso la App enciende la pantalla de nuevo.
+- **Modo ahorro:** pantalla negra con el **brillo al mínimo**, que no responde a toques accidentales. El GPS, el registro del recorrido, la guía por voz, la vigilancia y las alertas siguen funcionando. Muestra el tiempo, los km, las palmas visitadas y la precisión del GPS.
+  - **Entra:** solo, a los **60 s sin tocar la pantalla** (no si hay un formulario u hoja abierta), con el botón **«Ahorro»** o al presionar el **botón de encendido**.
+  - **Sale:** manteniendo presionado el botón **Desbloquear 2 s** o **subiendo el volumen durante 2 s**. En ahorro el volumen no cambia. Una **alerta de palma pendiente** desbloquea la pantalla sola.
+
 ### Registro con la pantalla bloqueada (APK)
 - **Registro protegido (APK 1.0.8 en adelante):** el GPS lo graba un servicio propio de la APK (notificación «Jornada en curso», CPU activa) que **guarda cada punto en el celular**. Si Android duerme o cierra la App con la pantalla bloqueada, al volver la App **recupera todos los puntos** con su hora real: el recorrido queda completo, sin líneas rectas.
 - **Vigilancia cada minuto:** una alarma del sistema (funciona aun con el celular en reposo) revisa el registro cada 60 s:

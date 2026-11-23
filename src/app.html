@@ -177,6 +177,19 @@ button{cursor:pointer}
 .punto{width:13px;height:13px;border-radius:50%;border:1px solid rgba(0,0,0,.6);display:inline-block;flex:none}
 
 /* ---------- Barra inferior ---------- */
+/* Modo jornada y modo ahorro */
+#dock [hidden]{display:none!important}
+#ahorro{position:fixed;inset:0;z-index:20000;background:#000;color:#5f7d70;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;touch-action:none;user-select:none;-webkit-user-select:none;text-align:center;padding:24px}
+#ahorro[hidden]{display:none}
+#ahorro .ah-est{font-size:15px;line-height:1.6;opacity:.8}
+#ahorro .ah-est b{color:#8fb3a3;font-weight:600}
+#ahorro .ah-rec{display:inline-block;width:9px;height:9px;border-radius:50%;background:#1f8f5f;margin-right:6px;animation:ahLat 2s ease-in-out infinite}
+@keyframes ahLat{50%{opacity:.25}}
+#ahBt{position:relative;width:128px;height:128px;border-radius:50%;border:2px solid #23463a;background:#07120d;color:#7fa898;font-size:15px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;touch-action:none}
+#ahBt svg.ar{position:absolute;inset:-6px;width:140px;height:140px;transform:rotate(-90deg)}
+#ahBt svg.ar circle{fill:none;stroke:#22d39a;stroke-width:5;stroke-dasharray:420;stroke-dashoffset:420}
+#ahBt.presionando svg.ar circle{transition:stroke-dashoffset 2s linear;stroke-dashoffset:0}
+#ahorro small{font-size:13px;opacity:.7;max-width:280px}
 #dock{position:fixed;left:0;right:0;bottom:0;z-index:1000;height:calc(var(--dock) + var(--inf));padding:6px 6px var(--inf);display:grid;grid-template-columns:1fr 1fr 1.25fr 1fr 1fr;align-items:end;border-radius:20px 20px 0 0;border-bottom:0}
 #dock>button{border:0;background:transparent;color:var(--tenue);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:62px;border-radius:14px;font-family:var(--t);font-weight:700;font-size:12.5px;letter-spacing:.6px;text-transform:uppercase}
 #dock>button:active,#dock>button.on{color:var(--acento);background:rgba(34,211,154,.08)}
@@ -413,8 +426,15 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <button id="btCercana" data-ic="palma">Cercana</button>
   <button id="btJornada" class="central"><span class="anillo" id="btJornadaIc"></span><span id="btJornadaTxt">Iniciar</span></button>
   <button id="btBD" data-ic="bd">Datos</button>
+  <button id="btAhorro" data-ic="candado" hidden>Ahorro</button>
   <button id="btMenu" data-ic="menu">Menú</button>
 </nav>
+
+<div id="ahorro" hidden role="dialog" aria-label="Modo ahorro de batería">
+  <div class="ah-est"><span class="ah-rec"></span>Jornada en curso · grabando el recorrido<br><b id="ahDatos">—</b></div>
+  <button id="ahBt" aria-label="Mantenga presionado 2 segundos para desbloquear"><svg class="ar" viewBox="0 0 140 140" aria-hidden="true"><circle cx="70" cy="70" r="66"/></svg><span style="font-size:30px">🔒</span>Desbloquear</button>
+  <small>Mantenga presionado el botón 2 segundos o suba el volumen durante 2 segundos.</small>
+</div>
 
 <section id="hoja" class="glass oculto" aria-live="polite">
   <div class="asa"></div>
@@ -482,7 +502,7 @@ if(EN_APK&&!NATIVO){try{if(navigator.onLine&&!sessionStorage.getItem('sv_puente'
 // registerPlugin solo existe si se carga @capacitor/core, por eso se usa como alternativa.
 const NAT=NATIVO?(()=>{const C=window.Capacitor;const r=n=>{try{const p=C.Plugins&&C.Plugins[n];if(p)return p;}catch(e){}
   try{return typeof C.registerPlugin==='function'?C.registerPlugin(n):null;}catch(e){return null;}};
-  return {get bg(){return r('BackgroundGeolocation');},get tts(){return r('TextToSpeech');},get ln(){return r('LocalNotifications');},get en(){return r('Energia');},get rec(){return r('Recorrido');}};})():null;
+  return {get bg(){return r('BackgroundGeolocation');},get tts(){return r('TextToSpeech');},get ln(){return r('LocalNotifications');},get en(){return r('Energia');},get rec(){return r('Recorrido');},get jor(){return r('Jornada');}};})():null;
 /* Si un service worker antiguo entregó la app en la dirección del visor o de administración, se actualiza y se recarga una vez. */
 if(/\/(visor|admin)\.html$/.test(location.pathname)){try{if(!sessionStorage.getItem('sv_redir')){sessionStorage.setItem('sv_redir','1');
   (navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.update()))):Promise.resolve()).catch(()=>{}).finally(()=>setTimeout(()=>location.reload(),1200));}}catch(e){}}
@@ -1166,6 +1186,79 @@ $('#btCercana').onclick=()=>{
     $$('#pcLista .fila-palma').forEach(bt=>bt.onclick=()=>{const it=lista.find(x=>x.f.properties._id===bt.dataset.id);const [x,y]=it.f.geometry.coordinates;mapa.setView([y,x],Math.max(mapa.getZoom(),19));abrirPalma(bt.dataset.id,it.d);});};
   $('#pcLinea').onchange=pintar;$('#pcPend').onchange=pintar;pintar();
 };
+
+/* ---------- Modo jornada y modo ahorro ----------
+   Modo jornada (mientras haya jornada activa, en cualquier labor):
+   · se ocultan los botones que no hacen falta para la labor (Datos, el menú queda solo con la jornada y la pantalla bloqueada)
+     y no se puede abrir otra labor ni otra pantalla hasta finalizar;
+   · APK: la App queda fijada (fijación de pantalla de Android), se muestra encima de la pantalla de bloqueo y, si el operario
+     presiona el botón de encendido, la pantalla se vuelve a encender sola con la App en modo ahorro.
+   Modo ahorro: pantalla negra con brillo mínimo; el GPS, el registro, la voz y las alertas siguen funcionando.
+   Entra solo a los 60 s sin tocar la pantalla, con el botón «Ahorro» o al presionar el botón de encendido.
+   Se desbloquea manteniendo presionado el botón de la pantalla 2 s o subiendo el volumen 2 s (APK). Una alerta lo desbloquea. */
+const MJ={on:false,subs:[]};
+const AH={on:false,t:Date.now(),tmr:null};
+const AHORRO_MS=60000;
+const jorNat=()=>NATIVO&&NAT?NAT.jor:null;
+function tocarPantalla(){AH.t=Date.now();}
+['pointerdown','keydown','touchstart'].forEach(ev=>document.addEventListener(ev,tocarPantalla,{capture:true,passive:true}));
+function datosAhorro(){
+  const e=$('#ahDatos');if(!e||!S.jornada)return;
+  const j=S.jornada;const t=Date.now()-Date.parse(j.inicio);const hh=Math.floor(t/3600000),mm=Math.floor(t/60000)%60;
+  const vis=$('#pjVis')?$('#pjVis').textContent:'';
+  e.textContent=`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')} · ${(j.km||0).toFixed(2)} km${vis&&vis!=='0'?' · '+vis+' palmas':''}${S.gps?' · GPS ±'+Math.round(S.gps.acc)+' m':''}`;
+}
+async function entrarAhorro(motivo){
+  if(AH.on||!S.jornada)return;
+  AH.on=true;$('#ahorro').hidden=false;datosAhorro();clearInterval(AH.tmr);AH.tmr=setInterval(datosAhorro,15000);
+  try{const n=jorNat();if(n)await n.ahorro({on:true});}catch(e){}
+}
+async function salirAhorro(motivo){
+  if(!AH.on)return;
+  AH.on=false;$('#ahorro').hidden=true;clearInterval(AH.tmr);AH.tmr=null;tocarPantalla();
+  try{const n=jorNat();if(n)await n.ahorro({on:false});}catch(e){}
+  try{if(S.gps){pintarGPS();if(S.seguir)centrarOperario();}}catch(e){}
+}
+/* Con la pantalla en ahorro no se redibuja el operario en el mapa (menos consumo); al salir se pone al día. */
+{const _p=pintarGPS;pintarGPS=function(){if(AH.on)return;return _p.apply(this,arguments);};}
+/* Una alerta de palma pendiente desbloquea la pantalla para que el operario la vea. */
+{const _a=avisarSaltadas;avisarSaltadas=function(l){if(l&&l.length)salirAhorro('alerta');return _a.apply(this,arguments);};}
+(function(){
+  const b=$('#ahBt');let t=null;
+  const soltar=()=>{if(!t)return;clearTimeout(t);t=null;b.classList.remove('presionando');};
+  b.addEventListener('pointerdown',e=>{e.preventDefault();if(t)return;b.classList.remove('presionando');void b.offsetWidth;b.classList.add('presionando');
+    try{navigator.vibrate&&navigator.vibrate(30);}catch(_){}try{b.setPointerCapture&&b.setPointerCapture(e.pointerId);}catch(_){}
+    t=setTimeout(()=>{t=null;b.classList.remove('presionando');try{navigator.vibrate&&navigator.vibrate([40,60,40]);}catch(_){}salirAhorro('boton');},2000);});
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,soltar));
+  $('#ahorro').addEventListener('contextmenu',e=>e.preventDefault());
+})();
+$('#btAhorro').onclick=()=>entrarAhorro('boton');
+setInterval(()=>{ // ahorro automático: 60 s sin tocar la pantalla, sin hojas ni formularios abiertos
+  if(!S.jornada||AH.on||!MJ.on)return;
+  if(!$('#hoja').classList.contains('oculto'))return;
+  if(typeof PLAY!=='undefined'&&PLAY.on)return;
+  if(Date.now()-AH.t>=AHORRO_MS)entrarAhorro('auto');
+},5000);
+async function modoJornada(on){
+  if(on===MJ.on)return;MJ.on=on;
+  document.body.classList.toggle('en-jornada',on);
+  $('#btBD').hidden=on;$('#btAhorro').hidden=!on;
+  const n=jorNat();
+  if(on){tocarPantalla();
+    if(n){try{
+      if(!MJ.subs.length){MJ.subs.push(await n.addListener('pantallaApagada',()=>entrarAhorro('encendido')));MJ.subs.push(await n.addListener('desbloquear',()=>salirAhorro('volumen')));}
+      const r=await n.iniciar({fijar:true});
+      setTimeout(async()=>{try{const e=await n.estado();if(MJ.on&&!e.fijada)toast('Confirme «Fijar la app» para que la jornada no se pueda cerrar. Si no aparece, active «Fijar aplicaciones» en Ajustes › Seguridad.',7000);}catch(x){}},9000);
+    }catch(e){}}
+  }else{
+    await salirAhorro('fin');
+    if(n){try{await n.terminar();}catch(e){}}
+  }
+}
+/* Se activa y desactiva solo con la jornada (todas las labores pasan por actualizarJornadaUI). */
+{const _u=actualizarJornadaUI;actualizarJornadaUI=function(){const r=_u.apply(this,arguments);modoJornada(!!S.jornada);return r;};}
+/* Si la App vuelve a primer plano con la jornada activa, se vuelve a fijar (por si la desfijaron). */
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&MJ.on){tocarPantalla();const n=jorNat();if(n)n.iniciar({fijar:true}).catch(()=>{});}});
 
 /* ---------- Pantalla encendida ---------- */
 let bloqueoPantalla=null;
@@ -2772,7 +2865,7 @@ function estadoSync(){
   if(pend){b.className='chip pend';b.innerHTML=IC.nube+`<span>${pend}</span>`;return;}
   b.className='chip ok';b.innerHTML='<span class="led"></span><span>Al día</span>';
 }
-$('#chSync').onclick=()=>panelSync();
+$('#chSync').onclick=()=>{if(S.jornada){toast('La sincronización se revisa al finalizar la jornada. Las jornadas terminadas se envían solas.',4000);return;}panelSync();};
 function panelSync(){
   const pend=S.registros.filter(r=>r.sync!=='sincronizado');const t=tipoRed();
   const red={wifi:'WiFi',ethernet:'Cable',cellular:'Datos móviles',sin:'Sin conexión',none:'Sin conexión',desconocida:'En línea'}[t]||t;
@@ -3249,6 +3342,8 @@ function menu(){
       ${estaInstalada()?'':mos('mInst','instalar','Instalar app','En este celular')}
     </div>
     <p class="tenue" style="text-align:center;margin-top:16px">Sanidad Vegetal · versión ${VERSION} · Cartografía ${esc(CARTO.version||'—')}${EN_APK?' · APK '+esc(textoApkInst()):''}<br>Palmas de Tumaco S.A.S.</p>`);
+  if(S.jornada){document.querySelectorAll('#hojaCuerpo .menu-grid .mosaico').forEach(b=>{if(!['mJor','mBg'].includes(b.id))b.remove();});
+    const g=document.querySelector('#hojaCuerpo .menu-grid');if(g)g.insertAdjacentHTML('afterend','<p class="tenue" style="text-align:center;margin-top:10px">Durante la jornada solo están las opciones de la labor. Las demás vuelven al finalizar la jornada.</p>');}
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#mJor',()=>{if(S.jornada)panelJornada();else{cerrarHoja();$('#btJornada').click();}}); // pasa por las mismas verificaciones del botón Iniciar
   on('#mApk',panelApk);on('#mAud',panelAuditoria);on('#mDia',panelDia);
