@@ -183,6 +183,11 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 - **DATOS → Jornadas y recorridos**: cada jornada con su duración, kilómetros, puntos y diagnósticos. El botón **▶ Reproducir recorrido** muestra el track animado con hora, distancia y diagnósticos que aparecen en el momento en que se registraron. Tiene velocidades de ×10 a ×300 y una barra para adelantar o retroceder.
 - **DATOS → Resumen por lote**: avance e incidencia, calculada como (enfermas + en tratamiento) / evaluadas.
 
+### Batería de la jornada
+- La App guarda el **nivel de batería al iniciar y al finalizar** cada jornada (cualquier labor), y si el celular se cargó en el intermedio. Calcula el **consumo** (puntos de %) y el **consumo por hora** (%/h).
+- Se ve en el **resumen final** de la jornada, en el **detalle de la jornada del visor** y en el **reporte diario**: columna «Batería» por operario en el PDF y en el reporte interactivo; en el Excel, «Batería inicio %», «Batería fin %», «Consumo batería %» y «Batería %/hora».
+- Si el celular se cargó durante la jornada, se marca «(se cargó)» y no se calcula el consumo.
+
 ### Modo jornada y modo ahorro (APK 1.0.9 en adelante)
 - **Modo jornada:** al iniciar la jornada (cualquier labor):
   - se ocultan los botones que no son de la labor. «Datos» se cambia por **«Ahorro»** y el menú queda solo con *Jornada en curso* y *Pantalla bloqueada*;

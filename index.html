@@ -1034,7 +1034,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261124:1336</div>
+  <div id="splashVer">VERSIÓN 20261124:1357</div>
 </div>
 
 <div id="login" hidden>
@@ -1049,7 +1049,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261124:1336</div>
+  <div id="lgVer2">VERSIÓN 20261124:1357</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1173,7 +1173,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261124:1336';
+const VERSION='20261124:1357';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -1830,6 +1830,7 @@ async function recDetener(){
 }
 /* Antes de cerrar la jornada: trae los puntos que falten del celular y anota los cortes del GPS con su causa. */
 async function cerrarRecorrido(j){
+  try{await bateriaFin(j);}catch(e){}
   if(REC.on&&REC.jid===j.id){try{await recDrenar();await REC.cola;}catch(e){}}
   let ev=[];if(recDisponible()){try{const r=await NAT.rec.eventos({jornada:j.id});ev=(r&&r.eventos)||[];}catch(e){}}
   try{j.cortes_gps=cortesGps(await puntosTrack(j.id),ev,j);j.eventos_gps=ev.slice(-200);}catch(e){}
@@ -2008,12 +2009,32 @@ setInterval(()=>{ // ahorro automático: 60 s sin tocar la pantalla, sin hojas n
   if(typeof PLAY!=='undefined'&&PLAY.on)return;
   if(Date.now()-AH.t>=AHORRO_MS)entrarAhorro('auto');
 },5000);
+/* ---------- Batería: nivel al inicio y al fin de la jornada (consumo de la APK) ---------- */
+async function bateriaAhora(){
+  try{if(!navigator.getBattery)return null;const b=await navigator.getBattery();return {nivel:Math.round(b.level*100),cargando:!!b.charging,t:Date.now()};}catch(e){return null;}
+}
+async function bateriaInicio(j){
+  if(!j||j.bateria)return;const x=await bateriaAhora();j.bateria={inicio:x,cargo:!!(x&&x.cargando)};
+  try{const b=await navigator.getBattery();b.addEventListener('chargingchange',()=>{if(b.charging&&S.jornada&&S.jornada.bateria){S.jornada.bateria.cargo=true;dbPut('jornadas',S.jornada).catch(()=>{});}});}catch(e){}
+  try{if(S.jornada===j)await dbPut('jornadas',j);}catch(e){}
+}
+async function bateriaFin(j){
+  if(!j)return;const b=j.bateria||(j.bateria={inicio:null});const x=await bateriaAhora();b.fin=x;
+  if(x&&x.cargando)b.cargo=true;
+  if(b.inicio&&x){b.consumo=b.inicio.nivel-x.nivel;const h=(x.t-b.inicio.t)/3600000;b.horas=Math.round(h*100)/100;b.pct_hora=h>=0.1?Math.round(b.consumo/h*10)/10:null;}
+}
+/* Campos de la batería para la jornada que se sincroniza (los usan el visor y los reportes). */
+function bateriaCab(j){const b=j.bateria;if(!b)return {};
+  return {bateria_inicio_pct:b.inicio?b.inicio.nivel:null,bateria_fin_pct:b.fin?b.fin.nivel:null,bateria_consumo_pct:b.consumo??null,bateria_pct_hora:b.pct_hora??null,bateria_cargo:!!b.cargo};}
+function textoBateria(j){const b=j&&j.bateria;if(!b||!b.inicio||!b.fin)return '';
+  return `${b.inicio.nivel} % → ${b.fin.nivel} %${b.cargo?' (se cargó)':` · ${b.consumo} %${b.pct_hora!=null?' · '+String(b.pct_hora).replace('.',',')+' %/h':''}`}`;}
+function lineaBateria(j){const t=textoBateria(j);return t?`<p class="tenue" style="text-align:center;margin:6px 0">🔋 Batería: ${esc(t)}</p>`:'';}
 async function modoJornada(on){
   if(on===MJ.on)return;MJ.on=on;
   document.body.classList.toggle('en-jornada',on);
   $('#btBD').hidden=on;$('#btAhorro').hidden=!on;
   const n=jorNat();
-  if(on){tocarPantalla();
+  if(on){tocarPantalla();bateriaInicio(S.jornada).catch(()=>{});
     if(n){try{
       if(!MJ.subs.length){MJ.subs.push(await n.addListener('pantallaApagada',()=>entrarAhorro('encendido')));MJ.subs.push(await n.addListener('desbloquear',()=>salirAhorro('volumen')));}
       const j=S.jornada,pedir=!!j&&!j.fijarPedido; // se pide fijar la App UNA sola vez por jornada (nunca se insiste)
@@ -2237,6 +2258,7 @@ async function finalizarJornada(){
       <div class="stat"><b>${fmtDur(Date.parse(j.fin)-Date.parse(j.inicio)).slice(0,5)}</b><span>Duración</span></div>
       <div class="stat"><b>${(j.km||0).toFixed(2)}</b><span>Km</span></div>
       <div class="stat"><b>${res.ha_recorridas.toFixed(2)}</b><span>Ha recorridas</span></div>
+      ${j.bateria&&j.bateria.inicio&&j.bateria.fin?`<div class="stat"><b>${j.bateria.inicio.nivel}→${j.bateria.fin.nivel} %</b><span>Batería${j.bateria.cargo?' (se cargó)':j.bateria.pct_hora!=null?' · '+String(j.bateria.pct_hora).replace('.',',')+' %/h':''}</span></div>`:''}
       <div class="stat"><b>${num(regs.length)}</b><span>Diagnósticos</span></div>
       <div class="stat"><b>${j.tiempos.hora_inicio_labor||'—'}</b><span>Inicio de labor</span></div>
       <div class="stat"><b>${j.tiempos.hora_fin_labor||'—'}</b><span>Fin de labor</span></div>
@@ -3584,7 +3606,7 @@ function geoJornada(j,regs,pts,ahora,archivoFotos){
     jornada:{id:j.id,evaluador:j.evaluador,usuario:j.usuario||'',dispositivo:j.dispositivo||S.cfg.dispositivo,fecha:fechaLocal(j.inicio),
       hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),duracion_min:j.fin?Math.round((Date.parse(j.fin)-Date.parse(j.inicio))/60000):null,inicio:j.inicio,fin:j.fin,
       km:+(j.km||0).toFixed(3),...(j.visita||{}),...(j.resumen_paradas||{}),secuencias:j.secuencias||[],tiempos:j.tiempos||null,velocidad_kmh:j.tiempos?j.tiempos.velocidad_kmh:null,lotes_seleccionados:j.seleccion,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
-      archivo_fotos:archivoFotos||null,cartografia:j.carto_version||'',equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
+      archivo_fotos:archivoFotos||null,cartografia:j.carto_version||'',equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],...bateriaCab(j),app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
     features:feats};
 }
 async function sincronizar(manual){
@@ -4998,7 +5020,7 @@ async function finalizarCirugia(){
   if(VOZ.activa)alternarVoz();pantallaEncendida(false);gpsFondo(false);actualizarJornadaUI();dibujarLotes();
   hablar(MSJ_FIN,true);try{avisoJornada(false);}catch(e){}
   const cirs=regs.filter(r=>r.tipo==='cirugia');
-  abrirHoja('Jornada de cirugía finalizada',`
+  abrirHoja('Jornada de cirugía finalizada',`${lineaBateria(j)}
     <div class="stats">
       <div class="stat"><b>${hhmm(j.inicio)}</b><span>Hora de inicio</span></div><div class="stat"><b>${hhmm(j.fin)}</b><span>Hora de fin</span></div>
       <div class="stat"><b>${(j.km||0).toFixed(2)}</b><span>Km</span></div><div class="stat"><b>${num(cirs.length)}</b><span>Cirugías</span></div>
@@ -5024,7 +5046,7 @@ function geoCirugia(j,regs,pts,ahora,archivoFotos){
       hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),inicio:j.inicio,fin:j.fin,km:+(j.km||0).toFixed(3),...(j.resumen_paradas||{}),
       ordenes:(j.ordenes||[]).map(o=>({id:o.id,orden:o.orden,palma_id:o.palma_id,lote:o.lote,linea:o.linea,palma:o.palma,diagnostico:o.diagnostico,vence:o.vence,estado:o.estado,registro:o.registro||null})),
       cirugias:cirs.length,correcciones:regs.filter(r=>r.origen==='correccion').length,casos_nuevos:regs.filter(r=>r.tipo==='diagnostico'&&r.origen==='caso_nuevo').length,marcas:regs.filter(r=>r.tipo==='marca').length,
-      fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
+      fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],...bateriaCab(j),app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
     features:feats};
 }
 /* El botón INICIAR elige la labor; el panel superior muestra la ruta de cirugía. */
@@ -5390,7 +5412,7 @@ async function finalizarErr(){
   if(VOZ.activa)alternarVoz();pantallaEncendida(false);gpsFondo(false);actualizarJornadaUI();actualizarErrUI();dibujarLotes();
   hablar(MSJ_FIN,true);try{avisoJornada(false);}catch(e){}
   const errs=regs.filter(r=>r.tipo==='erradicacion');
-  abrirHoja('Jornada de erradicación finalizada',`
+  abrirHoja('Jornada de erradicación finalizada',`${lineaBateria(j)}
     <div class="stats">
       <div class="stat"><b>${hhmm(j.inicio)}</b><span>Hora de inicio</span></div><div class="stat"><b>${hhmm(j.fin)}</b><span>Hora de fin</span></div>
       <div class="stat"><b>${(j.km||0).toFixed(2)}</b><span>Km</span></div><div class="stat"><b>${num(errs.length)}</b><span>Erradicadas</span></div>
@@ -5408,7 +5430,7 @@ function geoErradicacion(j,regs,pts,ahora,archivoFotos){
     hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),inicio:j.inicio,fin:j.fin,km:+(j.km||0).toFixed(3),...(j.resumen_paradas||{}),
     ordenes:(j.ordenes||[]).map(o=>({id:o.id,orden:o.orden,palma_id:o.palma_id,lote:o.lote,linea:o.linea,palma:o.palma,tipo:o.tipo,diagnostico:o.diagnostico,vence:o.vence,estado:o.estado,registro:o.registro||null})),
     erradicaciones:errs.length,quimicas:errs.filter(r=>r.metodo==='Química').length,correcciones:regs.filter(r=>r.origen==='correccion').length,casos_nuevos:regs.filter(r=>r.tipo==='diagnostico'&&r.origen==='caso_nuevo').length,
-    marcas:regs.filter(r=>r.tipo==='marca').length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
+    marcas:regs.filter(r=>r.tipo==='marca').length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],...bateriaCab(j),app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
   return g;
 }
 /* El botón INICIAR: panel de la labor en curso o elección de labor. */
@@ -5686,7 +5708,7 @@ async function finalizarPlg(){
   if(VOZ.activa)alternarVoz();pantallaEncendida(false);gpsFondo(false);actualizarJornadaUI();actualizarPlgUI();dibujarLotes();
   hablar(MSJ_FIN,true);try{avisoJornada(false);}catch(e){}
   const ms=regs.filter(r=>r.tipo==='monitoreo');
-  abrirHoja('Monitoreo de plagas finalizado',`
+  abrirHoja('Monitoreo de plagas finalizado',`${lineaBateria(j)}
     <div class="stats"><div class="stat"><b>${hhmm(j.inicio)}</b><span>Hora de inicio</span></div><div class="stat"><b>${hhmm(j.fin)}</b><span>Hora de fin</span></div>
       <div class="stat"><b>${(j.km||0).toFixed(2)}</b><span>Km</span></div><div class="stat"><b>${num(ms.length)}</b><span>Palmas registradas</span></div>
       <div class="stat"><b>${num(ms.filter(r=>r.dano).length)}</b><span>Con daño</span></div><div class="stat"><b>${num(pend)}</b><span>Sin registrar</span></div></div>
@@ -5701,7 +5723,7 @@ function geoPlagas(j,regs,pts,ahora,archivoFotos){
   g.jornada={id:j.id,labor:'plagas',evaluador:j.evaluador,usuario:j.usuario,dispositivo:j.dispositivo,fecha:fechaLocal(j.inicio),hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),inicio:j.inicio,fin:j.fin,
     km:+(j.km||0).toFixed(3),...(j.resumen_paradas||{}),lotes_muestreo:j.lotes_muestreo,unidades:j.unidades||[],
     muestra:(j.muestra||[]).map(m=>({palma_id:m.palma_id,lote:m.lote,linea:m.linea,palma:m.palma,muestreo:m.muestreo,estado:m.estado,registro:m.registro||null})),
-    palmas_registradas:ms.length,con_dano:ms.filter(r=>r.dano).length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
+    palmas_registradas:ms.length,con_dano:ms.filter(r=>r.dano).length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],...bateriaCab(j),app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
   return g;
 }
 /* El botón INICIAR: panel de la labor en curso o elección de labor. */

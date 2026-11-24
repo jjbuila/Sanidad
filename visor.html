@@ -881,7 +881,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261120:0647</div>
+    <div id="lgVer">VERSIÓN 20261124:1357</div>
   </div>
 </div>
 
@@ -977,7 +977,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261120:0647';
+const VERSION='20261124:1357';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1906,6 +1906,7 @@ function abrirDetalle(j){
       <div><b>Vel. caminata:</b> ${j.vel==null?'—':num(j.vel,1)+' km/h'}</div>${j.tiempos?`<div><b>Labor:</b> ${esc(j.tiempos.hora_inicio_labor||'—')} – ${esc(j.tiempos.hora_fin_labor||'—')}</div>
       <div><b>Despl. inicial:</b> ${minHM(j.tiempos.min_desplazamiento_inicial)}</div><div><b>Despl. entre lotes:</b> ${minHM(j.tiempos.min_desplazamiento_entre_lotes)}</div>
       <div><b>Despl. final:</b> ${minHM(j.tiempos.min_desplazamiento_final)}</div><div><b>Efectivo en lotes:</b> ${minHM(j.tiempos.min_efectivo_labor)}</div>`:''}
+      ${j.header&&j.header.bateria_inicio_pct!=null&&j.header.bateria_fin_pct!=null?`<div><b>Batería:</b> ${num(j.header.bateria_inicio_pct)} % → ${num(j.header.bateria_fin_pct)} %${j.header.bateria_cargo?' (se cargó)':j.header.bateria_pct_hora!=null?' · '+num(j.header.bateria_pct_hora,1)+' %/h':''}</div>`:''}
       <div><b>Método:</b> ${j.metodo==='calle_entre_lineas'?'Por calle':'Buffer'}</div><div>${j.comp?`<b>Buffer ${esc(j.comp.buffer_m)} m:</b> ${num(j.comp.palmas_visitadas)} palmas`:''}</div></div>
     ${bloqueCortes(j)}
     ${conT?`<div class="play"><div class="play-res"><span>Inicio <b>${esc(j.hora_inicio||hhmm(j.inicio))}</b></span><span>Fin <b>${esc(j.hora_fin||hhmm(j.fin))}</b></span><span>Ha <b>${num(j.ha,2)}</b></span><span>T. efectivo <b>${efecJ(j,sq)}</b></span></div>

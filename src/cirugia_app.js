@@ -368,7 +368,7 @@ async function finalizarCirugia(){
   if(VOZ.activa)alternarVoz();pantallaEncendida(false);gpsFondo(false);actualizarJornadaUI();dibujarLotes();
   hablar(MSJ_FIN,true);try{avisoJornada(false);}catch(e){}
   const cirs=regs.filter(r=>r.tipo==='cirugia');
-  abrirHoja('Jornada de cirugía finalizada',`
+  abrirHoja('Jornada de cirugía finalizada',`${lineaBateria(j)}
     <div class="stats">
       <div class="stat"><b>${hhmm(j.inicio)}</b><span>Hora de inicio</span></div><div class="stat"><b>${hhmm(j.fin)}</b><span>Hora de fin</span></div>
       <div class="stat"><b>${(j.km||0).toFixed(2)}</b><span>Km</span></div><div class="stat"><b>${num(cirs.length)}</b><span>Cirugías</span></div>
@@ -394,7 +394,7 @@ function geoCirugia(j,regs,pts,ahora,archivoFotos){
       hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),inicio:j.inicio,fin:j.fin,km:+(j.km||0).toFixed(3),...(j.resumen_paradas||{}),
       ordenes:(j.ordenes||[]).map(o=>({id:o.id,orden:o.orden,palma_id:o.palma_id,lote:o.lote,linea:o.linea,palma:o.palma,diagnostico:o.diagnostico,vence:o.vence,estado:o.estado,registro:o.registro||null})),
       cirugias:cirs.length,correcciones:regs.filter(r=>r.origen==='correccion').length,casos_nuevos:regs.filter(r=>r.tipo==='diagnostico'&&r.origen==='caso_nuevo').length,marcas:regs.filter(r=>r.tipo==='marca').length,
-      fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
+      fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],...bateriaCab(j),app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
     features:feats};
 }
 /* El botón INICIAR elige la labor; el panel superior muestra la ruta de cirugía. */

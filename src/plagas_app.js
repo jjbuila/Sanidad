@@ -249,7 +249,7 @@ async function finalizarPlg(){
   if(VOZ.activa)alternarVoz();pantallaEncendida(false);gpsFondo(false);actualizarJornadaUI();actualizarPlgUI();dibujarLotes();
   hablar(MSJ_FIN,true);try{avisoJornada(false);}catch(e){}
   const ms=regs.filter(r=>r.tipo==='monitoreo');
-  abrirHoja('Monitoreo de plagas finalizado',`
+  abrirHoja('Monitoreo de plagas finalizado',`${lineaBateria(j)}
     <div class="stats"><div class="stat"><b>${hhmm(j.inicio)}</b><span>Hora de inicio</span></div><div class="stat"><b>${hhmm(j.fin)}</b><span>Hora de fin</span></div>
       <div class="stat"><b>${(j.km||0).toFixed(2)}</b><span>Km</span></div><div class="stat"><b>${num(ms.length)}</b><span>Palmas registradas</span></div>
       <div class="stat"><b>${num(ms.filter(r=>r.dano).length)}</b><span>Con daño</span></div><div class="stat"><b>${num(pend)}</b><span>Sin registrar</span></div></div>
@@ -264,7 +264,7 @@ function geoPlagas(j,regs,pts,ahora,archivoFotos){
   g.jornada={id:j.id,labor:'plagas',evaluador:j.evaluador,usuario:j.usuario,dispositivo:j.dispositivo,fecha:fechaLocal(j.inicio),hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),inicio:j.inicio,fin:j.fin,
     km:+(j.km||0).toFixed(3),...(j.resumen_paradas||{}),lotes_muestreo:j.lotes_muestreo,unidades:j.unidades||[],
     muestra:(j.muestra||[]).map(m=>({palma_id:m.palma_id,lote:m.lote,linea:m.linea,palma:m.palma,muestreo:m.muestreo,estado:m.estado,registro:m.registro||null})),
-    palmas_registradas:ms.length,con_dano:ms.filter(r=>r.dano).length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
+    palmas_registradas:ms.length,con_dano:ms.filter(r=>r.dano).length,fotos:new Set(regs.flatMap(r=>r.fotos||[])).size,archivo_fotos:archivoFotos||null,equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],...bateriaCab(j),app:'Sanidad Vegetal '+VERSION,sincronizado:ahora};
   return g;
 }
 /* El botón INICIAR: panel de la labor en curso o elección de labor. */

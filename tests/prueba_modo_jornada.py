@@ -15,6 +15,7 @@ def check(n, c, x=''):
 
 STUB = """
 window.__jor={llam:[],cb:{},fijada:false};
+window.__bat={level:.9,charging:false};navigator.getBattery=async()=>({get level(){return __bat.level},get charging(){return __bat.charging},addEventListener(){}});
 const L=n=>(...a)=>Promise.resolve({abierto:true,display:'granted'});
 const P=new Proxy({},{get:(o,k)=>k==='then'?undefined:L(String(k))});
 window.Capacitor={isNativePlatform:()=>true,isPluginAvailable:()=>false,Plugins:{
@@ -85,7 +86,11 @@ with sync_playwright() as p:
     check('Con un formulario u hoja abierta no entra solo en ahorro', not vis('#ahorro'))
     pg.evaluate("cerrarHoja()")
     # Finalizar: se libera todo
+    jid = pg.evaluate("S.jornada.id"); pg.evaluate("__bat.level=.72")
     pg.evaluate("async()=>{await finalizarJornada();}"); time.sleep(1.2)
+    bt = pg.evaluate(f"async()=>{{const j=await dbGet('jornadas','{jid}');const g=geoJornada(j,[],await puntosTrack(j.id),new Date().toISOString(),null);return {{b:j.bateria,h:[g.jornada.bateria_inicio_pct,g.jornada.bateria_fin_pct,g.jornada.bateria_consumo_pct]}};}}")
+    check('Batería al inicio y al fin de la jornada (y en la jornada enviada)', bt['b'] and bt['b']['inicio']['nivel'] == 90 and bt['b']['fin']['nivel'] == 72 and bt['h'] == [90, 72, 18], bt)
+    check('El resumen final muestra la batería', '90→72 %' in pg.evaluate("document.querySelector('#hojaCuerpo').innerText"))
     check('Al finalizar se libera la App y vuelve «Datos»', ['terminar'] in pg.evaluate("__jor.llam") and vis('#btBD') and not vis('#btAhorro') and not pg.evaluate("document.body.classList.contains('en-jornada')"))
     pg.evaluate("cerrarHoja();menu()"); time.sleep(.4)
     check('El menú completo vuelve después de la jornada', pg.evaluate("document.querySelectorAll('#hojaCuerpo .menu-grid .mosaico').length") > 6)
