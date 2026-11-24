@@ -1034,7 +1034,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261123:2001</div>
+  <div id="splashVer">VERSIÓN 20261124:1336</div>
 </div>
 
 <div id="login" hidden>
@@ -1049,7 +1049,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261123:2001</div>
+  <div id="lgVer2">VERSIÓN 20261124:1336</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1173,7 +1173,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261123:2001';
+const VERSION='20261124:1336';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -1980,7 +1980,7 @@ function datosAhorro(){
 async function entrarAhorro(motivo){
   if(AH.on||!S.jornada)return;
   AH.on=true;$('#ahorro').hidden=false;datosAhorro();clearInterval(AH.tmr);AH.tmr=setInterval(datosAhorro,15000);
-  try{const n=jorNat();if(n)await n.ahorro({on:true});}catch(e){}
+  try{const n=jorNat();if(n)await n.ahorro({on:true});}catch(e){} // brillo bajo (en la APK 1.0.10 no queda totalmente negro)
 }
 async function salirAhorro(motivo){
   if(!AH.on)return;
@@ -2016,8 +2016,10 @@ async function modoJornada(on){
   if(on){tocarPantalla();
     if(n){try{
       if(!MJ.subs.length){MJ.subs.push(await n.addListener('pantallaApagada',()=>entrarAhorro('encendido')));MJ.subs.push(await n.addListener('desbloquear',()=>salirAhorro('volumen')));}
-      const r=await n.iniciar({fijar:true});
-      setTimeout(async()=>{try{const e=await n.estado();if(MJ.on&&!e.fijada)toast('Confirme «Fijar la app» para que la jornada no se pueda cerrar. Si no aparece, active «Fijar aplicaciones» en Ajustes › Seguridad.',7000);}catch(x){}},9000);
+      const j=S.jornada,pedir=!!j&&!j.fijarPedido; // se pide fijar la App UNA sola vez por jornada (nunca se insiste)
+      if(pedir){j.fijarPedido=true;try{await dbPut('jornadas',j);}catch(x){}}
+      await n.iniciar({fijar:pedir});
+      if(pedir)setTimeout(async()=>{try{const e=await n.estado();if(MJ.on&&!e.fijada)toast('La App no quedó fijada. Para fijarla active «Fijar aplicaciones» en Ajustes › Seguridad (o Privacidad) antes de la próxima jornada.',7000);}catch(x){}},9000);
     }catch(e){}}
   }else{
     await salirAhorro('fin');
@@ -2026,8 +2028,13 @@ async function modoJornada(on){
 }
 /* Se activa y desactiva solo con la jornada (todas las labores pasan por actualizarJornadaUI). */
 {const _u=actualizarJornadaUI;actualizarJornadaUI=function(){const r=_u.apply(this,arguments);modoJornada(!!S.jornada);return r;};}
-/* Si la App vuelve a primer plano con la jornada activa, se vuelve a fijar (por si la desfijaron). */
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&MJ.on){tocarPantalla();const n=jorNat();if(n)n.iniciar({fijar:true}).catch(()=>{});}});
+/* Al volver a primer plano NO se vuelve a pedir fijar la App: en Xiaomi la confirmación de Android pausa la App y,
+   al volver, se pedía otra vez (ciclo de pantalla negra hasta que la App se cerraba). */
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&MJ.on)tocarPantalla();});
+/* Al abrir la App sin jornada activa se libera cualquier estado de una jornada anterior (App fijada, brillo, registro nativo). */
+setTimeout(async()=>{if(S.jornada||(S.cfg&&S.cfg.jornadaActiva))return;
+  const n=jorNat();if(n){try{const e=await n.estado();if(e&&(e.activa||e.fijada))await n.terminar();}catch(x){}}
+  if(recDisponible()){try{const e=await NAT.rec.estado();if(e&&e.activo)await NAT.rec.detener();}catch(x){}}},8000);
 
 /* ---------- Pantalla encendida ---------- */
 let bloqueoPantalla=null;

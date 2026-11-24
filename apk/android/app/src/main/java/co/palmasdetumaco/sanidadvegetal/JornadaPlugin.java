@@ -34,6 +34,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class JornadaPlugin extends Plugin {
     private static volatile JornadaPlugin instancia;
     static volatile boolean activa = false, ahorro = false;
+    private static long ultimoPin = 0; // la fijación se pide como máximo una vez cada 10 minutos (nunca en ciclo)
     private BroadcastReceiver receptor;
     private final Handler h = new Handler(Looper.getMainLooper());
     private Runnable volumen2s;
@@ -71,7 +72,11 @@ public class JornadaPlugin extends Plugin {
         activa = true;
         enUi(() -> {
             mostrarSobreBloqueo(true);
-            if (fijar && !fijada()) { try { getActivity().startLockTask(); } catch (Exception ignored) { } }
+            long ahora = System.currentTimeMillis();
+            if (fijar && !fijada() && ahora - ultimoPin > 10L * 60_000L) {
+                ultimoPin = ahora;
+                try { getActivity().startLockTask(); } catch (Exception ignored) { }
+            }
         });
         if (receptor == null) {
             receptor = new BroadcastReceiver() {
@@ -134,7 +139,7 @@ public class JornadaPlugin extends Plugin {
     public void ahorro(PluginCall call) {
         boolean on = call.getBoolean("on", false);
         ahorro = on;
-        enUi(() -> ponerBrillo(on ? 0.01f : -1f));
+        enUi(() -> ponerBrillo(on ? 0.06f : -1f)); // bajo pero visible (en algunos Xiaomi 0,01 deja la pantalla totalmente negra)
         call.resolve();
     }
 
