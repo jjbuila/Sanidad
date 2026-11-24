@@ -3543,6 +3543,10 @@ function enPlantacion(lat,lng){
 /* Motivo por el que no se puede iniciar la jornada aquí (null = sí se puede). */
 function motivoNoIniciar(){
   if(!S.plantacion)return null;
+  if(SES&&SES.rol==='superadmin'){ // el super administrador hace las pruebas: es el único que puede iniciar por fuera de la plantación
+    const r=S.gps?enPlantacion(S.gps.lat,S.gps.lng):null;
+    if(!r||!(r.dentro||r.dist<=Math.min(25,Math.max(5,Number(S.gps.acc)||0))))toast('Super administrador: jornada de prueba por fuera de la plantación.',4500);
+    return null;}
   if(!S.gps)return 'Esperando señal GPS para verificar que usted está dentro de la plantación. Intente de nuevo en unos segundos.';
   const r=enPlantacion(S.gps.lat,S.gps.lng),tol=Math.min(25,Math.max(5,Number(S.gps.acc)||0));
   if(r.dentro||r.dist<=tol)return null;

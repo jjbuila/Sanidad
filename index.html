@@ -1034,7 +1034,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261123:0925</div>
+  <div id="splashVer">VERSIÓN 20261123:2001</div>
 </div>
 
 <div id="login" hidden>
@@ -1049,7 +1049,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261123:0925</div>
+  <div id="lgVer2">VERSIÓN 20261123:2001</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1173,7 +1173,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261123:0925';
+const VERSION='20261123:2001';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -4312,6 +4312,10 @@ function enPlantacion(lat,lng){
 /* Motivo por el que no se puede iniciar la jornada aquí (null = sí se puede). */
 function motivoNoIniciar(){
   if(!S.plantacion)return null;
+  if(SES&&SES.rol==='superadmin'){ // el super administrador hace las pruebas: es el único que puede iniciar por fuera de la plantación
+    const r=S.gps?enPlantacion(S.gps.lat,S.gps.lng):null;
+    if(!r||!(r.dentro||r.dist<=Math.min(25,Math.max(5,Number(S.gps.acc)||0))))toast('Super administrador: jornada de prueba por fuera de la plantación.',4500);
+    return null;}
   if(!S.gps)return 'Esperando señal GPS para verificar que usted está dentro de la plantación. Intente de nuevo en unos segundos.';
   const r=enPlantacion(S.gps.lat,S.gps.lng),tol=Math.min(25,Math.max(5,Number(S.gps.acc)||0));
   if(r.dentro||r.dist<=tol)return null;

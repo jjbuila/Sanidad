@@ -80,6 +80,11 @@ with sync_playwright() as p:
     g = pg.evaluate("""async()=>{await iniciarJornada([{lote:'IT01'}],'Operario Uno');const a=!!S.jornada;await iniciarCirugia('cirujano',{cirujano:{u:'a',nombre:'A'},auxiliar:{u:'b',nombre:'B'}},null,'2026-11-14');return {censo:a,cir:!!S.jornada};}""")
     check('iniciarJornada / iniciarCirugia no crean jornada por fuera', not g['censo'] and not g['cir'], g)
     # Sin polígono cargado: no hay restricción
+    pg.evaluate("SES.rol='admin'"); t, c = intentar(LEJOS)
+    check('Administrador por fuera: tampoco puede iniciar', t == 'No se puede iniciar la jornada', t)
+    pg.evaluate("SES.rol='superadmin'"); t, c = intentar(LEJOS)
+    check('Super administrador por fuera: sí puede iniciar (pruebas) y se le avisa', t != 'No se puede iniciar la jornada' and 'jornada de prueba' in pg.evaluate("document.querySelector('#toast').textContent"), t)
+    pg.evaluate("SES.rol='operario'")
     pg.evaluate("S.plantacion=null"); t, c = intentar(LEJOS)
     check('Sin polígono cargado: no restringe', t != 'No se puede iniciar la jornada', t)
     check('Sin errores de JavaScript', not errores, errores[:4])
