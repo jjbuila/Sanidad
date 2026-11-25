@@ -1034,7 +1034,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261124:1357</div>
+  <div id="splashVer">VERSIÓN 20261125:1601</div>
 </div>
 
 <div id="login" hidden>
@@ -1049,7 +1049,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261124:1357</div>
+  <div id="lgVer2">VERSIÓN 20261125:1601</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1173,7 +1173,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261124:1357';
+const VERSION='20261125:1601';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -2355,16 +2355,39 @@ function proponer(E,cands,t,nuevos){
   for(const c of cands){const q=c.q;if(E.set.has(q.id))continue;
     // Terrazas (lotes terraza y sectores terraza de lotes mixtos): sin confirmación de recorrido; cuenta toda palma dentro del buffer y del polígono.
     if(c.key.endsWith('|T')){E.prov.delete(q.id);marcarVisita(E,c.l,q,nuevos,t);continue;}
-    const ab=E.abiertas.get(c.key);if(ab!=null&&t-ab<=RUN_ABIERTA){E.abiertas.set(c.key,t);marcarVisita(E,c.l,q,nuevos,t);continue;}
+    const dq=Math.hypot(q.x-c.sx,q.y-c.sy),pd=E.pd||(E.pd=new Map());if(!(pd.get(q.id)<=dq))pd.set(q.id,dq); // distancia mínima del recorrido a la palma
+    const ab=E.abiertas.get(c.key);if(ab!=null&&t-ab<=RUN_ABIERTA){E.abiertas.set(c.key,t);marcarVisita(E,c.l,q,nuevos,t);rescatarPunta(E,c.l,q,nuevos,t);continue;}
     if(E.prov.has(q.id))continue;
     let r=E.runs.get(c.key);if(!r)E.runs.set(c.key,r={l:c.l,qs:[],ult:t,tot:c.tot,a0:Infinity,a1:-Infinity,x0:c.sx,y0:c.sy,dmax:0});
-    r.qs.push([q,t]);r.ult=t;E.prov.add(q.id);
+    r.qs.push([q,t]);r.ult=t;
+    if(contiguaVisitada(E,c.l,q)&&pd.get(q.id)<=Math.max(E.buffer||5,E.bufTer||5)){(E.resc||(E.resc=new Set())).add(q.id);marcarVisita(E,c.l,q,nuevos,t);} // punta de la calle con la palma contigua de su línea ya trabajada (sigue contando para confirmar la calle)
+    else E.prov.add(q.id);
     // avance del operario: a lo largo de la calle (proyección sobre la dirección de las líneas) o, en terrazas, distancia recorrida
     if(c.ux!=null){const a=c.sx*c.ux+c.sy*c.uy;if(a<r.a0)r.a0=a;if(a>r.a1)r.a1=a;}else r.dmax=Math.max(r.dmax,Math.hypot(c.sx-r.x0,c.sy-r.y0));
     const avance=c.ux!=null?r.a1-r.a0:r.dmax;
     if((r.qs.length>=3&&avance>=RUN_LARGO&&(c.ux!=null||r.qs.length>=RUN_MIN))||(r.tot<=RUN_MIN+1&&r.qs.length>=Math.max(2,Math.ceil(r.tot*.8)))){ // calle confirmada: el operario está trabajando
-      E.abiertas.set(c.key,t);E.runs.delete(c.key);for(const [qq,tt] of r.qs){E.prov.delete(qq.id);marcarVisita(E,r.l,qq,nuevos,tt);}}
+      E.abiertas.set(c.key,t);E.runs.delete(c.key);for(const [qq,tt] of r.qs){E.prov.delete(qq.id);marcarVisita(E,r.l,qq,nuevos,tt);}
+      for(const [qq,tt] of r.qs)rescatarPunta(E,r.l,qq,nuevos,tt);}
   }
+}
+/* Palmas del inicio (y del final) de la calle. Al entrar o salir de una calle por la cabecera, el GPS pasa un momento entre las
+   puntas de las líneas y la primera palma queda en espera en una «calle» equivocada (la vecina); mientras está en espera no puede
+   sumarse a la calle real y a los 90 s se descartaba. Ahora: cuando una palma de una línea se confirma, las palmas contiguas de esa
+   MISMA línea (hasta 2 hacia cada lado) que estén en espera y que el recorrido pasó a <= buffer (dentro del polígono) también se
+   cuentan. Por una vía o un sendero no se marca nada solo: hace falta que la palma contigua de la línea se haya trabajado en la calle. */
+function contiguaVisitada(E,l,q){
+  if(q.ln==null||q.p==null)return false;const g=E.grids.get(l),ln=g&&g.lineas&&g.lineas.get(q.ln);if(!ln||!ln.porP)return false;
+  const rs=E.resc||(E.resc=new Set());
+  for(const d of [1,-1])for(let s=1;s<=2;s++){const a=ln.porP.get(q.p+d*s);if(!a)break;
+    if(E.set.has(a.id)){if(!rs.has(a.id))return true;continue;} // una palma confirmada en la calle (no una rescatada) a 1 o 2 posiciones
+    break;}
+  return false;}
+function rescatarPunta(E,l,q,nuevos,t){
+  if(q.ln==null||q.p==null||(E.resc&&E.resc.has(q.id)))return;const g=E.grids.get(l),ln=g&&g.lineas&&g.lineas.get(q.ln);if(!ln||!ln.porP)return;
+  const B=Math.max(E.buffer||5,E.bufTer||5);
+  for(const d of [1,-1])for(let s=1;s<=2;s++){const z=ln.porP.get(q.p+d*s);if(!z)break;if(E.set.has(z.id))continue;
+    if(!E.prov.has(z.id)||!(E.pd&&E.pd.get(z.id)<=B))break;
+    E.prov.delete(z.id);(E.resc||(E.resc=new Set())).add(z.id);marcarVisita(E,l,z,nuevos,t);} // sigue en su tramo en espera: cuenta para confirmar esa calle si el operario la trabaja
 }
 function cerrarVisita(E){for(const r of E.runs.values())for(const [q] of r.qs)E.prov.delete(q.id);E.runs.clear();} // fin de jornada: lo pendiente es desplazamiento final
 function lotesCercanos(ax,ay,bx,by,B){
