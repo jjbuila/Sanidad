@@ -881,7 +881,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261125:1601</div>
+    <div id="lgVer">VERSIÓN 20261126:1336</div>
   </div>
 </div>
 
@@ -977,7 +977,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261125:1601';
+const VERSION='20261126:1336';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -2169,7 +2169,8 @@ function pintarPanel(){
       <h3>Diagnósticos por estado</h3>${barraEstados()}
       <h3>Enfermedades más frecuentes (enfermedad principal)</h3>${barraProblemas()}
       ${comp.length?`<h3>Método por calle frente a buffer</h3><div class="tenue" style="font-size:13px">En ${num(comp.length)} jornada(s) con comparativo: por calle <b style="color:var(--texto)">${num(pc)}</b> palmas; buffer <b style="color:var(--texto)">${num(pb)}</b> palmas (${pb?(pc>=pb?'+':'')+num(100*(pc-pb)/pb,1)+' %':'—'}).</div>`:''}
-      <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn mini" id="xGeo">⬇ GeoJSON filtrado</button><button class="btn mini" id="xJor">⬇ CSV jornadas</button><button class="btn mini" id="xDiag">⬇ CSV diagnósticos</button></div>`;
+      <div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn mini" id="xGeo">⬇ GeoJSON filtrado</button><button class="btn mini" id="xJor">⬇ CSV jornadas</button><button class="btn mini" id="xDiag">⬇ CSV diagnósticos</button><button class="btn mini prim" id="xSecX">⬇ Excel secuencias</button></div>`;
+    $('#xSecX').onclick=()=>xlsxSecuencias().catch(e=>alert('No se pudo generar el Excel: '+e.message));
     $('#xGeo').onclick=()=>descargar(`sanidad_${$('#fDesde').value}_${$('#fHasta').value}.geojson`,JSON.stringify(geoDeJornadas(JORF)),'application/geo+json');
     $('#xJor').onclick=()=>csvJornadas();$('#xDiag').onclick=()=>csvDiag();
   }else if(TAB==='jornadas'){
@@ -2188,7 +2189,8 @@ function pintarPanel(){
     const s=k=>filas.reduce((a,x)=>a+(Number(x[k])||0),0);
     P.innerHTML=`<div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><b>${minHM(s('tot'))}</b><span>Tiempo total</span></div><div class="kpi"><b>${minHM(s('par'))}</b><span>Paradas</span></div><div class="kpi"><b style="color:var(--acento)">${minHM(s('efe'))}</b><span>Tiempo efectivo</span></div></div>
       <div class="tenue" style="margin-bottom:6px;font-size:12.5px">Cada bloque de trabajo en un lote abre una secuencia (1 RI01, 2 RI02, 3 RI01…). <b>Desplazamiento inicial</b>: del inicio de la jornada a la primera calle trabajada. <b>Desplazamiento entre lotes</b>: se suma a la secuencia del lote al que llega y cuenta como efectivo. <b>Desplazamiento final</b>: de la última palma al fin de la jornada. T. efectivo = T. total − paradas. Tiempos en horas:minutos. Toque una fila para ver la jornada.</div>`+t.html+
-      `<div style="margin-top:10px"><button class="btn mini" id="xSec">⬇ CSV secuencias</button></div>`;
+      `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn mini prim" id="xSecX">⬇ Excel secuencias</button><button class="btn mini" id="xSec">⬇ CSV secuencias</button></div>`;
+    $('#xSecX').onclick=()=>xlsxSecuencias().catch(e=>alert('No se pudo generar el Excel: '+e.message));
     $('#xSec').onclick=()=>csv(`secuencias_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['fecha','usuario','evaluador','sec','tipo','lote','ini','ini_lab','fin','desp','lab','tot','par','efe','km','vel','palmas','ha','diag'],filas.map(x=>({...x,sec:x.sec||'',vel:x.vel==null?'':x.vel})));
   }else if(TAB==='operarios'){
     const t=tabla('tOp',[{k:'evaluador',t:'Operario'},{k:'jornadas',t:'Jorn.',n:1},{k:'secs',t:'Sec.',n:1},{k:'min',t:'T. total',n:1,f:x=>minHM(x.min)},{k:'min_par',t:'Paradas',n:1,f:x=>minHM(x.min_par)},{k:'min_efe',t:'T. efectivo',n:1,f:x=>'<b>'+minHM(x.min_efe)+'</b>'},{k:'d_ini',t:'Despl. inicial',n:1,f:x=>minHM(x.d_ini)},{k:'d_ent',t:'Despl. entre lotes',n:1,f:x=>minHM(x.d_ent)},{k:'d_fin',t:'Despl. final',n:1,f:x=>minHM(x.d_fin)},{k:'km',t:'Km',n:1,f:x=>num(x.km,2)},{k:'vel',t:'Vel. km/h',n:1,f:x=>x.vel==null?'—':num(x.vel,1)},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'ha_dia',t:'Ha/día',n:1,f:x=>num(x.ha_dia,2)},{k:'palmas',t:'Palmas',n:1,f:x=>num(x.palmas)},{k:'diag',t:'Diag.',n:1},{k:'lotes',t:'Lotes',n:1}],
@@ -2208,6 +2210,59 @@ function marcarFila(){if(TAB==='jornadas')pintarPanel();}
 function descargar(nombre,contenido,tipo){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([contenido],{type:tipo}));a.download=nombre;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
 function csv(nombre,cols,filas){const q=v=>{if(v==null)return '';const s=typeof v==='number'?String(v).replace('.',','):String(v);return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
   descargar(nombre,'﻿'+cols.join(';')+'\r\n'+filas.map(f=>cols.map(c=>q(f[c])).join(';')).join('\r\n'),'text/csv;charset=utf-8');}
+/* ---------- Excel (.xlsx) sin librerías externas (usa JSZip, ya incluido) ----------
+   hojas: [{nombre, cols:[{t:título, k:clave, f:'txt'|'hm'|'n0'|'n1'|'n2', w:ancho}], filas:[{...}], gris:fila=>bool}]
+   'hm' = minutos → horas:minutos de Excel (sumables). Encabezado fijo con autofiltro. */
+async function xlsx(nombre,hojas){
+  const X=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'');
+  const col=i=>{let s='';i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+  const EST={txt:0,hm:2,n0:3,n1:4,n2:5}; // estilos (cellXfs): 1 encabezado; +5 = versión gris (desplazamientos)
+  const z=new JSZip();
+  z.file('[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${hojas.map((h,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`);
+  z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  z.file('xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${hojas.map((h,i)=>`<sheet name="${X(h.nombre.slice(0,31))}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets><definedNames>${hojas.map((h,i)=>`<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${X(h.nombre.slice(0,31))}'!$A$1:$${col(h.cols.length-1)}$${h.filas.length+1}</definedName>`).join('')}</definedNames></workbook>`);
+  z.file('xl/_rels/workbook.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${hojas.map((h,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${hojas.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+  const xf=(n,f,font)=>`<xf numFmtId="${n}" fontId="${font||0}" fillId="${f||0}" borderId="0" applyNumberFormat="1"${font?' applyFont="1"':''}${f?' applyFill="1"':''}/>`;
+  z.file('xl/styles.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="[h]:mm"/><numFmt numFmtId="165" formatCode="#,##0.0"/></numFmts><fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><i/><sz val="11"/><color rgb="FF6B6B6B"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0F3D2E"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="11">${xf(0)}${xf(0,2,1)}${xf(164)}${xf(3)}${xf(165)}${xf(4)}${xf(0,0,2)}${xf(164,0,2)}${xf(3,0,2)}${xf(165,0,2)}${xf(4,0,2)}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`);
+  hojas.forEach((h,i)=>{
+    const filas=[`<row r="1">${h.cols.map((c,k)=>`<c r="${col(k)}1" t="inlineStr" s="1"><is><t>${X(c.t)}</t></is></c>`).join('')}</row>`];
+    h.filas.forEach((f,n)=>{const r=n+2,g=h.gris&&h.gris(f)?5:0;
+      filas.push(`<row r="${r}">${h.cols.map((c,k)=>{const v=f[c.k],ref=col(k)+r,tipo=c.f||'txt';
+        if(v==null||v==='')return '';
+        if(tipo!=='txt'&&typeof v==='number'&&isFinite(v))return `<c r="${ref}" s="${(tipo==='txt'?0:EST[tipo])+g}"><v>${tipo==='hm'?v/1440:v}</v></c>`;
+        return `<c r="${ref}" t="inlineStr" s="${g?6:0}"><is><t xml:space="preserve">${X(v)}</t></is></c>`;}).join('')}</row>`);});
+    z.file(`xl/worksheets/sheet${i+1}.xml`,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${h.cols.map((c,k)=>`<col min="${k+1}" max="${k+1}" width="${c.w||12}" customWidth="1"/>`).join('')}</cols><sheetData>${filas.join('')}</sheetData><autoFilter ref="A1:${col(h.cols.length-1)}${h.filas.length+1}"/></worksheet>`);
+  });
+  const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nombre;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+}
+/* Secuencias de todas las jornadas filtradas (fechas, programa, operario, lote): desplazamiento inicial, cada lote con su secuencia
+   (con su desplazamiento entre lotes) y desplazamiento final; más un resumen por jornada y por lote. */
+async function xlsxSecuencias(){
+  const filas=filasSecuencias().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha))||String(a.evaluador).localeCompare(String(b.evaluador))||String(a._j.id).localeCompare(String(b._j.id))||a.orden-b.orden);
+  if(!filas.length){alert('No hay secuencias con los filtros actuales.');return;}
+  const N=v=>v==null||v===''?null:Number(v);
+  const sec=filas.map(x=>({fecha:x.fecha,op:x.evaluador,usuario:x.usuario,jornada:x._j.id,sec:x.sec||null,tipo:x.tipo==='lote'?'Lote':(ETQ_TIPO[x.tipo]||'Desplazamiento'),lote:x.tipo==='lote'?x.lote:'',
+    ini:x.ini||'',ini_lab:x.tipo==='lote'?x.ini_lab||'':'',fin:x.fin||'',desp:x.tipo==='lote'?x.desp:null,lab:x.tipo==='lote'?x.lab:null,tot:x.tot,par:x.par,efe:x.efe,km:N(x.km),vel:N(x.vel),palmas:N(x.palmas),ha:N(x.ha),diag:x.diag,_d:x.tipo!=='lote'}));
+  const pj=new Map();
+  for(const x of filas){const j=x._j;let r=pj.get(j.id);if(!r)pj.set(j.id,r={fecha:j.fecha,op:j.evaluador,usuario:j.usuario,jornada:j.id,ini:j.hora_inicio,fin:j.hora_fin,secs:0,lotes:[],d_ini:0,d_ent:0,d_fin:0,lab:0,tot:0,par:0,efe:0,km:0,palmas:0,ha:0,diag:0});
+    if(x.tipo==='lote'){r.secs++;if(!r.lotes.includes(x.lote))r.lotes.push(x.lote);r.d_ent+=x.desp;r.lab+=x.lab;r.palmas+=Number(x.palmas)||0;r.ha+=Number(x.ha)||0;}
+    else if(x.tipo==='desplazamiento_inicial')r.d_ini+=x.tot;else if(x.tipo==='desplazamiento_final')r.d_fin+=x.tot;else r.d_ent+=x.tot;
+    r.tot+=x.tot;r.par+=x.par;r.efe+=x.efe;r.km+=Number(x.km)||0;r.diag+=x.diag||0;}
+  const jor=[...pj.values()].map(r=>({...r,lotes:r.lotes.join(' → '),km:+r.km.toFixed(3),ha:+r.ha.toFixed(2)}));
+  const pl=new Map();
+  for(const x of filas){if(x.tipo!=='lote')continue;let r=pl.get(x.lote);if(!r)pl.set(x.lote,r={lote:x.lote,secs:0,jor:new Set(),ops:new Set(),desp:0,lab:0,tot:0,par:0,efe:0,km:0,palmas:0,ha:0,diag:0});
+    r.secs++;r.jor.add(x._j.id);r.ops.add(x.usuario);r.desp+=x.desp;r.lab+=x.lab;r.tot+=x.tot;r.par+=x.par;r.efe+=x.efe;r.km+=Number(x.km)||0;r.palmas+=Number(x.palmas)||0;r.ha+=Number(x.ha)||0;r.diag+=x.diag||0;}
+  const lot=[...pl.values()].sort((a,b)=>ordenNat(a.lote,b.lote)).map(r=>({...r,jor:r.jor.size,ops:r.ops.size,km:+r.km.toFixed(3),ha:+r.ha.toFixed(2),pal_h:r.efe>=1?+(r.palmas/(r.efe/60)).toFixed(1):null}));
+  const hm=(k,t,w)=>({k,t,f:'hm',w:w||11});
+  await xlsx(`secuencias_${$('#fDesde').value}_${$('#fHasta').value}.xlsx`,[
+    {nombre:'Secuencias',gris:f=>f._d,filas:sec,cols:[{k:'fecha',t:'Fecha',w:11},{k:'op',t:'Operario',w:30},{k:'usuario',t:'Usuario',w:12},{k:'jornada',t:'Jornada',w:22},{k:'sec',t:'Sec.',f:'n0',w:6},{k:'tipo',t:'Tipo',w:22},{k:'lote',t:'Lote',w:8},
+      {k:'ini',t:'Inicio',w:8},{k:'ini_lab',t:'Inicio labor',w:11},{k:'fin',t:'Fin',w:8},hm('desp','Despl. entre lotes',15),hm('lab','T. labor'),hm('tot','T. total'),hm('par','Paradas'),hm('efe','T. efectivo'),{k:'km',t:'Km',f:'n2',w:8},{k:'vel',t:'Vel. km/h',f:'n1',w:9},{k:'palmas',t:'Palmas',f:'n0',w:9},{k:'ha',t:'Ha',f:'n2',w:8},{k:'diag',t:'Diag.',f:'n0',w:7}]},
+    {nombre:'Por jornada',filas:jor,cols:[{k:'fecha',t:'Fecha',w:11},{k:'op',t:'Operario',w:30},{k:'usuario',t:'Usuario',w:12},{k:'jornada',t:'Jornada',w:22},{k:'ini',t:'Inicio',w:8},{k:'fin',t:'Fin',w:8},{k:'secs',t:'Secuencias',f:'n0',w:10},{k:'lotes',t:'Orden de lotes',w:30},
+      hm('d_ini','Despl. inicial',13),hm('d_ent','Despl. entre lotes',15),hm('d_fin','Despl. final',12),hm('lab','T. labor en lotes',15),hm('tot','T. total'),hm('par','Paradas'),hm('efe','T. efectivo'),{k:'km',t:'Km',f:'n2',w:8},{k:'palmas',t:'Palmas',f:'n0',w:9},{k:'ha',t:'Ha',f:'n2',w:8},{k:'diag',t:'Diag.',f:'n0',w:7}]},
+    {nombre:'Por lote',filas:lot,cols:[{k:'lote',t:'Lote',w:8},{k:'secs',t:'Secuencias',f:'n0',w:10},{k:'jor',t:'Jornadas',f:'n0',w:9},{k:'ops',t:'Operarios',f:'n0',w:9},hm('desp','Despl. entre lotes',15),hm('lab','T. labor'),hm('tot','T. total'),hm('par','Paradas'),hm('efe','T. efectivo'),
+      {k:'km',t:'Km',f:'n2',w:8},{k:'palmas',t:'Palmas',f:'n0',w:9},{k:'ha',t:'Ha',f:'n2',w:8},{k:'pal_h',t:'Palmas/hora efectiva',f:'n1',w:18},{k:'diag',t:'Diag.',f:'n0',w:7}]}]);
+}
 function csvJornadas(){csv(`jornadas_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['id','fecha','usuario','evaluador','hora_inicio','hora_fin','duracion_min','km','ha','palmas','diagnosticos','n_paradas','min_paradas','velocidad_kmh','inicio_labor','fin_labor','min_despl_inicial','min_despl_entre_lotes','min_despl_final','metodo','palmas_buffer','lotes'],
   JORF.map(j=>({id:j.id,fecha:j.fecha,usuario:j.usuario,evaluador:j.evaluador,hora_inicio:j.hora_inicio,hora_fin:j.hora_fin,duracion_min:j.duracion_min,km:j.km,ha:j.ha,palmas:j.palmas,diagnosticos:j.diags.length,n_paradas:j.n_paradas,min_paradas:j.min_paradas,velocidad_kmh:j.vel==null?'':j.vel,inicio_labor:(j.tiempos||{}).hora_inicio_labor||'',fin_labor:(j.tiempos||{}).hora_fin_labor||'',min_despl_inicial:(j.tiempos||{}).min_desplazamiento_inicial??'',min_despl_entre_lotes:(j.tiempos||{}).min_desplazamiento_entre_lotes??'',min_despl_final:(j.tiempos||{}).min_desplazamiento_final??'',metodo:j.metodo,palmas_buffer:j.comp?j.comp.palmas_visitadas:'',lotes:[...j.lotes].sort(ordenNat).join(',')})));}
 function csvDiag(){const cols=['id','jornada_id','fecha','creado','evaluador','lote','linea','palma','palma_id','estado','estado_nombre','rama','n1_codigo','nivel1','nivel2','nivel3','sintomas','estado_hongo','cirugia','produccion','raices_buenas','transitabilidad','observaciones','problemas','grado_pc','severidad','accion','n_fotos','fotos','lat','lng','dist_gps_palma_m'];
