@@ -46,6 +46,7 @@ html = html.replace('__APPLOGO__', 'data:image/svg+xml;base64,' + b64(os.path.jo
 html = html.replace('__ISO__', 'data:image/png;base64,' + b64(os.path.join(MARCA, 'isotipo_256.png')))
 html = html.replace('/*CIRUGIA_APP_JS*/', leer(os.path.join(RAIZ, 'src', 'cirugia_app.js')), 1)
 html = html.replace('/*ERRADICACION_APP_JS*/', leer(os.path.join(RAIZ, 'src', 'erradicacion_app.js')), 1)
+html = html.replace('/*RELOJ_APP_JS*/', leer(os.path.join(RAIZ, 'src', 'reloj_app.js')), 1)
 html = html.replace('/*MARCACION_APP_JS*/', leer(os.path.join(RAIZ, 'src', 'marcacion_app.js')), 1)
 html = html.replace('/*PLAGAS_APP_JS*/', leer(os.path.join(RAIZ, 'src', 'plagas_app.js')), 1)
 html = html.replace('/*HOJA_VIDA_APP_JS*/', leer(os.path.join(RAIZ, 'src', 'hoja_vida_app.js')), 1)

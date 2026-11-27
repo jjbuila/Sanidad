@@ -487,6 +487,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
 <script>/*LIB_JSZIP*/</script>
 <script>
 'use strict';
+/*RELOJ_APP_JS*/
 /* =====================================================================
    SANIDAD VEGETAL 2.0 — Palmas de Tumaco S.A.S.
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
@@ -1036,6 +1037,7 @@ function recEncolar(arr){
   if(!arr||!arr.length)return REC.cola;
   REC.cola=REC.cola.then(async()=>{let n=0;
     for(const p of arr){if(!S.jornada||S.jornada.id!==REC.jid)break;const t=Number(p.t);if(!(t>recUltimo()))continue;REC.ult=t;
+      if(p.off!=null)relojAjustar(p.off,'gps'); // hora real del GPS (APK 1.0.12+)
       const g={lat:Number(p.lat),lng:Number(p.lng),acc:Number(p.acc)||99,t,nat:1};S.gps=g;try{await registrarPunto(g);}catch(e){}n++;}
     if(n){if(document.visibilityState==='visible'){try{pintarGPS();if(S.seguir)centrarOperario();}catch(e){}}try{guiaGPS();}catch(e){}}
   }).catch(()=>{});
@@ -2928,7 +2930,7 @@ function geoJornada(j,regs,pts,ahora,archivoFotos){
   return {type:'FeatureCollection',name:'jornada_'+j.id,
     jornada:{id:j.id,evaluador:j.evaluador,usuario:j.usuario||'',dispositivo:j.dispositivo||S.cfg.dispositivo,fecha:fechaLocal(j.inicio),
       hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),duracion_min:j.fin?Math.round((Date.parse(j.fin)-Date.parse(j.inicio))/60000):null,inicio:j.inicio,fin:j.fin,
-      km:+(j.km||0).toFixed(3),...(j.visita||{}),...(j.resumen_paradas||{}),secuencias:j.secuencias||[],tiempos:j.tiempos||null,velocidad_kmh:j.tiempos?j.tiempos.velocidad_kmh:null,lotes_seleccionados:j.seleccion,...(j.metodoVisita==='marcacion'?{buffer_marcacion_m:Number(j.bufferMarcacion)||4.5,marcacion:tramosCab(j)}:{}),transitabilidad_lotes:transitCab(j),acumulado_lineas:j.acumulado||[],errores_cierre:j.errores_cierre||[],cierre:j.cierre||null,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
+      km:+(j.km||0).toFixed(3),...(j.visita||{}),...(j.resumen_paradas||{}),secuencias:j.secuencias||[],tiempos:j.tiempos||null,velocidad_kmh:j.tiempos?j.tiempos.velocidad_kmh:null,lotes_seleccionados:j.seleccion,...(j.metodoVisita==='marcacion'?{buffer_marcacion_m:Number(j.bufferMarcacion)||4.5,marcacion:tramosCab(j)}:{}),transitabilidad_lotes:transitCab(j),reloj_desfase_min:j.reloj?j.reloj.max_min:null,reloj_fuente:j.reloj?j.reloj.fuente:(RELOJ.fuente||null),acumulado_lineas:j.acumulado||[],errores_cierre:j.errores_cierre||[],cierre:j.cierre||null,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
       archivo_fotos:archivoFotos||null,cartografia:j.carto_version||'',equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],...bateriaCab(j),app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
     features:feats};
 }

@@ -2,8 +2,15 @@ package co.palmasdetumaco.sanidadvegetal;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.annotation.SuppressLint;
+import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -37,6 +44,57 @@ public class RecorridoPlugin extends Plugin {
 
     @Override
     public void load() { instancia = this; }
+
+    /**
+     * Hora real del GPS: devuelve el desfase del reloj del celular (off, ms; positivo = el celular está atrasado).
+     * Usa el último dato del GPS si tiene menos de 2 minutos; si no, pide uno (máximo 25 s).
+     */
+    @SuppressLint("MissingPermission")
+    @PluginMethod
+    public void reloj(PluginCall call) {
+        LocationManager lm = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+        if (lm == null) { call.reject("sin_gps"); return; }
+        try {
+            Location u = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            if (u != null && RecorridoService.horaGpsValida(u.getTime()) && (SystemClock.elapsedRealtimeNanos() - u.getElapsedRealtimeNanos()) / 1_000_000L < 120_000L) {
+                call.resolve(respuestaReloj(u)); return;
+            }
+        } catch (SecurityException e) { call.reject("sin_permiso"); return; } catch (Exception ignored) { }
+        final boolean[] hecho = {false};
+        final Handler h = new Handler(Looper.getMainLooper());
+        final LocationListener ls = new LocationListener() {
+            @Override public void onLocationChanged(Location l) {
+                if (hecho[0] || !RecorridoService.horaGpsValida(l.getTime())) return;
+                hecho[0] = true; try { lm.removeUpdates(this); } catch (Exception ignored) { }
+                call.resolve(respuestaReloj(l));
+            }
+            @Override public void onStatusChanged(String p, int s, Bundle b) { }
+            @Override public void onProviderEnabled(String p) { }
+            @Override public void onProviderDisabled(String p) { }
+        };
+        try { lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, ls, Looper.getMainLooper()); }
+        catch (SecurityException e) { call.reject("sin_permiso"); return; }
+        catch (Exception e) { call.reject("sin_gps"); return; }
+        h.postDelayed(() -> {
+            if (hecho[0]) return;
+            hecho[0] = true; try { lm.removeUpdates(ls); } catch (Exception ignored) { }
+            JSObject r = new JSObject();
+            r.put("ok", false);
+            long d = RecorridoService.desfaseGps;
+            if (d != Long.MIN_VALUE) { r.put("off", d); r.put("ok", true); r.put("previo", true); }
+            call.resolve(r);
+        }, 25_000L);
+    }
+
+    private static JSObject respuestaReloj(Location l) {
+        long off = RecorridoService.desfaseDe(l);
+        RecorridoService.desfaseGps = off;
+        JSObject r = new JSObject();
+        r.put("ok", true);
+        r.put("off", off);
+        r.put("gps", l.getTime());
+        return r;
+    }
 
     static void emitir(JSONObject o) {
         RecorridoPlugin p = instancia;

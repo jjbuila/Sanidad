@@ -882,7 +882,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261127:0211</div>
+    <div id="lgVer">VERSIÓN 20261127:0255</div>
   </div>
 </div>
 
@@ -978,7 +978,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261127:0211';
+const VERSION='20261127:0255';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1920,6 +1920,7 @@ function bloqueMarcacionJ(j){const h=j.header||{};const er=h.errores_cierre||[];
     (tr.length?`<h3 style="margin-top:6px">Transitabilidad</h3>${htmlTransit(tr,false)}`:'')+
     (ac.length?`<h3 style="margin-top:6px">Acumulado por línea</h3>${htmlAcumulado(ac)}`:'')+
     (er.length?`<div class="aviso" style="margin-top:8px">⚠️ Al finalizar la jornada ${er.length===1?'un paso falló':er.length+' pasos fallaron'} (la jornada se cerró igual): ${esc(er.map(x=>x.paso+': '+x.error).join('; '))}</div>`:'')+
+    (h.reloj_desfase_min!=null&&Math.abs(h.reloj_desfase_min)>=10?`<div class="aviso" style="margin-top:8px">⚠️ La fecha u hora del celular estaba ${h.reloj_desfase_min>0?'atrasada':'adelantada'} ${num(Math.abs(h.reloj_desfase_min))} min; los datos se registraron con la hora real (${h.reloj_fuente==='gps'?'GPS':'servidor'}).</div>`:'')+
     (h.cierre&&h.cierre.modo==='volumen'?'<div class="tenue" style="font-size:12px">Finalizada con el botón de volumen (10 s).</div>':'');}
 function abrirDetalle(j){
   if(REP.on)detenerRep();

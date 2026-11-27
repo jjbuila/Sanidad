@@ -149,6 +149,13 @@ Desde ese momento el operario trabaja **sin internet**: abre la aplicación, que
 - **Bajar volumen sostenido 10 s (APK 1.0.11):** finaliza la jornada aunque la pantalla esté bloqueada, sin confirmación. Vibra al empezar, a los 5 s y al finalizar.
 - **Acumulado por línea:** al finalizar se muestra, por cada línea de cada lote, las palmas visitadas, los diagnósticos y su conteo **por enfermedad principal** y **por estado**, más los totales por enfermedad y por estado. Va en el reporte de la jornada (`acumulado_lineas`) y en el visor (detalle de la jornada y pestaña *Lotes*, con CSV).
 
+### Fecha y hora reales (GPS)
+- Todo se registra con la **fecha y hora reales**, no con las del celular: inicio y fin de la jornada, puntos del recorrido, diagnósticos, marcación y transitabilidad.
+- **APK 1.0.12 en adelante:** la hora sale del **GPS (satélites)**: al abrir la App, cada 5 minutos y con cada punto del recorrido. El recorrido nativo guarda la hora del GPS aunque el celular tenga otra.
+- **Sin GPS o en el navegador:** se usa la hora del servidor cuando hay internet.
+- **Alerta:** si el celular está **adelantado o atrasado más de 10 minutos**, sale un aviso rojo fijo con la fecha y hora del GPS y cómo corregirla (*Ajustes › Fecha y hora › Fecha y hora automáticas*). **No bloquea la labor**: se puede seguir trabajando normal y todo se guarda con la fecha y hora del GPS. A los 10 s queda como un indicador pequeño con la fecha y hora del GPS y el desfase (tocándolo se ve completa); voz y vibración una sola vez.
+- Si la jornada empezó antes de conocer la hora real, su hora de inicio se corrige sola. El desfase queda en el reporte de la jornada (`reloj_desfase_min`, `reloj_fuente`) y el visor lo avisa en el detalle de la jornada.
+
 ### Palmas visitadas y hectáreas recorridas (automático)
 - **Qué cuenta (método por calle, anterior):** la aplicación identifica en qué **calle** está el operario, es decir, entre qué **par de líneas** camina, y cuenta como **visitadas** las palmas de **esas dos líneas** a la altura por donde pasa (media distancia entre palmas hacia adelante y hacia atrás). No hace falta que el operario las marque; el diagnóstico se registra solo para la sanidad.
 - **Cómo identifica la calle:** cada ~2 m del recorrido busca la línea más cercana (distancia perpendicular a la línea, no a la palma) y luego la línea vecina del mismo lote que queda del lado del operario. Si el operario va casi encima de una línea (menos de 1,5 m), conserva la calle anterior para evitar saltos por ruido del GPS. En el borde del lote, donde no hay línea vecina, cuenta solo la línea del borde. Si el operario está a más de 6 m de cualquier línea (vías, canales, zonas sin palma), no cuenta nada.

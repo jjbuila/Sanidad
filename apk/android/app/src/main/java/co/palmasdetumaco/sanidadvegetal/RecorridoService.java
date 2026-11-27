@@ -20,6 +20,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.os.SystemClock;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.speech.tts.TextToSpeech;
@@ -51,6 +52,21 @@ public class RecorridoService extends Service implements LocationListener {
 
     static volatile RecorridoService vivo;
     static volatile long ultimoFix = 0, ultimoLatido = 0;
+    /** Desfase del reloj del celular frente a la hora del GPS (ms; positivo = el celular está atrasado). Long.MIN_VALUE = sin dato. */
+    static volatile long desfaseGps = Long.MIN_VALUE;
+
+    /** Hora del GPS plausible (algunos chips viejos devuelven fechas de hace 20 años por el reinicio de la semana GPS). */
+    static boolean horaGpsValida(long t) { return t > 1704067200000L && t < 4102444800000L; } // entre 2024 y 2100
+
+    /** Desfase (hora GPS − hora del celular en el momento del dato), con la edad del dato según el reloj monotónico. */
+    static long desfaseDe(Location l) {
+        long edad = Build.VERSION.SDK_INT >= 17 ? (SystemClock.elapsedRealtimeNanos() - l.getElapsedRealtimeNanos()) / 1_000_000L : 0;
+        if (edad < 0) edad = 0;
+        return l.getTime() - (System.currentTimeMillis() - edad);
+    }
+
+    /** Hora real: la del celular corregida con el último desfase del GPS. */
+    static long ahoraReal() { long d = desfaseGps; return System.currentTimeMillis() + (d == Long.MIN_VALUE ? 0 : d); }
 
     private PowerManager.WakeLock bloqueo;
     private Writer escritor;
@@ -75,7 +91,7 @@ public class RecorridoService extends Service implements LocationListener {
         if (j == null) return;
         try {
             JSONObject o = extra != null ? extra : new JSONObject();
-            o.put("t", System.currentTimeMillis());
+            o.put("t", ahoraReal());
             o.put("e", e);
             try (Writer w = new OutputStreamWriter(new FileOutputStream(archivoEventos(c, j), true), StandardCharsets.UTF_8)) {
                 w.write(o.toString());
@@ -241,7 +257,11 @@ public class RecorridoService extends Service implements LocationListener {
     @Override
     public void onLocationChanged(Location l) {
         long ahora = System.currentTimeMillis();
-        long t = l.getTime() > 0 && Math.abs(ahora - l.getTime()) < 120_000L ? l.getTime() : ahora;
+        // Hora real del GPS (no la del celular, que puede estar desfasada): el registro queda con la fecha y hora reales.
+        boolean gpsOk = LocationManager.GPS_PROVIDER.equals(l.getProvider()) && horaGpsValida(l.getTime());
+        long off = gpsOk ? desfaseDe(l) : (desfaseGps == Long.MIN_VALUE ? 0 : desfaseGps);
+        if (gpsOk) desfaseGps = off;
+        long t = gpsOk ? l.getTime() : ahora + off;
         ultimoFix = ahora;
         ultimoLatido = ahora;
         if (enAlerta) {
@@ -252,6 +272,7 @@ public class RecorridoService extends Service implements LocationListener {
         try {
             JSONObject o = new JSONObject();
             o.put("t", t);
+            o.put("off", off);
             o.put("lat", l.getLatitude());
             o.put("lng", l.getLongitude());
             o.put("acc", l.hasAccuracy() ? Math.round(l.getAccuracy() * 10) / 10.0 : 99);
