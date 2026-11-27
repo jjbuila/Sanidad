@@ -1034,7 +1034,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261125:1601</div>
+  <div id="splashVer">VERSIÓN 20261127:0211</div>
 </div>
 
 <div id="login" hidden>
@@ -1049,7 +1049,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261125:1601</div>
+  <div id="lgVer2">VERSIÓN 20261127:0211</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1173,7 +1173,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261125:1601';
+const VERSION='20261127:0211';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -1356,7 +1356,7 @@ const S={
   lotes:null,palmas:null,idx:new Map(),registros:[],ultimo:new Map(),hechos:new Map(),marcadores:new Map(),
   gps:null,seguir:false,jornada:null,plan:[],planAbierto:false,planModo:'nueva',
   cfg:{evaluador:'',dispositivo:'',base:'dron',urlPropia:'teselas/{z}/{x}/{y}.png',zmaxPropia:20,
-    umbralVoz:2,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:5,bufferTerraza:8,radioSel:20,metodoVisita:'calle',paramVer:7,paradaRadio:20,paradaMin:5,soloWifi:false,esperaSync:2,jornadaActiva:null,
+    umbralVoz:2,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:5,bufferTerraza:8,radioSel:20,metodoVisita:'marcacion',bufferMarcacion:4.5,paramVer:8,paradaRadio:20,paradaMin:5,soloWifi:false,esperaSync:2,jornadaActiva:null,
     gh:{owner:'jjbuila',repo:'Sanidad-datos',rama:'main',token:''}}
 };
 let CARTO={version:'',lotes:{}};
@@ -2036,7 +2036,7 @@ async function modoJornada(on){
   const n=jorNat();
   if(on){tocarPantalla();bateriaInicio(S.jornada).catch(()=>{});
     if(n){try{
-      if(!MJ.subs.length){MJ.subs.push(await n.addListener('pantallaApagada',()=>entrarAhorro('encendido')));MJ.subs.push(await n.addListener('desbloquear',()=>salirAhorro('volumen')));}
+      if(!MJ.subs.length){MJ.subs.push(await n.addListener('pantallaApagada',()=>entrarAhorro('encendido')));MJ.subs.push(await n.addListener('desbloquear',()=>salirAhorro('volumen')));MJ.subs.push(await n.addListener('finalizar',()=>finalizarPorVolumen()));}
       const j=S.jornada,pedir=!!j&&!j.fijarPedido; // se pide fijar la App UNA sola vez por jornada (nunca se insiste)
       if(pedir){j.fijarPedido=true;try{await dbPut('jornadas',j);}catch(x){}}
       await n.iniciar({fijar:pedir});
@@ -2047,6 +2047,13 @@ async function modoJornada(on){
     if(n){try{await n.terminar();}catch(e){}}
   }
 }
+/* Bajar volumen sostenido 10 s (APK): finaliza la jornada aunque la pantalla esté bloqueada. La APK vibra al empezar, a los 5 s y al finalizar. */
+async function finalizarPorVolumen(){
+  const j=S.jornada;if(!j)return;
+  if(!esLaborRuta(j))return finalizarJornada('volumen');
+  const f={cirugia:typeof finalizarCirugia==='function'?finalizarCirugia:null,erradicacion:typeof finalizarErr==='function'?finalizarErr:null,plagas:typeof finalizarPlg==='function'?finalizarPlg:null}[j.labor];
+  try{salirAhorro('fin');}catch(e){}
+  if(f)return f();toast('Finalice la labor con su botón.',4000);}
 /* Se activa y desactiva solo con la jornada (todas las labores pasan por actualizarJornadaUI). */
 {const _u=actualizarJornadaUI;actualizarJornadaUI=function(){const r=_u.apply(this,arguments);modoJornada(!!S.jornada);return r;};}
 /* Al volver a primer plano NO se vuelve a pedir fijar la App: en Xiaomi la confirmación de Android pausa la App y,
@@ -2056,6 +2063,196 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 setTimeout(async()=>{if(S.jornada||(S.cfg&&S.cfg.jornadaActiva))return;
   const n=jorNat();if(n){try{const e=await n.estado();if(e&&(e.activa||e.fijada))await n.terminar();}catch(x){}}
   if(recDisponible()){try{const e=await NAT.rec.estado();if(e&&e.activo)await NAT.rec.detener();}catch(x){}}},8000);
+
+/* =====================================================================
+   Marcación por lote, transitabilidad por lote y cierre de la jornada por pasos (jornada de censo de sanidad)
+   (build.py lo inserta en index.html)
+   · Entrada al lote programado = 3 puntos GPS seguidos dentro de su polígono.
+   · Primera entrada al lote: se pregunta la transitabilidad (Transitable / Poco transitable / No transitable), una sola vez.
+   · Lotes con líneas: la marcación es obligatoria: ▶ MARCAR (o decir «marcar»). No hay «Todavía no»; si cierran la ventana, vuelve a salir.
+     Cuenta desde la entrada al lote. Termina sola a los 90 s fuera del lote, con ■ MARCANDO (mantener 2 s) o diciendo
+     «finalizar marcación», o sola al finalizar la jornada. Al volver a entrar al lote, pide marcar otra vez.
+   · Cada tramo se guarda con lote, hora de entrada, hora de marcación, hora de fin, minutos y cómo inició y terminó.
+   ===================================================================== */
+const MK={cand:null,dentro:null,fuera:null,cerrado:0,aviso:new Set(),dlg:null};
+const MK_N=3,MK_SALIDA=90000,MK_REABRIR=6000;
+const TRANSITS=['Transitable','Poco transitable','No transitable'];
+const esMarcacionJ=j=>!!j&&j.metodoVisita==='marcacion'&&!(typeof esLaborRuta==='function'&&esLaborRuta(j));
+/* Marcación de la jornada para el cálculo de palmas visitadas. vivo: mismo arreglo (la jornada en curso lo va completando). */
+function marcaDe(j,vivo){
+  if(!j||j.metodoVisita!=='marcacion')return null;const m=j.marcacion||(j.marcacion={tramos:[]});
+  const fin=j.fin?Date.parse(j.fin):null;
+  return {tramos:vivo?m.tramos:m.tramos.map(t=>({...t,fin:t.fin??fin})),buf:Number(j.bufferMarcacion)||4.5};}
+function loteProg(lat,lng){const l=loteDe(lat,lng);if(!l||!S.jornada)return '';return S.jornada.seleccion.some(x=>String(x.lote)===l)?l:'';}
+async function necesitaMarca(l){try{if(!CARTO.lotes[l])return false;const g=await indiceVisita(l);return g.tipo!=='terraza';}catch(e){return false;}}
+const tramoAbierto=j=>{const t=j&&j.marcacion&&j.marcacion.tramos;if(!t)return null;for(let i=t.length-1;i>=0;i--)if(t[i].fin==null)return t[i];return null;};
+const guardarJ=()=>{try{if(S.jornada)dbPut('jornadas',S.jornada);}catch(e){}};
+
+/* Se llama con cada punto del recorrido, antes de calcular las palmas visitadas. */
+async function marcaPunto(p){
+  const j=S.jornada;if(!esMarcacionJ(j))return;
+  const ab=tramoAbierto(j);if(!MK.dentro&&ab)MK.dentro=ab.lote; // la App se reabrió con un tramo abierto
+  const l=loteProg(p.lat,p.lng);
+  if(l){if(MK.cand&&MK.cand.l===l)MK.cand.n++;else MK.cand={l,n:1,t0:p.t};}else MK.cand=null;
+  if(MK.dentro){if(l===MK.dentro)MK.fuera=null;else if(!MK.fuera)MK.fuera={t:p.t};}
+  if(l&&MK.cand&&MK.cand.n>=MK_N&&MK.dentro!==l){
+    if(MK.dentro)salirLote(MK.fuera?MK.fuera.t:p.t,'salida'); // pasó directo a otro lote programado
+    await entrarLote(l,MK.cand.t0);}
+  revisarSalida(p.t);
+  mkPintar();
+}
+function revisarSalida(t){if(MK.dentro&&MK.fuera&&t-MK.fuera.t>=MK_SALIDA)salirLote(MK.fuera.t,'salida');}
+setInterval(()=>{if(S.jornada&&MK.fuera)revisarSalida(Date.now());},5000);
+function salirLote(tfin,modo){
+  const j=S.jornada,tr=tramoAbierto(j);
+  if(tr&&String(tr.lote)===String(MK.dentro))cerrarTramo(tr,modo,tfin);
+  MK.dentro=null;MK.fuera=null;mkPintar();}
+async function entrarLote(l,t0){
+  const j=S.jornada;MK.dentro=l;MK.fuera=null;
+  j.transit=j.transit||{};const primera=!j.transit[l];
+  if(primera)j.transit[l]={valor:null,entrada:t0};
+  const marca=await necesitaMarca(l);
+  if(marca){const prev=tramoAbierto(j);if(!(prev&&String(prev.lote)===l))j.marcacion.tramos.push({lote:l,ini:t0,marca:null,fin:null,inicio_modo:null,fin_modo:null});}
+  guardarJ();
+  if(primera||marca){try{salirAhorro('marcacion');}catch(e){}
+    pitido(660,160);setTimeout(()=>pitido(880,160),220);try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(e){}
+    hablar(`Entró al lote ${paraVoz(l)}.${primera?' Indique la transitabilidad.':''}${marca?' Toque marcar, o diga marcar.':''}`,true);}
+  MK.cerrado=0;mkPintar();
+}
+function cerrarTramo(tr,modo,fin){
+  tr.fin=fin;tr.fin_modo=modo;
+  if(tr.marca==null&&VIS&&VIS.pend)for(const [id,x] of VIS.pend)if(String(x.l)===String(tr.lote)&&x.t>=tr.ini)VIS.pend.delete(id); // no marcó: lo recorrido no cuenta
+  guardarJ();
+}
+async function mkIniciar(modo){
+  const j=S.jornada,tr=tramoAbierto(j);if(!tr||tr.marca!=null)return false;
+  tr.marca=Date.now();tr.inicio_modo=modo||'boton';
+  if(VIS){const nv=[];resolverPendientes(VIS,tr,nv);if(nv.length){nv.forEach(repintarPalma);actualizarVisitaUI();}}
+  guardarJ();MK.cerrado=0;mkPintar();
+  toast(`▶ Marcando el lote ${tr.lote}. Cuenta desde la entrada (${hhmm(tr.ini)}).`,3500);hablar(`Marcación iniciada en el lote ${paraVoz(tr.lote)}.`,true);
+  try{navigator.vibrate&&navigator.vibrate(120);}catch(e){}
+  return true;}
+function mkFinalizar(modo){
+  const j=S.jornada,tr=tramoAbierto(j);if(!tr||tr.marca==null)return false;
+  cerrarTramo(tr,modo||'boton',Date.now());mkPintar();
+  toast(`■ Marcación finalizada en el lote ${tr.lote}.`,3000);hablar(`Marcación finalizada en el lote ${paraVoz(tr.lote)}.`,true);return true;}
+function mkTransit(v){
+  const j=S.jornada,l=MK.dentro;if(!j||!l||!j.transit||!j.transit[l])return;
+  j.transit[l].valor=v;j.transit[l].hora=Date.now();guardarJ();MK.cerrado=0;mkPintar();}
+/* Transitabilidad del lote (la heredan los diagnósticos del lote). */
+function transitDe(l){const j=S.jornada;const t=j&&j.transit&&j.transit[String(l)];return t&&t.valor||'';}
+
+/* ---------- Interfaz: ventana obligatoria y botón ▶ MARCAR / ■ MARCANDO ---------- */
+(function(){
+  const st=document.createElement('style');
+  st.textContent=`#mkDlg{position:fixed;inset:0;z-index:21000;background:rgba(2,10,7,.72);display:flex;align-items:flex-end;justify-content:center;padding:14px;backdrop-filter:blur(3px)}
+#mkDlg[hidden]{display:none}
+#mkDlg .mk-card{width:min(460px,100%);background:#0b2219;border:1px solid rgba(34,211,154,.35);border-radius:22px;padding:18px 16px 16px;box-shadow:0 20px 60px rgba(0,0,0,.5);position:relative}
+#mkDlg .mk-x{position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:var(--texto);font-size:18px}
+#mkDlg h2{font-family:var(--t);letter-spacing:1px;font-size:21px;margin:0 30px 4px 0;color:var(--texto)}
+#mkDlg p{margin:4px 0 12px;color:var(--tenue,#9fb8ad);font-size:14px}
+#mkDlg .mk-lote{display:inline-block;background:rgba(34,211,154,.14);color:var(--acento);border-radius:9px;padding:2px 9px;font-weight:800}
+#mkDlg .mk-op{display:flex;flex-direction:column;gap:9px}
+#mkDlg .mk-op button{min-height:58px;border-radius:16px;font-size:18px;font-weight:800;font-family:var(--t);letter-spacing:.6px;border:1px solid rgba(255,255,255,.12);color:var(--texto);background:rgba(255,255,255,.05)}
+#mkDlg .mk-op button.t0{border-color:#22d39a;color:#22d39a}#mkDlg .mk-op button.t1{border-color:#e8a33d;color:#e8a33d}#mkDlg .mk-op button.t2{border-color:#ef5350;color:#ef5350}
+#mkDlg .mk-marcar{min-height:84px!important;font-size:26px!important;background:linear-gradient(135deg,#22d39a,#0fa877)!important;color:#03140d!important;border:0!important}
+#mkPill{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--sup,0px) + var(--hud,56px) + 62px);z-index:960;border:0;border-radius:999px;padding:9px 18px;font-family:var(--t);font-weight:800;letter-spacing:.8px;font-size:15px;box-shadow:0 6px 20px rgba(0,0,0,.4);white-space:nowrap}
+#mkPill[hidden]{display:none}
+#mkPill.on{background:#ef5350;color:#fff}#mkPill.pend{background:#e8a33d;color:#1a1100;animation:mkLat 1.2s infinite}
+#mkPill small{display:block;font-size:10.5px;font-weight:600;letter-spacing:.3px;opacity:.85}
+@keyframes mkLat{50%{transform:translateX(-50%) scale(1.06)}}
+#finPasos{list-style:none;padding:0;margin:8px 0}#finPasos li{display:flex;gap:10px;align-items:center;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.06);font-size:14.5px}
+#finPasos li i{width:22px;text-align:center;font-style:normal}#finPasos li.ok i{color:#22d39a}#finPasos li.err i{color:#ef5350}#finPasos li.run{color:var(--texto);font-weight:700}#finPasos li.pend{opacity:.55}
+#finPasos li small{margin-left:auto;color:#ef5350;font-size:12px;max-width:55%;text-align:right}
+.acu-t{width:100%;border-collapse:collapse;font-size:12.5px;margin:4px 0 10px}.acu-t th,.acu-t td{padding:4px 5px;border-bottom:1px solid rgba(255,255,255,.07);text-align:left;vertical-align:top}.acu-t th{color:var(--acento);font-weight:700}.acu-t td.n{text-align:right}
+.acu-chips{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 10px}.acu-chips span{background:rgba(255,255,255,.06);border-radius:9px;padding:3px 8px;font-size:12.5px}`;
+  document.head.appendChild(st);
+  const d=document.createElement('div');d.id='mkDlg';d.hidden=true;d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');
+  d.innerHTML='<div class="mk-card"><button class="mk-x" type="button" aria-label="Cerrar">✕</button><div id="mkCuerpo"></div></div>';
+  document.body.appendChild(d);
+  d.querySelector('.mk-x').onclick=()=>{MK.cerrado=Date.now();d.hidden=true;MK.dlg=null;};
+  const b=document.createElement('button');b.id='mkPill';b.type='button';b.hidden=true;document.body.appendChild(b);
+  b.onclick=()=>{const tr=tramoAbierto(S.jornada);if(tr&&tr.marca==null)mkIniciar('boton');};
+  // ■ MARCANDO: mantener 2 s para finalizar la marcación (evita toques accidentales)
+  let t=null;const soltar=()=>{if(t){clearTimeout(t);t=null;b.style.opacity='';}};
+  b.addEventListener('pointerdown',()=>{const tr=tramoAbierto(S.jornada);if(!tr||tr.marca==null)return;b.style.opacity='.6';try{navigator.vibrate&&navigator.vibrate(30);}catch(e){}
+    t=setTimeout(()=>{t=null;b.style.opacity='';mkFinalizar('boton');},2000);});
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,soltar));
+  setInterval(()=>{if(S.jornada&&!b.hidden)mkPintar();},15000);
+})();
+function mkPintar(){
+  const j=S.jornada,dlg=$('#mkDlg'),pill=$('#mkPill');if(!dlg||!pill)return;
+  if(MK.dlg==='confirmar')return; // hay una confirmación abierta
+  if(!esMarcacionJ(j)){dlg.hidden=true;pill.hidden=true;MK.dlg=null;return;}
+  const tr=tramoAbierto(j),l=MK.dentro;
+  // botón flotante
+  if(tr&&tr.marca!=null){pill.hidden=false;pill.className='on';pill.innerHTML=`■ MARCANDO ${esc(tr.lote)} · ${fmtDur(Date.now()-tr.ini).slice(0,5)}<small>Mantenga 2 s para finalizar</small>`;}
+  else if(tr&&tr.marca==null&&String(tr.lote)===String(l)){pill.hidden=false;pill.className='pend';pill.innerHTML=`▶ MARCAR ${esc(tr.lote)}<small>Marcación obligatoria</small>`;}
+  else pill.hidden=true;
+  // ventana obligatoria: primero la transitabilidad, luego la marcación
+  let que=null;
+  if(l&&j.transit&&j.transit[l]&&!j.transit[l].valor)que='transit';
+  else if(tr&&tr.marca==null&&String(tr.lote)===String(l))que='marcar';
+  if(!que){dlg.hidden=true;MK.dlg=null;return;}
+  if(!dlg.hidden&&MK.dlg===que+'|'+l)return;
+  if(MK.cerrado&&Date.now()-MK.cerrado<MK_REABRIR)return; // la cerraron: vuelve a salir en unos segundos
+  MK.dlg=que+'|'+l;MK.cerrado=0;
+  const c=$('#mkCuerpo');
+  if(que==='transit'){
+    c.innerHTML=`<h2>Transitabilidad del lote</h2><p>Lote <span class="mk-lote">${esc(l)}</span> · entrada ${hhmm(j.transit[l].entrada)}. Se pregunta una sola vez por lote; la heredan los diagnósticos del lote.</p>
+      <div class="mk-op">${TRANSITS.map((x,i)=>`<button type="button" class="t${i}" data-v="${esc(x)}">${esc(x)}</button>`).join('')}</div>`;
+    c.querySelectorAll('button[data-v]').forEach(x=>x.onclick=()=>mkTransit(x.dataset.v));
+  }else{
+    c.innerHTML=`<h2>Marcación obligatoria</h2><p>Entró al lote <span class="mk-lote">${esc(l)}</span> a las ${hhmm(tr.ini)}. Inicie la marcación: cuenta desde la entrada, todas las palmas a ${String(Number(j.bufferMarcacion)||4.5).replace('.',',')} m o menos de su recorrido.</p>
+      <div class="mk-op"><button type="button" class="mk-marcar" id="mkMarcar">▶ MARCAR</button></div><p style="margin:10px 0 0;font-size:12.5px">También puede decir <b>«marcar»</b> (con la voz activada).</p>`;
+    $('#mkMarcar').onclick=()=>mkIniciar('boton');
+  }
+  try{salirAhorro('marcacion');}catch(e){}
+  dlg.hidden=false;
+}
+/* Con la ventana de marcación abierta no entra solo el modo ahorro. */
+{const _e=entrarAhorro;entrarAhorro=function(m){const d=$('#mkDlg');if(m==='auto'&&d&&!d.hidden)return;return _e.apply(this,arguments);};}
+
+/* ---------- Tablas para la App: marcación, transitabilidad y acumulado por línea ---------- */
+const MODO_TXT={boton:'Botón',voz:'Voz',salida:'Salió del lote (90 s)',jornada:'Fin de la jornada',volumen:'Volumen'};
+function tramosCab(j){return ((j.marcacion&&j.marcacion.tramos)||[]).map(t=>{const fin=t.fin??(j.fin?Date.parse(j.fin):null);
+  return {lote:t.lote,hora_entrada:hhmm(t.ini),hora_inicio:t.marca!=null?hhmm(t.marca):'',hora_fin:fin?hhmm(fin):'',minutos:fin&&t.marca!=null?+((fin-t.ini)/60000).toFixed(1):0,
+    marcado:t.marca!=null,inicio:t.marca!=null?(t.inicio_modo||'boton'):'sin_marcar',fin_modo:t.fin_modo||(j.fin?'jornada':''),entrada:new Date(t.ini).toISOString(),fin_iso:fin?new Date(fin).toISOString():null};});}
+function transitCab(j){return Object.entries(j.transit||{}).map(([l,t])=>({lote:l,transitabilidad:t.valor||'',hora_entrada:hhmm(t.entrada),entrada:new Date(t.entrada).toISOString()})).sort((a,b)=>a.entrada.localeCompare(b.entrada));}
+function tablaMarcacion(j){const ts=tramosCab(j);if(!ts.length)return '<p class="tenue">Sin tramos de marcación.</p>';
+  return `<table class="acu-t"><tr><th>Lote</th><th>Entrada</th><th>Inicio</th><th>Fin</th><th>Min</th><th>Cómo inició</th><th>Cómo terminó</th></tr>${ts.map(t=>`<tr><td><b>${esc(t.lote)}</b></td><td>${t.hora_entrada}</td><td>${t.hora_inicio||'—'}</td><td>${t.hora_fin||'—'}</td><td class="n">${t.marcado?num(t.minutos,1):'—'}</td><td>${t.marcado?esc(MODO_TXT[t.inicio]||t.inicio):'<b style="color:#ef5350">No marcó</b>'}</td><td>${esc(MODO_TXT[t.fin_modo]||t.fin_modo||'—')}</td></tr>`).join('')}</table>`;}
+function tablaTransit(j){const ts=transitCab(j);if(!ts.length)return '<p class="tenue">Sin lotes con transitabilidad.</p>';
+  return `<table class="acu-t"><tr><th>Lote</th><th>Transitabilidad</th><th>Entrada</th></tr>${ts.map(t=>`<tr><td><b>${esc(t.lote)}</b></td><td>${esc(t.transitabilidad||'Sin responder')}</td><td>${t.hora_entrada}</td></tr>`).join('')}</table>`;}
+/* Acumulado por línea de cada lote: palmas visitadas, existentes, diagnósticos por enfermedad principal y por estado. */
+function acumuladoLineas(E,regs){
+  const m=new Map();const lin=v=>v==null||v===''?'T':(isNaN(v)?String(v):Number(v));
+  const fila=(l,ln)=>{const k=l+'|'+ln;let r=m.get(k);if(!r)m.set(k,r={lote:String(l),linea:ln,palmas:0,existentes:0,diagnosticos:0,enf:{},est:{}});return r;};
+  if(E&&E.qv)for(const [id,[q,l]] of E.qv){if(!E.set.has(id))continue;const r=fila(l,q.ln==null?'T':q.ln);r.palmas++;if(q.e)r.existentes++;}
+  for(const x of regs||[]){const r=fila(x.lote||'—',lin(x.linea));r.diagnosticos++;const c=x.n1_codigo||'—';r.enf[c]=(r.enf[c]||0)+1;const e=x.estado||'—';r.est[e]=(r.est[e]||0)+1;}
+  const k=v=>v==='T'?1e9:typeof v==='number'?v:1e8;
+  return [...m.values()].sort((a,b)=>ordenNat(a.lote,b.lote)||k(a.linea)-k(b.linea));}
+const nomEstado=e=>{try{const x=estadoDe(e);return x&&x.n||e;}catch(_){return e;}};
+const txtConteo=(o,f)=>Object.entries(o||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${f?f(k):k} ${v}`).join(' · ');
+function tablaAcumulado(acu){
+  if(!acu||!acu.length)return '<p class="tenue">Sin palmas ni diagnósticos.</p>';
+  const tot={enf:{},est:{}};for(const r of acu){for(const [k,v] of Object.entries(r.enf))tot.enf[k]=(tot.enf[k]||0)+v;for(const [k,v] of Object.entries(r.est))tot.est[k]=(tot.est[k]||0)+v;}
+  const lotes=[...new Set(acu.map(r=>r.lote))];
+  return `<div class="tenue" style="font-size:12.5px;margin-top:4px">Por enfermedad principal</div><div class="acu-chips">${Object.keys(tot.enf).length?Object.entries(tot.enf).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span><b>${esc(k)}</b> ${v}</span>`).join(''):'<span>Sin diagnósticos</span>'}</div>
+    <div class="tenue" style="font-size:12.5px">Por estado</div><div class="acu-chips">${Object.keys(tot.est).length?Object.entries(tot.est).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span>${esc(nomEstado(k))} <b>${v}</b></span>`).join(''):'<span>Sin diagnósticos</span>'}</div>`+
+    lotes.map(l=>{const rs=acu.filter(r=>r.lote===l);const sp=rs.reduce((a,r)=>a+r.palmas,0),sd=rs.reduce((a,r)=>a+r.diagnosticos,0);
+      return `<div style="margin-top:6px"><b>Lote ${esc(l)}</b> <span class="tenue">· ${num(sp)} palmas · ${num(sd)} diagnósticos</span></div>
+      <table class="acu-t"><tr><th>Línea</th><th>Palmas</th><th>Diag.</th><th>Enfermedad</th><th>Estado</th></tr>${rs.map(r=>`<tr><td>${r.linea==='T'?'Terraza':esc(r.linea)}</td><td class="n">${num(r.palmas)}</td><td class="n">${num(r.diagnosticos)}</td><td>${esc(txtConteo(r.enf))}</td><td>${esc(txtConteo(r.est,nomEstado))}</td></tr>`).join('')}</table>`;}).join('');}
+
+/* ---------- Confirmación dentro de la App ---------- */
+function confirmarApp(titulo,texto,si,no){return new Promise(res=>{
+  const d=$('#mkDlg'),c=$('#mkCuerpo');MK.dlg='confirmar';
+  c.innerHTML=`<h2>${esc(titulo)}</h2><p>${texto}</p><div class="mk-op"><button type="button" class="t2" id="cfSi">${esc(si||'Aceptar')}</button><button type="button" id="cfNo">${esc(no||'Cancelar')}</button></div>`;
+  const fin=v=>{d.hidden=true;MK.dlg=null;d.querySelector('.mk-x').onclick=x0;res(v);setTimeout(mkPintar,50);};
+  const x0=d.querySelector('.mk-x').onclick;d.querySelector('.mk-x').onclick=()=>fin(false);
+  $('#cfSi').onclick=()=>fin(true);$('#cfNo').onclick=()=>fin(false);try{salirAhorro('confirmar');}catch(e){}d.hidden=false;});}
+/* Ejecuta una promesa con tiempo límite. */
+function conLimite(pr,ms,nombre){let t;return Promise.race([Promise.resolve(pr).finally(()=>clearTimeout(t)),new Promise((_,rej)=>{t=setTimeout(()=>rej(new Error(`tiempo límite (${Math.round(ms/1000)} s)`)),ms);})]);}
+
 
 /* ---------- Pantalla encendida ---------- */
 let bloqueoPantalla=null;
@@ -2162,9 +2359,9 @@ function idJornada(){const d=new Date();return `${d.getFullYear()}${pad(d.getMon
 async function iniciarJornada(sel,evaluador){
   {const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}}
   const j={id:idJornada(),inicio:new Date().toISOString(),fin:null,evaluador,usuario:SES?SES.u:'',dispositivo:S.cfg.dispositivo,seleccion:sel,estado:'activa',
-    km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,modo_programacion:modoProgDe(MPROG_APP.c,'censo'),densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||5,bufferTerraza:Number(S.cfg.bufferTerraza)||8,metodoVisita:S.cfg.metodoVisita||'calle',paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
+    km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,modo_programacion:modoProgDe(MPROG_APP.c,'censo'),densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||5,bufferTerraza:Number(S.cfg.bufferTerraza)||8,metodoVisita:S.cfg.metodoVisita||'marcacion',bufferMarcacion:Number(S.cfg.bufferMarcacion)||4.5,marcacion:{tramos:[]},transit:{},paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=evaluador;await guardarCfg();
-  TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita,j.bufferTerraza);PAR.lista=[];capaParadas.clearLayers();
+  TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita,j.bufferTerraza,marcaDe(j,true));PAR.lista=[];capaParadas.clearLayers();
   await cargarPalmasJornada();iniciarGPS();pantallaEncendida(true);actualizarJornadaUI();dibujarLotes();encuadrar(sel.map(s=>s.lote));
   if(S.cfg.seguir!==false){S.seguir=true;pintarSeguir();S.pausaSeguir=Date.now()+12000;} // primero muestra los lotes; luego centra al operario
   setTimeout(()=>revisarSegundoPlano(false),2500);
@@ -2210,7 +2407,7 @@ function panelJornada(){
   const j=S.jornada;if(!j)return;
   const filas=j.seleccion.map(it=>{const c=censoLote(it.lote);const p=c.tot?Math.min(100,c.hec/c.tot*100):0;
     return `<div class="prog-lote"><b>${esc(it.lote)}</b><div class="barra" style="margin:0"><i style="width:${p}%"></i></div><span class="tenue">${pctTxt(c.hec,c.tot)} % · ${num(c.hec)}/${num(c.tot)} palmas · L${it.desde??'?'}–${it.hasta??'?'}</span></div>`;}).join('');
-  const regs=S.registros.filter(r=>r.jornada_id===j.id);actualizarParadas();const res=paradasEnLotes(resumenVisita(VIS||nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita,j.bufferTerraza),regs),PAR.lista);
+  const regs=S.registros.filter(r=>r.jornada_id===j.id);actualizarParadas();const res=paradasEnLotes(resumenVisita(VIS||nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita,j.bufferTerraza,marcaDe(j)),regs),PAR.lista);
   abrirHoja('Jornada en curso',`
     <div class="stats">
       <div class="stat"><b>${hhmm(j.inicio)}</b><span>Hora de inicio</span></div>
@@ -2227,43 +2424,70 @@ function panelJornada(){
     <h3>Avance del censo (diagnósticos)</h3>${filas}
     <button class="btn ancho" id="jAgregar">${IC.mas} Agregar lotes</button>
     <button class="btn ancho" id="jVer">${IC.play} Ver recorrido hasta ahora</button>
-    <button class="btn peligro ancho mantener" id="jFin" style="margin-top:14px;flex-direction:column">${IC.stop} FINALIZAR JORNADA<small class="subMant">Mantenga presionado 2 segundos</small></button>`);
+    <button class="btn peligro ancho" id="jFin" style="margin-top:14px;flex-direction:column">${IC.stop} FINALIZAR JORNADA<small class="subMant">Con la APK: mantener bajar volumen 10 s finaliza aunque la pantalla esté bloqueada</small></button>`);
   $('#jAgregar').onclick=()=>abrirPlanificador('agregar');
   $('#jVer').onclick=()=>abrirPlay(j.id);
-  botonMantener($('#jFin'),finalizarJornada);
+  $('#jFin').onclick=()=>finalizarJornada('boton');
 }
-async function finalizarJornada(){
-  const j=S.jornada;if(!j)return;
+/* Finalizar la jornada: confirmación dentro de la App (salvo con el volumen sostenido) y avance paso a paso.
+   Cada paso tiene un tiempo límite; si un paso falla, la jornada igual se cierra y el error queda en el reporte (errores_cierre). */
+const FIN={corriendo:false};
+async function finalizarJornada(modo){
+  const j=S.jornada;if(!j||FIN.corriendo)return;
   const c=censoTotal();
-  if(!confirm(`¿Finalizar la jornada?\n\nCensadas: ${c.hec} de ${c.tot} palmas.\nSe detendrá el registro del recorrido.`))return;
-  await cerrarRecorrido(j);
-  j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';j.cierre={modo:'boton',usuario:SES?SES.u:'',fecha:j.fin};
-  const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
-  const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion,j.bufferTerraza);const par=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);
-  j.paradas=par;j.resumen_paradas=resumenParadas(par,j);j.visita=paradasEnLotes(resumenVisita(E,regs,true),par);
-  j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin),paradas:par,regs,densidad:j.densidad,visitas:E.conf});
-  j.tiempos=tiemposJornada(j.secuencias,j);
-  if(E.metodo==='calle'){const Eb=await calcularVisita(pts,j.densidad,j.buffer,'buffer',false,true,j.seleccion);const rb=resumenVisita(Eb,regs);
-    j.visita.comparativo_buffer={buffer_m:Eb.buffer,palmas_visitadas:rb.palmas_visitadas,ha_recorridas:rb.ha_recorridas,por_lote:rb.por_lote.map(x=>({lote:x.lote,palmas_visitadas:x.palmas_visitadas,ha:x.ha}))};}
-  await dbPut('jornadas',j);
-  S.jornada=null;S.cfg.jornadaActiva=null;await guardarCfg();VIS=null;
+  if(modo!=='volumen'&&!(await confirmarApp('¿Finalizar la jornada?',`Censadas <b>${num(c.hec)}</b> de <b>${num(c.tot)}</b> palmas.<br>Se detendrá el registro del recorrido.`,'Finalizar jornada','Seguir trabajando')))return;
+  FIN.corriendo=true;
+  try{salirAhorro('fin');}catch(e){}
+  if(modo==='volumen'){try{navigator.vibrate&&navigator.vibrate([300,120,300]);}catch(e){}hablar('Finalizando la jornada.',true);}
+  const PASOS=['Detener el registro del recorrido','Cerrar la marcación','Leer el recorrido','Calcular palmas visitadas','Paradas','Secuencias y tiempos','Comparativo','Acumulado por línea','Guardar la jornada'];
+  abrirHoja('Finalizando jornada',`<p class="tenue">No cierre la App. Cada paso tiene un tiempo límite; si alguno falla, la jornada se cierra igual y el error queda en el reporte.</p><ul id="finPasos">${PASOS.map((x,i)=>`<li class="pend" data-i="${i}"><i>○</i><span>${esc(x)}</span></li>`).join('')}</ul>`);
+  const li=i=>document.querySelector(`#finPasos li[data-i="${i}"]`);
+  const errores=[];let n=0;
+  const paso=async(ms,fn)=>{const i=n++,e=li(i);if(e){e.className='run';e.querySelector('i').textContent='⏳';}
+    try{const r=await conLimite(fn(),ms);if(e){e.className='ok';e.querySelector('i').textContent='✓';}return r;}
+    catch(x){const m=String(x&&x.message||x);errores.push({paso:PASOS[i],error:m,hora:new Date().toISOString()});if(e){e.className='err';e.querySelector('i').textContent='✕';e.insertAdjacentHTML('beforeend',`<small>${esc(m)}</small>`);}return undefined;}};
+  await paso(15000,()=>cerrarRecorrido(j));
+  j.fin=new Date().toISOString();j.estado='finalizada';j.sync='pendiente';j.cierre={modo:modo==='volumen'?'volumen':'boton',usuario:SES?SES.u:'',fecha:j.fin};
+  await paso(3000,async()=>{const tr=tramoAbierto(j);if(tr)cerrarTramo(tr,'jornada',Date.parse(j.fin));MK.dentro=null;MK.fuera=null;MK.cand=null;});
+  const regs=S.registros.filter(r=>r.jornada_id===j.id);
+  const pts=(await paso(20000,()=>puntosTrack(j.id)))||TRACK.pts||[];
+  const E=await paso(90000,()=>calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion,j.bufferTerraza,marcaDe(j)));
+  const par=(await paso(20000,async()=>detectarParadas(pts,j.paradaRadio,j.paradaMin,regs)))||[];
+  j.paradas=par;
+  try{j.resumen_paradas=resumenParadas(par,j);}catch(e){j.resumen_paradas={};}
+  try{j.visita=paradasEnLotes(resumenVisita(E||VIS||nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita,j.bufferTerraza,marcaDe(j)),regs,true),par);}
+  catch(e){errores.push({paso:'Resumen de visitas',error:String(e.message||e)});j.visita={metodo:j.metodoVisita,palmas_visitadas:0,ha_recorridas:0,por_lote:[]};}
+  await paso(20000,async()=>{j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin),paradas:par,regs,densidad:j.densidad,visitas:E?E.conf:[]});j.tiempos=tiemposJornada(j.secuencias,j);});
+  if(!j.secuencias)j.secuencias=[];if(!j.tiempos)j.tiempos={};
+  await paso(60000,async()=>{if(E&&E.metodo==='calle'){const Eb=await calcularVisita(pts,j.densidad,j.buffer,'buffer',false,true,j.seleccion);const rb=resumenVisita(Eb,regs);
+    j.visita.comparativo_buffer={buffer_m:Eb.buffer,palmas_visitadas:rb.palmas_visitadas,ha_recorridas:rb.ha_recorridas,por_lote:rb.por_lote.map(x=>({lote:x.lote,palmas_visitadas:x.palmas_visitadas,ha:x.ha}))};}});
+  await paso(20000,async()=>{j.acumulado=acumuladoLineas(E||VIS,regs);});
+  if(!j.acumulado)j.acumulado=[];
+  j.errores_cierre=errores;
+  await paso(15000,()=>dbPut('jornadas',j));
+  if(errores.length)try{await dbPut('jornadas',j);}catch(e){}
+  S.jornada=null;S.cfg.jornadaActiva=null;try{await guardarCfg();}catch(e){}VIS=null;
   S.palmas=null;S.hechos.clear();indexar();dibujarPalmas();capaTrack.clearLayers();TRACK.linea=null;TRACK.pts=[];PAR.lista=[];capaParadas.clearLayers();
-  if(VOZ.activa)alternarVoz();pantallaEncendida(false);gpsFondo(false);actualizarJornadaUI();dibujarLotes();
-  hablar(MSJ_FIN,true);avisoJornada(false);
-  const res=j.visita;
+  try{if(VOZ.activa)alternarVoz();}catch(e){}pantallaEncendida(false);gpsFondo(false);actualizarJornadaUI();dibujarLotes();try{mkPintar();}catch(e){}
+  hablar(MSJ_FIN,true);avisoJornada(false);FIN.corriendo=false;
+  const res=j.visita,ti=j.tiempos||{};
   abrirHoja('Jornada finalizada',`
+    ${errores.length?`<div class="aviso">⚠️ La jornada se cerró, pero ${errores.length===1?'un paso falló':errores.length+' pasos fallaron'}: ${esc(errores.map(x=>x.paso+' ('+x.error+')').join('; '))}. Quedó registrado en el reporte.</div>`:''}
     <div class="stats">
       <div class="stat"><b>${hhmm(j.inicio)}</b><span>Hora de inicio</span></div>
       <div class="stat"><b>${hhmm(j.fin)}</b><span>Hora de fin</span></div>
       <div class="stat"><b>${fmtDur(Date.parse(j.fin)-Date.parse(j.inicio)).slice(0,5)}</b><span>Duración</span></div>
       <div class="stat"><b>${(j.km||0).toFixed(2)}</b><span>Km</span></div>
-      <div class="stat"><b>${res.ha_recorridas.toFixed(2)}</b><span>Ha recorridas</span></div>
+      <div class="stat"><b>${(res.ha_recorridas||0).toFixed(2)}</b><span>Ha recorridas</span></div>
       ${j.bateria&&j.bateria.inicio&&j.bateria.fin?`<div class="stat"><b>${j.bateria.inicio.nivel}→${j.bateria.fin.nivel} %</b><span>Batería${j.bateria.cargo?' (se cargó)':j.bateria.pct_hora!=null?' · '+String(j.bateria.pct_hora).replace('.',',')+' %/h':''}</span></div>`:''}
       <div class="stat"><b>${num(regs.length)}</b><span>Diagnósticos</span></div>
-      <div class="stat"><b>${j.tiempos.hora_inicio_labor||'—'}</b><span>Inicio de labor</span></div>
-      <div class="stat"><b>${j.tiempos.hora_fin_labor||'—'}</b><span>Fin de labor</span></div>
-      <div class="stat"><b>${j.tiempos.velocidad_kmh==null?'—':j.tiempos.velocidad_kmh.toFixed(1)}</b><span>Vel. caminata km/h</span></div>
+      <div class="stat"><b>${ti.hora_inicio_labor||'—'}</b><span>Inicio de labor</span></div>
+      <div class="stat"><b>${ti.hora_fin_labor||'—'}</b><span>Fin de labor</span></div>
+      <div class="stat"><b>${ti.velocidad_kmh==null?'—':ti.velocidad_kmh.toFixed(1)}</b><span>Vel. caminata km/h</span></div>
     </div>
+    <h3>Acumulado por línea</h3>${tablaAcumulado(j.acumulado)}
+    ${j.metodoVisita==='marcacion'?`<h3>Marcación por lote</h3>${tablaMarcacion(j)}`:''}
+    <h3>Transitabilidad</h3>${tablaTransit(j)}
     <h3>Secuencias por lote</h3>${tablaSecuencias(j.secuencias)}
     <h3>Recorrido por lote</h3>${tablaLotes(res,j)}
     <h3>Paradas</h3>${tablaParadas(par,j.resumen_paradas)}
@@ -2295,6 +2519,7 @@ async function registrarPunto(g){
   const p={j:S.jornada.id,t,lat:+g.lat.toFixed(7),lng:+g.lng.toFixed(7),acc:Math.round(g.acc*10)/10,s:0};
   TRACK.ultimo=p;TRACK.n++;(TRACK.pts||(TRACK.pts=[])).push(p);
   if(TRACK.linea){TRACK.linea.addLatLng([p.lat,p.lng]);TRACK.brillo.addLatLng([p.lat,p.lng]);}
+  try{await marcaPunto(p);}catch(e){}
   if(VIS){try{const nv=await visitarTramo(VIS,p);if(nv.length){nv.forEach(repintarPalma);actualizarVisitaUI();try{avisarSaltadas(palmasSaltadas(VIS,nv));}catch(e){}}}catch(e){}}
   try{actualizarParadas();}catch(e){}
   try{actualizarSecUI();}catch(e){}
@@ -2338,8 +2563,35 @@ async function indiceVisita(l){
    exige llegar a ellos, pero suman a la hectárea.
    Terrazas (lotes terraza y sectores terraza de lotes mixtos): sin confirmación; cuenta toda palma a <= buffer del recorrido dentro del polígono. */
 const RUN_MIN=6,RUN_LARGO=22,RUN_VIVA=90000,RUN_ABIERTA=600000,REGLA_EX=0.8; // RUN_LARGO: metros que el operario avanza A LO LARGO de la calle
-function nuevoEstadoVisita(densidad,buffer,metodo,bufTer){return {set:new Set(),lotes:new Map(),densidad:Number(densidad)||115,buffer:Number(buffer)||5,bufTer:Number(bufTer)||Number(buffer)||5,metodo:metodo||'calle',maxLat:6,ult:null,
-  runs:new Map(),prov:new Set(),abiertas:new Map(),conf:[],linEx:new Map(),regla:new Set(),grids:new Map()};}
+function nuevoEstadoVisita(densidad,buffer,metodo,bufTer,marca){return {set:new Set(),lotes:new Map(),densidad:Number(densidad)||115,buffer:Number(buffer)||5,bufTer:Number(bufTer)||Number(buffer)||5,metodo:metodo||'calle',maxLat:6,ult:null,
+  runs:new Map(),prov:new Set(),abiertas:new Map(),conf:[],linEx:new Map(),regla:new Set(),grids:new Map(),
+  tramos:marca&&marca.tramos||[],bufMarca:Number(marca&&marca.buf)||4.5,pend:new Map()};}
+/* ---------- Método «marcación» (lotes con líneas) ----------
+   Al entrar a un lote programado (3 puntos GPS seguidos dentro del polígono) se abre un tramo de marcación; el operario lo inicia
+   con ▶ MARCAR (o diciendo «marcar»). Mientras el tramo está marcado cuentan todas las palmas del lote a <= buffer de marcación
+   (4,5 m) del recorrido, con el operario dentro del polígono (por vías y senderos fuera del lote no cuenta), sin regla de calles.
+   Cuenta desde la ENTRADA al lote, no desde el toque: lo recorrido antes de tocar queda en espera y se suma al iniciar.
+   Terrazas: igual que siempre (buffer de terrazas, sin marcación). */
+function tramoEn(E,l,t){for(let i=E.tramos.length-1;i>=0;i--){const r=E.tramos[i];if(String(r.lote)===String(l)&&r.ini<=t&&(r.fin==null||t<=r.fin))return r;}return null;}
+function resolverPendientes(E,tr,nuevos){
+  for(const [id,x] of E.pend){if(String(x.l)!==String(tr.lote)||x.t<tr.ini||(tr.fin!=null&&x.t>tr.fin))continue;
+    E.pend.delete(id);if(tr.marca!=null&&!E.set.has(id))marcarVisita(E,x.l,x.q,nuevos,x.t);}}
+async function visitarMarcacion(E,ax,ay,bx,by,p,nuevos){
+  const Bm=E.bufMarca,Bt=E.bufTer,B=Math.max(Bm,Bt);
+  for(const l of lotesCercanos(ax,ay,bx,by,B)){
+    if(!CARTO.lotes[l]||!enProgramacion(E,l))continue;const grid=await indiceVisita(l);E.grids.set(l,grid);(E.tipos||(E.tipos=new Map())).set(l,grid.tipo);
+    if(!dentroLote(l,bx,by))continue; // el operario debe estar dentro del polígono del lote
+    const tr=tramoEn(E,l,p.t);
+    const i0=Math.floor((Math.min(ax,bx)-B)/CV),i1=Math.floor((Math.max(ax,bx)+B)/CV),j0=Math.floor((Math.min(ay,by)-B)/CV),j1=Math.floor((Math.max(ay,by)+B)/CV);
+    for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const g=grid.get(i+','+j);if(!g)continue;
+      for(const q of g){if(E.set.has(q.id))continue;const d=dSeg(q.x,q.y,ax,ay,bx,by);
+        if(q.ln==null){if(d<=Bt)marcarVisita(E,l,q,nuevos,p.t);continue;} // terraza: sin marcación
+        if(d>Bm)continue;
+        if(tr&&tr.marca!=null)marcarVisita(E,l,q,nuevos,p.t);
+        else if(!E.pend.has(q.id))E.pend.set(q.id,{l,q,t:p.t});}} // en espera: cuenta si se inicia la marcación de este tramo
+  }
+  if(E.pend.size>4000||(E.pend.size&&p.t%20===0)){for(const [id,x] of E.pend)if(p.t-x.t>3600000)E.pend.delete(id);}
+}
 const LFEAT=new Map(),LMET=new Map();
 function featLote(l){if(!LFEAT.size&&S.lotes)for(const f of S.lotes.features)LFEAT.set(String(f.properties._lote),f);return LFEAT.get(String(l));}
 /* ¿El punto (en metros) está dentro del polígono del lote? Tolerancia de 2 m al borde por el error del GPS. */
@@ -2487,6 +2739,7 @@ async function visitarTramo(E,p){
   const d0=E.ult?dist(E.ult.lat,E.ult.lng,p.lat,p.lng):0;
   const a=E.ult&&d0<=SALTO_MAX&&(!(p.t&&E.ult.t)||p.t-E.ult.t<=90000||d0<=15)?E.ult:p;E.ult=p; // saltos grandes o huecos de señal (>90 s) no barren área
   const ax=a.lng*KX,ay=a.lat*KY,bx=p.lng*KX,by=p.lat*KY,nuevos=[];
+  if(E.metodo==='marcacion'){await visitarMarcacion(E,ax,ay,bx,by,p,nuevos);return nuevos;}
   if(E.metodo==='calle'){
     const grids=[];for(const l of lotesCercanos(ax,ay,bx,by,14))if(CARTO.lotes[l]&&enProgramacion(E,l)){const g=await indiceVisita(l);grids.push([l,g]);E.grids.set(l,g);(E.tipos||(E.tipos=new Map())).set(l,g.tipo);}
     if(!grids.length){proponer(E,[],p.t,nuevos);return nuevos;}
@@ -2505,7 +2758,7 @@ async function visitarTramo(E,p){
   return nuevos;
 }
 /* conT: guarda el segundo de la primera visita confirmada de cada palma (secuencias y reproducción). final: descarta las calles sin confirmar (desplazamiento final). */
-async function calcularVisita(pts,densidad,buffer,metodo,conT,final,sel,bufTer){const E=nuevoEstadoVisita(densidad,buffer,metodo,bufTer);E.sel=sel||null;const t0=pts.length?pts[0].t:0;
+async function calcularVisita(pts,densidad,buffer,metodo,conT,final,sel,bufTer,marca){const E=nuevoEstadoVisita(densidad,buffer,metodo,bufTer,marca);E.sel=sel||null;const t0=pts.length?pts[0].t:0;
   for(const p of pts)await visitarTramo(E,p);
   if(final)cerrarVisita(E);
   if(conT){E.t0=t0;E.tv=new Map(E.conf.map(v=>[String(v.id),Math.round((v.t-t0)/1000)]));}
@@ -2516,7 +2769,7 @@ function resumenVisita(E,regs,conIds){
   for(const r of regs||[])fila(r.lote||'—').diagnosticos++;
   const por_lote=[...filas.values()].sort((a,b)=>ordenNat(a.lote,b.lote));
   const tv=por_lote.reduce((a,x)=>a+x.palmas_visitadas,0);
-  return {metodo:E.metodo==='calle'?'calle_entre_lineas':'buffer',densidad_palmas_ha:E.densidad,buffer_m:E.metodo==='calle'?null:E.buffer,buffer_terraza_m:E.metodo==='calle'?E.bufTer:undefined,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),sitios_vacios_regla90:por_lote.reduce((a,x)=>a+(x.sitios_vacios_regla90||0),0),regla_existencia0:'≥80 % de palmas existentes de la línea',
+  return {metodo:E.metodo==='calle'?'calle_entre_lineas':E.metodo==='marcacion'?'marcacion':'buffer',densidad_palmas_ha:E.densidad,buffer_m:E.metodo==='calle'?null:E.metodo==='marcacion'?E.bufMarca:E.buffer,buffer_terraza_m:E.metodo==='calle'?E.bufTer:undefined,palmas_visitadas:tv,palmas_existentes_visitadas:por_lote.reduce((a,x)=>a+x.palmas_existentes,0),sitios_vacios_regla90:por_lote.reduce((a,x)=>a+(x.sitios_vacios_regla90||0),0),regla_existencia0:'≥80 % de palmas existentes de la línea',
     ha_recorridas:+(tv/E.densidad).toFixed(2),...(E.tv&&conIds?{t0_visita:E.t0?new Date(E.t0).toISOString():null}:{}),por_lote};
 }
 let VIS=null;
@@ -2791,7 +3044,7 @@ async function abrirFormulario(base){
   const pintarResto=()=>{const c=val('n1');const n2=val('n2');const key=c+'|'+n2;if(key===ult.n2)return;ult.n2=key;
     const tieneN2=RAMAS.some(x=>x.c===c&&x.n2);
     if(!c||c==='SN'||(tieneN2&&!n2)){F.rama=null;$('#secN3').innerHTML='';$('#secSint').innerHTML='';
-      $('#secCampos').innerHTML=c==='SN'?siNo('produccion','Producción',r.produccion)+`<label class="campo">Transitabilidad <i>*</i></label><div class="chips">${TRANSIT.map(t=>chip('radio','transitabilidad',t,t,r.transitabilidad===t)).join('')}</div>`:'';
+      $('#secCampos').innerHTML=c==='SN'?siNo('produccion','Producción',r.produccion):''; // la transitabilidad se pregunta por lote al entrar
       $('#secFuente').textContent='';return;}
     const {rama,motivo}=ramaDe(c,n2||null,r.palma_id,r.id);F.rama=rama;if(!rama)return;
     $('#secN3').innerHTML=rama.n3?`<label class="campo">Tipo de seguimiento (automático)</label><div class="n3auto"><b>${esc(rama.n3)}</b>${motivo?`<span class="tenue"> · ${esc(motivo)}</span>`:''}</div>`:'';
@@ -2799,7 +3052,7 @@ async function abrirFormulario(base){
     $('#secSint').innerHTML=`<label class="campo">Síntomas observados (puede marcar varios)</label><div class="chips">${rama.s.map(s=>chip('checkbox','sintomas',s,s,mismos?(r.sintomas||[]).includes(s):rama.s.length===1)).join('')}</div>`;
     $('#secCampos').innerHTML=(rama.h?`<label class="campo">Estado del hongo <i>*</i></label><div class="chips">${rama.h.map(o=>chip('radio','hongo',o,o,r.hongo===o)).join('')}</div>`:'')+
       (rama.cir?siNo('cirugia','Cirugía',r.cirugia):'')+(rama.prod?siNo('produccion','Producción',r.produccion):'')+(rama.rai?siNo('raices','Raíces buenas',r.raices):'')+
-      (rama.tra?`<label class="campo">Transitabilidad <i>*</i></label><div class="chips">${TRANSIT.map(t=>chip('radio','transitabilidad',t,t,r.transitabilidad===t)).join('')}</div>`:'');
+      ''; // transitabilidad: por lote al entrar (marcacion_app.js)
     $('#secFuente').textContent=rama.f?'Fuente: '+rama.f:'';};
   const vis=()=>{pintarN2();pintarResto();};
   frm.addEventListener('change',vis);vis();
@@ -2934,8 +3187,8 @@ async function guardarRegistro(frm){
     for(const [k,t] of [['cir','cirugia','Cirugía'],['prod','produccion','Producción'],['rai','raices','Raíces buenas']].map(x=>[x[0],x[1]]).map((x,i)=>x)){}
   }
   const falta=[];
-  if(c==='SN'){if(!fd.get('produccion'))falta.push('Producción');if(!fd.get('transitabilidad'))falta.push('Transitabilidad');}
-  else{if(rama.cir&&!fd.get('cirugia'))falta.push('Cirugía');if(rama.prod&&!fd.get('produccion'))falta.push('Producción');if(rama.rai&&!fd.get('raices'))falta.push('Raíces buenas');if(rama.tra&&!fd.get('transitabilidad'))falta.push('Transitabilidad');}
+  if(c==='SN'){if(!fd.get('produccion'))falta.push('Producción');}
+  else{if(rama.cir&&!fd.get('cirugia'))falta.push('Cirugía');if(rama.prod&&!fd.get('produccion'))falta.push('Producción');if(rama.rai&&!fd.get('raices'))falta.push('Raíces buenas');}
   if(falta.length){alert('Complete: '+falta.join(', ')+'.');return;}
   // Fotografía obligatoria: al menos una foto (las que ya tenía, menos las quitadas, más las nuevas)
   const nFotos=(r.fotos||[]).filter(x=>!F.fotosQuitar.includes(x)).length+F.fotosNuevas.length;
@@ -2944,7 +3197,7 @@ async function guardarRegistro(frm){
   r.n1_codigo=c;r.n1=n?n.n1:'';r.n2=rama&&rama.n2||'';r.n3=rama&&rama.n3||'';r.rama=rama?rama.r:null;
   r.sintomas=rama?fd.getAll('sintomas'):[];r.hongo=rama&&rama.h?fd.get('hongo')||'':'';
   r.cirugia=rama&&rama.cir?fd.get('cirugia')||'':'';r.produccion=(c==='SN'||(rama&&rama.prod))?fd.get('produccion')||'':'';r.raices=rama&&rama.rai?fd.get('raices')||'':'';
-  r.transitabilidad=(c==='SN'||(rama&&rama.tra))?fd.get('transitabilidad')||'':'';
+  r.transitabilidad=transitDe(F.lote)||r.transitabilidad||''; // la del lote (se pregunta una vez al entrar)
   r.observaciones=(fd.get('observaciones')||'').trim();
   r.estado=estadoDeRama(c,rama);r.problemas=c==='SN'?[]:[c];r.grado_pc='';r.severidad='';r.accion='';
   r.lote=F.lote;r.linea=F.linea||'';r.numero=F.numero||'';r.lat=F.lat;r.lng=F.lng;
@@ -3075,6 +3328,7 @@ const VOSK_URL='https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip
 const RV={motor:null,on:false,cb:null,web:null,hablando:false,lis:null};
 const VD={on:false,estado:'off',pila:[],obs:false,paso:null,g:null};
 const CMD_INICIO=['realizar diagnóstico','diagnosticar','nuevo diagnóstico','hacer diagnóstico'];
+const CMD_MARCA=['marcar','iniciar marcación'],CMD_FIN_MARCA=['finalizar marcación','terminar marcación'];
 const CMD_GEN=['repetir','atrás','corregir','cancelar','cancelar diagnóstico','registrar diagnóstico','guardar diagnóstico','siguiente','listo','ninguno','ninguna','omitir','mantener'];
 const CMD_FOTO=['tomar foto','guardar foto','repetir foto','borrar foto','otra foto',...CMD_GEN];
 const NUMV=['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince'];
@@ -3150,7 +3404,10 @@ function apagarDxVoz(){VD.on=false;VD.estado='off';VOZ.flujo=false;RV.on=false;R
   if(!S.jornada&&!VOZ.activa)pantallaEncendida(false);}
 async function modoEspera(saludar){if(!VD.on)return;VD.estado='espera';VOZ.flujo=false;VD.g=null;VD.dictado=false;
   if(saludar)await decir('Diagnóstico por voz activado. Frente a la palma, diga: realizar diagnóstico.');
-  await escucharV(CMD_INICIO.map(gramTxt),t=>{if(VD.estado==='espera'&&coincide(t,CMD_INICIO))iniciarDxVoz();});}
+  await escucharV([...CMD_INICIO,...CMD_MARCA,...CMD_FIN_MARCA].map(gramTxt),t=>{if(VD.estado!=='espera')return;
+    if(coincide(t,CMD_FIN_MARCA)){if(!mkFinalizar('voz'))decir('No hay una marcación activa.');return;}  // «finalizar marcación»
+    if(coincide(t,CMD_MARCA)){if(!mkIniciar('voz'))decir('No hay un lote pendiente por marcar.');return;}  // «marcar»
+    if(coincide(t,CMD_INICIO))iniciarDxVoz();});}
 
 /* ---------- Flujo del diagnóstico ---------- */
 function palmaParaVoz(){if(!S.gps)return null;const R=Number(S.cfg.radioSel)||20;
@@ -3469,7 +3726,7 @@ async function abrirPlay(jid){
 async function palmasVisitadasPlay(j,pts){
   let t0,porLote=null;
   if(j.visita&&j.visita.t0_visita&&j.visita.por_lote.some(x=>x.t_visita)){t0=Date.parse(j.visita.t0_visita);porLote=j.visita.por_lote.map(x=>({lote:x.lote,ids:x.ids_palmas_visitadas||[],t:x.t_visita||[]}));}
-  else{const E=await calcularVisita(pts.map(p=>({...p})),j.densidad,j.buffer,j.metodoVisita||'buffer',true,j.estado!=='activa',j.seleccion,j.bufferTerraza);t0=E.t0;porLote=[...E.lotes].map(([l,r])=>({lote:l,ids:r.ids,t:r.ids.map(id=>E.tv.get(String(id)))}));}
+  else{const E=await calcularVisita(pts.map(p=>({...p})),j.densidad,j.buffer,j.metodoVisita||'buffer',true,j.estado!=='activa',j.seleccion,j.bufferTerraza,marcaDe(j));t0=E.t0;porLote=[...E.lotes].map(([l,r])=>({lote:l,ids:r.ids,t:r.ids.map(id=>E.tv.get(String(id)))}));}
   const out=[];
   for(const x of porLote){if(!x.ids.length)continue;let pos=new Map();
     try{for(const a of await leerChunk(x.lote))pos.set(String(a[0]),[a[5],a[4]]);}catch(e){}
@@ -3628,7 +3885,7 @@ function geoJornada(j,regs,pts,ahora,archivoFotos){
   return {type:'FeatureCollection',name:'jornada_'+j.id,
     jornada:{id:j.id,evaluador:j.evaluador,usuario:j.usuario||'',dispositivo:j.dispositivo||S.cfg.dispositivo,fecha:fechaLocal(j.inicio),
       hora_inicio:hhmm(j.inicio),hora_fin:hhmm(j.fin),duracion_min:j.fin?Math.round((Date.parse(j.fin)-Date.parse(j.inicio))/60000):null,inicio:j.inicio,fin:j.fin,
-      km:+(j.km||0).toFixed(3),...(j.visita||{}),...(j.resumen_paradas||{}),secuencias:j.secuencias||[],tiempos:j.tiempos||null,velocidad_kmh:j.tiempos?j.tiempos.velocidad_kmh:null,lotes_seleccionados:j.seleccion,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
+      km:+(j.km||0).toFixed(3),...(j.visita||{}),...(j.resumen_paradas||{}),secuencias:j.secuencias||[],tiempos:j.tiempos||null,velocidad_kmh:j.tiempos?j.tiempos.velocidad_kmh:null,lotes_seleccionados:j.seleccion,...(j.metodoVisita==='marcacion'?{buffer_marcacion_m:Number(j.bufferMarcacion)||4.5,marcacion:tramosCab(j)}:{}),transitabilidad_lotes:transitCab(j),acumulado_lineas:j.acumulado||[],errores_cierre:j.errores_cierre||[],cierre:j.cierre||null,diagnosticos:regs.length,puntos_recorrido:pts.length,fotos:regs.reduce((a,r)=>a+(r.fotos||[]).length,0),
       archivo_fotos:archivoFotos||null,cartografia:j.carto_version||'',equipo:j.equipo||null,cortes_gps:j.cortes_gps||[],eventos_gps:j.eventos_gps||[],...bateriaCab(j),app:'Sanidad Vegetal '+VERSION,sincronizado:ahora},
     features:feats};
 }
@@ -3651,7 +3908,7 @@ async function sincronizar(manual){
       const j=await dbGet('jornadas',j0.id);if(!jornadaLista(j))continue; // se vuelve a leer: pudo reabrirse o enviarse mientras tanto
       const regs=S.registros.filter(r=>r.jornada_id===j.id);const pts=await puntosTrack(j.id);
       if(!j.paradas){j.paradas=detectarParadas(pts,j.paradaRadio,j.paradaMin,regs);j.resumen_paradas=resumenParadas(j.paradas,j);}
-      if(!j.visita||!j.secuencias||!j.tiempos){const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion,j.bufferTerraza);if(!j.visita||!j.tiempos)j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);
+      if(!j.visita||!j.secuencias||!j.tiempos){const E=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,true,j.seleccion,j.bufferTerraza,marcaDe(j));if(!j.visita||!j.tiempos)j.visita=paradasEnLotes(resumenVisita(E,regs,true),j.paradas);
         j.secuencias=secuenciasDe(pts,{inicio:Date.parse(j.inicio),fin:Date.parse(j.fin||new Date().toISOString()),paradas:j.paradas||[],regs,densidad:j.densidad,visitas:E.conf});j.tiempos=tiemposJornada(j.secuencias,j);}
       const ahora=new Date().toISOString();const esC=j.labor==='cirugia',esE=j.labor==='erradicacion',esP=j.labor==='plagas',raiz=esC?'cirugia/jornadas':esE?'erradicacion/jornadas':esP?'plagas/jornadas':'jornadas';const base=`${raiz}/${fechaLocal(j.inicio)}/${j.id}`;
       const archivos=[];let nombreZip=null;
@@ -4189,9 +4446,9 @@ async function abrirConfig(){
     <h3>Cálculo de hectáreas recorridas</h3>
     <div class="fila"><div><label class="campo">Densidad (palmas/ha)</label><input type="number" id="cDens" min="50" max="250" value="${esc(S.cfg.densidad)}"></div>
       <div><label class="campo">Buffer terrazas (m)</label><input type="number" id="cBufT" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferTerraza??8)}"></div></div>
-    <div class="fila"><div><label class="campo">Buffer: método buffer y comparativo (m)</label><input type="number" id="cBuf" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferVisita)}"></div><div></div></div>
+    <div class="fila"><div><label class="campo">Buffer: método buffer y comparativo (m)</label><input type="number" id="cBuf" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferVisita)}"></div><div><label class="campo">Buffer de marcación (m)</label><input type="number" id="cBufM" min="2" max="10" step="0.1" value="${esc(S.cfg.bufferMarcacion??4.5)}"></div></div>
     <label class="campo">Método de cálculo de palmas visitadas</label>
-    <select id="cMet"><option value="calle" ${S.cfg.metodoVisita!=='buffer'?'selected':''}>Por calle (dos líneas a la altura del operario) — recomendado</option><option value="buffer" ${S.cfg.metodoVisita==='buffer'?'selected':''}>Buffer alrededor del recorrido</option></select>
+    <select id="cMet"><option value="marcacion" ${S.cfg.metodoVisita==='marcacion'||!S.cfg.metodoVisita?'selected':''}>Marcación por lote (▶ MARCAR al entrar; palmas a ≤ buffer de marcación) — recomendado</option><option value="calle" ${S.cfg.metodoVisita==='calle'?'selected':''}>Por calle (dos líneas a la altura del operario)</option><option value="buffer" ${S.cfg.metodoVisita==='buffer'?'selected':''}>Buffer alrededor del recorrido</option></select>
     <label class="campo">Radio para elegir la palma a diagnosticar (m)</label><input type="number" id="cRad" min="10" max="200" value="${esc(S.cfg.radioSel)}">
     <h3>Paradas</h3>
     <div class="fila"><div><label class="campo">Radio de parada (m)</label><input type="number" id="cPRad" min="5" max="100" value="${esc(S.cfg.paradaRadio)}"></div>
@@ -4217,7 +4474,7 @@ async function abrirConfig(){
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#cSalir',cerrarSesion);
   $('#cOk').onclick=async()=>{
-    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||5;S.cfg.bufferTerraza=Number($('#cBufT').value)||8;S.cfg.metodoVisita=$('#cMet').value;S.cfg.radioSel=Number($('#cRad').value)||20;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
+    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||5;S.cfg.bufferTerraza=Number($('#cBufT').value)||8;S.cfg.bufferMarcacion=Number($('#cBufM').value)||4.5;S.cfg.metodoVisita=$('#cMet').value;S.cfg.radioSel=Number($('#cRad').value)||20;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
     S.cfg.base='dron';S.cfg.vias=$('#cVias').checked;mostrarVias(S.cfg.vias);
     S.cfg.umbralVoz=Number($('#cUmbral').value)||2;S.cfg.precisionVoz=Number($('#cPrec').value)||15;S.cfg.velocidadVoz=Number($('#cVel').value)||1;S.cfg.precisionTrack=Number($('#cPTrack').value)||30;
     await guardarCfg();ponerBase();estadoSync();cerrarHoja();toast('Configuración guardada.');programarSync(1500);};
@@ -5809,6 +6066,7 @@ window.addEventListener('online',()=>cargarHojaVida().catch(()=>{}));
   const c=await dbGet('config','cfg');if(c){const pv=S.cfg.paramVer;S.cfg={...S.cfg,...c.v,gh:{...S.cfg.gh,...(c.v.gh||{}),token:''}};
     if((c.v.paramVer||1)<2){S.cfg.bufferVisita=5;S.cfg.umbralVoz=2;S.cfg.radioSel=50;}
     if((c.v.paramVer||1)<3){S.cfg.metodoVisita='calle';}
+    if((c.v.paramVer||1)<8){S.cfg.metodoVisita='marcacion';S.cfg.bufferMarcacion=4.5;S.cfg.paramVer=pv;}
     if((c.v.paramVer||1)<4){if(!c.v.base||c.v.base==='esri')S.cfg.base='dron';}
     if((c.v.paramVer||1)<5){S.cfg.soloWifi=false;S.cfg.paramVer=pv;}
     if((c.v.paramVer||1)<6){S.cfg.bufferTerraza=8;S.cfg.paramVer=pv;}
@@ -5856,7 +6114,7 @@ async function despuesDeIngresar(){
       }else if(j.labor==='erradicacion'){await restaurarErr(j);
       }else if(j.labor==='cirugia'){await restaurarCirugia(j);
       }else{S.jornada=j;const pts=await puntosTrack(j.id);TRACK.ultimo=pts[pts.length-1]||null;TRACK.n=pts.length;prepararTrack(pts.map(p=>[p.lat,p.lng]));
-        VIS=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,false,j.seleccion,j.bufferTerraza);VIS.sel=null;TRACK.pts=pts;
+        VIS=await calcularVisita(pts,j.densidad,j.buffer,j.metodoVisita||'buffer',true,false,j.seleccion,j.bufferTerraza,marcaDe(j,true));VIS.sel=null;TRACK.pts=pts;
         await cargarPalmasJornada();pantallaEncendida(true);toast('Jornada en curso recuperada. El recorrido continúa.',4000);}}
     else{S.cfg.jornadaActiva=null;await guardarCfg();}}
   actualizarJornadaUI();estadoSync();dibujarLotes();

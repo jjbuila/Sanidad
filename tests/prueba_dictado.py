@@ -59,12 +59,13 @@ with sync_playwright() as p:
     check('Marca el síntoma dictado', any('Manchas necróticas' in x for x in marcado('sintomas')), marcado('sintomas'))
     check('Marca «cirugía no»', marcado('cirugia') == ['No'], marcado('cirugia'))
     check('No preguntó nada', 'Opciones' not in ' '.join(pg.evaluate("window.__dichos")))
-    # Dictado 2: transitabilidad (opción de dos palabras), observación y foto
+    # Dictado 2: observación y foto. La transitabilidad ya no está en el formulario: se pregunta por lote al entrar y el diagnóstico la hereda.
+    pg.evaluate("S.jornada.transit={IT01:{valor:'Poco transitable',entrada:Date.now()}};0")
     decir('transitabilidad poco transitable observación hojas amarillas en la corona tomar foto')
     for _ in range(80):
         if pg.evaluate("nFotosF()")>=1 and pg.evaluate("!RV.hablando"): break
         time.sleep(0.1)
-    check('«poco transitable» (no confunde con «transitable»)', marcado('transitabilidad') == ['Poco transitable'], marcado('transitabilidad'))
+    check('El formulario ya no tiene transitabilidad (es por lote)', marcado('transitabilidad') == [] and pg.evaluate("document.querySelectorAll('#frm [name=transitabilidad]').length") == 0)
     check('Observación dictada', pg.evaluate("document.querySelector('#frm textarea[name=observaciones]').value") == 'hojas amarillas en la corona')
     check('Foto tomada por comando', pg.evaluate("nFotosF()") == 1)
     # Corrección por dictado: volver a decir el campo lo cambia

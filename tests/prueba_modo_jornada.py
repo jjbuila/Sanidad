@@ -87,7 +87,7 @@ with sync_playwright() as p:
     pg.evaluate("cerrarHoja()")
     # Finalizar: se libera todo
     jid = pg.evaluate("S.jornada.id"); pg.evaluate("__bat.level=.72")
-    pg.evaluate("async()=>{await finalizarJornada();}"); time.sleep(1.2)
+    pg.evaluate("async()=>{await finalizarJornada('volumen');}"); time.sleep(1.2)
     bt = pg.evaluate(f"async()=>{{const j=await dbGet('jornadas','{jid}');const g=geoJornada(j,[],await puntosTrack(j.id),new Date().toISOString(),null);return {{b:j.bateria,h:[g.jornada.bateria_inicio_pct,g.jornada.bateria_fin_pct,g.jornada.bateria_consumo_pct]}};}}")
     check('Batería al inicio y al fin de la jornada (y en la jornada enviada)', bt['b'] and bt['b']['inicio']['nivel'] == 90 and bt['b']['fin']['nivel'] == 72 and bt['h'] == [90, 72, 18], bt)
     check('El resumen final muestra la batería', '90→72 %' in pg.evaluate("document.querySelector('#hojaCuerpo').innerText"))

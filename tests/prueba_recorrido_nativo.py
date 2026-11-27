@@ -70,7 +70,7 @@ with sync_playwright() as p:
     check('Por páginas cuando son muchos', r['pags'] >= 4, r['pags'])
 
     # Finalizar: cortes con causa, en la jornada enviada, y se detiene el registro
-    r = pg.evaluate("""async()=>{const id=S.jornada.id;await finalizarJornada();await new Promise(r=>setTimeout(r,500));
+    r = pg.evaluate("""async()=>{const id=S.jornada.id;await finalizarJornada('volumen');await new Promise(r=>setTimeout(r,500));
       const j=await dbGet('jornadas',id);const pts=await puntosTrack(id);const g=geoJornada(j,[],pts,new Date().toISOString(),null);
       return {c:j.cortes_gps,h:g.jornada.cortes_gps,eq:g.jornada.equipo,det:__rec.llam.some(x=>x[0]==='detener'),on:REC.on,bg:bgWatcher};}""")
     c = r['c'] or []

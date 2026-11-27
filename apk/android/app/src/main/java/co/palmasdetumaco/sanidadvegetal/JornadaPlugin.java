@@ -11,6 +11,8 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.view.KeyEvent;
 import android.view.WindowManager;
 
@@ -28,7 +30,9 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  * - si el operario presiona el botón de encendido, la pantalla se vuelve a encender de inmediato con la App
  *   (la App entra en modo ahorro: pantalla negra y brillo mínimo);
  * - la App queda fijada (fijación de pantalla de Android) hasta finalizar la jornada;
- * - modo ahorro: brillo mínimo; subir volumen durante 2 segundos lo desbloquea.
+ * - modo ahorro: brillo mínimo; subir volumen durante 2 segundos lo desbloquea;
+ * - bajar volumen sostenido 10 segundos finaliza la jornada (aunque la pantalla esté bloqueada): vibra al empezar,
+ *   a los 5 s y al finalizar.
  */
 @CapacitorPlugin(name = "Jornada")
 public class JornadaPlugin extends Plugin {
@@ -37,7 +41,7 @@ public class JornadaPlugin extends Plugin {
     private static long ultimoPin = 0; // la fijación se pide como máximo una vez cada 10 minutos (nunca en ciclo)
     private BroadcastReceiver receptor;
     private final Handler h = new Handler(Looper.getMainLooper());
-    private Runnable volumen2s;
+    private Runnable volumen2s, bajar5s, bajar10s;
 
     @Override
     public void load() { instancia = this; }
@@ -117,6 +121,7 @@ public class JornadaPlugin extends Plugin {
     @PluginMethod
     public void terminar(PluginCall call) {
         activa = false;
+        cancelarBajar();
         ahorro = false;
         if (receptor != null) { try { getContext().unregisterReceiver(receptor); } catch (Exception ignored) { } receptor = null; }
         enUi(() -> {
@@ -154,9 +159,42 @@ public class JornadaPlugin extends Plugin {
     @PluginMethod
     public void estado(PluginCall call) { call.resolve(estadoObj()); }
 
-    /** Lo llama MainActivity con las teclas de volumen: en modo ahorro, subir volumen 2 s desbloquea. */
+    @SuppressWarnings("deprecation")
+    private void vibrar(long ms) {
+        try {
+            Vibrator v = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+            if (v == null) return;
+            if (Build.VERSION.SDK_INT >= 26) v.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE));
+            else v.vibrate(ms);
+        } catch (Exception ignored) { }
+    }
+
+    /** Bajar volumen sostenido 10 s con la jornada activa: finaliza la jornada (la App muestra el cierre paso a paso). */
+    private boolean bajarVolumen(KeyEvent e) {
+        if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
+            cancelarBajar();
+            despertar();
+            vibrar(120);
+            bajar5s = () -> { bajar5s = null; vibrar(250); };
+            bajar10s = () -> { bajar10s = null; vibrar(700); despertar(); notifyListeners("finalizar", new JSObject()); };
+            h.postDelayed(bajar5s, 5000);
+            h.postDelayed(bajar10s, 10000);
+        } else if (e.getAction() == KeyEvent.ACTION_UP) {
+            cancelarBajar();
+        }
+        return true; // durante la jornada bajar volumen no cambia el volumen
+    }
+
+    private void cancelarBajar() {
+        if (bajar5s != null) { h.removeCallbacks(bajar5s); bajar5s = null; }
+        if (bajar10s != null) { h.removeCallbacks(bajar10s); bajar10s = null; }
+    }
+
+    /** Lo llama MainActivity con las teclas de volumen: en modo ahorro, subir volumen 2 s desbloquea;
+     *  con la jornada activa, bajar volumen 10 s la finaliza. */
     static boolean tecla(KeyEvent e) {
         JornadaPlugin p = instancia;
+        if (p != null && activa && e.getKeyCode() == KeyEvent.KEYCODE_VOLUME_DOWN) return p.bajarVolumen(e);
         if (p == null || !activa || !ahorro || e.getKeyCode() != KeyEvent.KEYCODE_VOLUME_UP) return false;
         if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
             if (p.volumen2s != null) p.h.removeCallbacks(p.volumen2s);

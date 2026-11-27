@@ -3,7 +3,7 @@
 Aplicación Android (Capacitor 8) que abre la app publicada en https://jjbuila.github.io/Sanidad/ y agrega:
 
 - **Registro protegido del recorrido** (`RecorridoService.java`, `RecorridoPlugin.java` «Recorrido», `VigiaReceiver.java`): servicio de ubicación en primer plano que guarda cada punto en `files/recorrido/<jornada>.jsonl`; la App web los recupera con `puntos({jornada,desde})` aunque Android haya dormido la página. Una alarma exacta (`setAlarmClock`, cada 60 s) avisa con vibración, voz y notificación si pasa más de 1 minuto sin GPS y reanuda el servicio si Android lo cerró. Eventos (inicio, sin GPS, reinicios) en `<jornada>_eventos.jsonl`.
-- **Modo jornada** (`JornadaPlugin.java` «Jornada»): App encima de la pantalla de bloqueo y pantalla siempre encendida durante la jornada; si se presiona el botón de encendido la vuelve a encender (`ACQUIRE_CAUSES_WAKEUP`) y quita el bloqueo sin PIN; fija la App (`startLockTask`); modo ahorro con brillo mínimo y desbloqueo con subir volumen 2 s (`MainActivity.dispatchKeyEvent`).
+- **Modo jornada** (`JornadaPlugin.java` «Jornada»): App encima de la pantalla de bloqueo y pantalla siempre encendida durante la jornada; si se presiona el botón de encendido la vuelve a encender (`ACQUIRE_CAUSES_WAKEUP`) y quita el bloqueo sin PIN; fija la App (`startLockTask`); modo ahorro con brillo mínimo y desbloqueo con subir volumen 2 s; bajar volumen sostenido 10 s finaliza la jornada (vibra al empezar, a los 5 s y al finalizar; evento `finalizar`) (`MainActivity.dispatchKeyEvent`).
 - GPS en segundo plano de respaldo para la App con APK antiguas (`@capacitor-community/background-geolocation`).
 - Voz nativa de Android (`@capacitor-community/text-to-speech`).
 - Permiso de notificaciones (`@capacitor/local-notifications`).

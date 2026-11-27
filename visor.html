@@ -716,6 +716,7 @@ button,select,input{font:inherit;color:inherit}
 .glass{background:var(--panel);border:1px solid var(--borde);backdrop-filter:blur(10px)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--borde);background:rgba(255,255,255,.05);border-radius:10px;padding:7px 12px;cursor:pointer;font-family:var(--t);font-weight:700;letter-spacing:.8px;font-size:14px;white-space:nowrap}
 .btn:hover{border-color:var(--acento)}
+.chip-acu{display:inline-block;background:rgba(255,255,255,.06);border-radius:8px;padding:2px 7px;margin:1px 3px 1px 0}
 .btn.prim{background:linear-gradient(135deg,var(--acento),var(--acento2));color:#03140d;border-color:transparent}
 .btn.nar{background:linear-gradient(135deg,#ff9a5a,var(--naranja));color:#1d0b00;border-color:transparent}
 .btn:disabled{opacity:.45;cursor:default}
@@ -881,7 +882,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <div id="lgMsg"></div>
     </form>
     <p class="tenue" style="font-size:12.5px;margin:6px 0 0">Acceso para administradores y supervisores. Requiere internet: los datos se leen del repositorio privado de GitHub.</p>
-    <div id="lgVer">VERSIÓN 20261126:1336</div>
+    <div id="lgVer">VERSIÓN 20261127:0211</div>
   </div>
 </div>
 
@@ -977,7 +978,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
    Los archivos de GitHub no cambian una vez escritos, por eso se guardan
    en caché local por su huella (sha) y solo se descargan una vez.
    ===================================================================== */
-const VERSION='20261126:1336';
+const VERSION='20261127:0211';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=(n,d=0)=>Number(n||0).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1883,6 +1884,43 @@ $('#fotos').onclick=e=>{if(e.target.id==='fotos')$('#fotosX').click();};
 
 /* ---------- Detalle de jornada y reproducción ---------- */
 const PLAY={on:false,raf:0,t:0,vel:60,idx:0,marca:null,estela:null};
+/* ---------- Marcación por lote, transitabilidad y acumulado por línea (jornadas con el método «marcación») ---------- */
+const MODO_MK={boton:'Botón',voz:'Voz',salida:'Salió del lote (90 s)',jornada:'Fin de la jornada',volumen:'Volumen',sin_marcar:'No marcó'};
+function nomEst(e){for(const j of JOR)for(const d of j.diags)if(d.estado===e&&d.estado_nombre)return d.estado_nombre;return e;}
+const conteoTxt=(o,f)=>Object.entries(o||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${f?f(k):k} ${v}`).join(' · ');
+function filasMarcacion(js){const out=[];for(const j of js)for(const t of ((j.header||{}).marcacion||[])){if(!loteSel(t.lote)||!enProg(t.lote))continue;
+  out.push({_j:j,fecha:j.fecha,evaluador:j.evaluador,usuario:j.usuario,lote:t.lote,entrada:t.hora_entrada||'',inicio:t.hora_inicio||'',fin:t.hora_fin||'',min:Number(t.minutos)||0,marcado:!!t.marcado,
+    como_inicio:t.marcado?(MODO_MK[t.inicio]||t.inicio||''):'No marcó',como_fin:MODO_MK[t.fin_modo]||t.fin_modo||'',orden:Date.parse(t.entrada)||0});}return out;}
+function filasTransit(js){const out=[];for(const j of js)for(const t of ((j.header||{}).transitabilidad_lotes||[])){if(!loteSel(t.lote)||!enProg(t.lote))continue;
+  out.push({_j:j,fecha:j.fecha,evaluador:j.evaluador,usuario:j.usuario,lote:t.lote,transitabilidad:t.transitabilidad||'Sin responder',entrada:t.hora_entrada||'',orden:Date.parse(t.entrada)||0});}return out;}
+function acumuladoDe(js){const m=new Map();
+  for(const j of js)for(const r of ((j.header||{}).acumulado_lineas||[])){if(!loteSel(r.lote)||!enProg(r.lote))continue;const k=r.lote+'|'+r.linea;let x=m.get(k);
+    if(!x)m.set(k,x={lote:String(r.lote),linea:r.linea,palmas:0,existentes:0,diagnosticos:0,enf:{},est:{},jornadas:new Set()});
+    x.palmas+=Number(r.palmas)||0;x.existentes+=Number(r.existentes)||0;x.diagnosticos+=Number(r.diagnosticos)||0;x.jornadas.add(j.id);
+    for(const [a,b] of Object.entries(r.enf||{}))x.enf[a]=(x.enf[a]||0)+b;for(const [a,b] of Object.entries(r.est||{}))x.est[a]=(x.est[a]||0)+b;}
+  const kk=v=>v==='T'?1e9:typeof v==='number'?v:1e8;
+  return [...m.values()].sort((a,b)=>ordenNat(a.lote,b.lote)||kk(a.linea)-kk(b.linea)).map(x=>({...x,jornadas:x.jornadas.size,enfermedades:conteoTxt(x.enf),estados:conteoTxt(x.est,nomEst)}));}
+function htmlMarcacion(filas,conOp){if(!filas.length)return '<div class="tenue" style="font-size:12.5px">Sin tramos de marcación (jornadas con el método «marcación»).</div>';
+  return `<div style="overflow-x:auto"><table class="t"><thead><tr>${conOp?'<th>Fecha</th><th>Operario</th>':''}<th>Lote</th><th>Entrada</th><th>Inicio</th><th>Fin</th><th class="n">Min</th><th>Cómo inició</th><th>Cómo terminó</th></tr></thead><tbody>${
+    filas.map(t=>`<tr>${conOp?`<td>${esc(t.fecha)}</td><td>${esc(t.evaluador)}</td>`:''}<td><b>${esc(t.lote)}</b></td><td>${esc(t.entrada)}</td><td>${esc(t.inicio||'—')}</td><td>${esc(t.fin||'—')}</td><td class="n">${t.marcado?num(t.min,1):'—'}</td><td>${t.marcado?esc(t.como_inicio):'<b style="color:var(--rojo)">No marcó</b>'}</td><td>${esc(t.como_fin||'—')}</td></tr>`).join('')}</tbody></table></div>`;}
+function htmlTransit(filas,conOp){if(!filas.length)return '<div class="tenue" style="font-size:12.5px">Sin transitabilidad registrada por lote.</div>';
+  return `<div style="overflow-x:auto"><table class="t"><thead><tr>${conOp?'<th>Fecha</th><th>Operario</th>':''}<th>Lote</th><th>Transitabilidad</th><th>Entrada</th></tr></thead><tbody>${
+    filas.map(t=>`<tr>${conOp?`<td>${esc(t.fecha)}</td><td>${esc(t.evaluador)}</td>`:''}<td><b>${esc(t.lote)}</b></td><td>${esc(t.transitabilidad)}</td><td>${esc(t.entrada)}</td></tr>`).join('')}</tbody></table></div>`;}
+function htmlAcumulado(filas){if(!filas.length)return '<div class="tenue" style="font-size:12.5px">Sin acumulado por línea (jornadas finalizadas con la versión que lo calcula).</div>';
+  const te={},ts={};for(const r of filas){for(const [a,b] of Object.entries(r.enf))te[a]=(te[a]||0)+b;for(const [a,b] of Object.entries(r.est))ts[a]=(ts[a]||0)+b;}
+  const chips=(o,f)=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="chip-acu">${esc(f?f(k):k)} <b>${num(v)}</b></span>`).join('')||'<span class="tenue">Sin diagnósticos</span>';
+  return `<div style="font-size:12.5px;margin:2px 0 4px"><b>Por enfermedad:</b> ${chips(te)}</div><div style="font-size:12.5px;margin:0 0 6px"><b>Por estado:</b> ${chips(ts,nomEst)}</div>
+    <div style="overflow-x:auto"><table class="t"><thead><tr><th>Lote</th><th>Línea</th><th class="n">Palmas</th><th class="n">Existentes</th><th class="n">Diag.</th><th>Enfermedad</th><th>Estado</th></tr></thead><tbody>${
+    filas.map(r=>`<tr><td><b>${esc(r.lote)}</b></td><td>${r.linea==='T'?'Terraza':esc(r.linea)}</td><td class="n">${num(r.palmas)}</td><td class="n">${num(r.existentes)}</td><td class="n">${num(r.diagnosticos)}</td><td>${esc(r.enfermedades)}</td><td>${esc(r.estados)}</td></tr>`).join('')}</tbody></table></div>`;}
+function bloqueMarcacionJ(j){const h=j.header||{};const er=h.errores_cierre||[];
+  const mk=(h.marcacion||[]).map(t=>({fecha:j.fecha,evaluador:j.evaluador,lote:t.lote,entrada:t.hora_entrada||'',inicio:t.hora_inicio||'',fin:t.hora_fin||'',min:Number(t.minutos)||0,marcado:!!t.marcado,como_inicio:MODO_MK[t.inicio]||t.inicio||'',como_fin:MODO_MK[t.fin_modo]||t.fin_modo||''}));
+  const tr=(h.transitabilidad_lotes||[]).map(t=>({lote:t.lote,transitabilidad:t.transitabilidad||'Sin responder',entrada:t.hora_entrada||''}));
+  const ac=(h.acumulado_lineas||[]).map(r=>({...r,enfermedades:conteoTxt(r.enf),estados:conteoTxt(r.est,nomEst)}));
+  return (h.marcacion?`<h3 style="margin-top:6px">Marcación por lote</h3>${htmlMarcacion(mk,false)}`:'')+
+    (tr.length?`<h3 style="margin-top:6px">Transitabilidad</h3>${htmlTransit(tr,false)}`:'')+
+    (ac.length?`<h3 style="margin-top:6px">Acumulado por línea</h3>${htmlAcumulado(ac)}`:'')+
+    (er.length?`<div class="aviso" style="margin-top:8px">⚠️ Al finalizar la jornada ${er.length===1?'un paso falló':er.length+' pasos fallaron'} (la jornada se cerró igual): ${esc(er.map(x=>x.paso+': '+x.error).join('; '))}</div>`:'')+
+    (h.cierre&&h.cierre.modo==='volumen'?'<div class="tenue" style="font-size:12px">Finalizada con el botón de volumen (10 s).</div>':'');}
 function abrirDetalle(j){
   if(REP.on)detenerRep();
   SEL=j;pararPlay();capaSel.clearLayers();
@@ -1907,7 +1945,7 @@ function abrirDetalle(j){
       <div><b>Despl. inicial:</b> ${minHM(j.tiempos.min_desplazamiento_inicial)}</div><div><b>Despl. entre lotes:</b> ${minHM(j.tiempos.min_desplazamiento_entre_lotes)}</div>
       <div><b>Despl. final:</b> ${minHM(j.tiempos.min_desplazamiento_final)}</div><div><b>Efectivo en lotes:</b> ${minHM(j.tiempos.min_efectivo_labor)}</div>`:''}
       ${j.header&&j.header.bateria_inicio_pct!=null&&j.header.bateria_fin_pct!=null?`<div><b>Batería:</b> ${num(j.header.bateria_inicio_pct)} % → ${num(j.header.bateria_fin_pct)} %${j.header.bateria_cargo?' (se cargó)':j.header.bateria_pct_hora!=null?' · '+num(j.header.bateria_pct_hora,1)+' %/h':''}</div>`:''}
-      <div><b>Método:</b> ${j.metodo==='calle_entre_lineas'?'Por calle':'Buffer'}</div><div>${j.comp?`<b>Buffer ${esc(j.comp.buffer_m)} m:</b> ${num(j.comp.palmas_visitadas)} palmas`:''}</div></div>
+      <div><b>Método:</b> ${j.metodo==='calle_entre_lineas'?'Por calle':j.metodo==='marcacion'?'Marcación ('+num((j.header||{}).buffer_marcacion_m||4.5,1)+' m)':'Buffer'}</div><div>${j.comp?`<b>Buffer ${esc(j.comp.buffer_m)} m:</b> ${num(j.comp.palmas_visitadas)} palmas`:''}</div></div>
     ${bloqueCortes(j)}
     ${conT?`<div class="play"><div class="play-res"><span>Inicio <b>${esc(j.hora_inicio||hhmm(j.inicio))}</b></span><span>Fin <b>${esc(j.hora_fin||hhmm(j.fin))}</b></span><span>Ha <b>${num(j.ha,2)}</b></span><span>T. efectivo <b>${efecJ(j,sq)}</b></span></div>
       <div class="fila"><button class="btn mini prim" id="pBt">▶</button><input type="range" id="pRg" min="0" max="1000" value="0"><span class="reloj" id="pRel">${esc(hhmm(tr.t[0]))}</span></div>
@@ -1923,6 +1961,7 @@ function abrirDetalle(j){
     <h3 style="margin-top:6px">Por lote</h3>
     <div style="overflow-x:auto"><table class="t"><thead><tr><th>Lote</th><th class="n">Palmas</th><th class="n">Avance</th><th class="n">Ha</th><th class="n">Diag.</th><th class="n">Paradas</th><th class="n">Despl. entre lotes</th><th class="n">T. total</th><th class="n">T. efectivo</th></tr></thead><tbody>${filas||'<tr><td colspan="9" class="tenue">Sin datos por lote.</td></tr>'}</tbody></table></div>
     <div class="tenue" style="font-size:11.5px">Avance = palmas visitadas ÷ palmas totales del lote. Despl. entre lotes = tiempo desde el lote anterior; suma al T. efectivo del lote. Paradas y tiempos en horas:minutos.</div>
+    ${bloqueMarcacionJ(j)}
     <div class="tenue" style="font-size:12px;margin-top:8px">${esc(j.app)} · Dispositivo ${esc(j.dispositivo||'—')} · Sincronizada ${esc(j.sincronizado?new Date(j.sincronizado).toLocaleString('es-CO'):'—')}</div>
     <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn mini" id="dGeo">⬇ GeoJSON de la jornada</button></div>`;
   $('#detalle').hidden=false;$('#dX').onclick=cerrarDetalle;
@@ -2180,7 +2219,13 @@ function pintarPanel(){
   }else if(TAB==='lotes'){
     const t=tabla('tLot',[{k:'lote',t:'Lote'},{k:'pc',t:'Casos PC',n:1},{k:'incid_pc',t:'Incid. PC',n:1,f:x=>x.incid_pc==null?'—':'<b>'+num(x.incid_pc,2)+' %</b>'},{k:'tipo',t:'Tipo'},{k:'jornadas',t:'Jornadas',n:1},{k:'operarios',t:'Operarios',n:1},{k:'palmas',t:'Palmas visitadas',n:1,f:x=>num(x.palmas)},{k:'distintas',t:'Palmas distintas',n:1,f:x=>num(x.distintas)},{k:'total_lote',t:'Total lote',n:1,f:x=>x.total_lote?num(x.total_lote):'—'},{k:'avance',t:'Avance',n:1,f:x=>x.avance==null?'—':'<b>'+num(x.avance,1)+' %</b>'},{k:'ha',t:'Ha',n:1,f:x=>num(x.ha,2)},{k:'diag',t:'Diag.',n:1},{k:'enfermas',t:'Enfermas',n:1},{k:'min_par',t:'Min. paradas',n:1}],
       resumenLotes(),f=>{msSolo('lote',f.lote);aplicarFiltros(true);});
-    P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque un lote para filtrar por él. <b>Avance</b> = palmas distintas visitadas (sin repetir entre jornadas) ÷ palmas totales del lote. <b>Incid. PC</b> = casos de PC (último diagnóstico de cada palma, sin casos en recuperación ni dados de alta) ÷ palmas totales del lote (existencia 0 y 1).</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xLot">⬇ CSV lotes</button></div>`;
+    P.innerHTML=`<div class="tenue" style="margin-bottom:6px;font-size:12.5px">Toque un lote para filtrar por él. <b>Avance</b> = palmas distintas visitadas (sin repetir entre jornadas) ÷ palmas totales del lote. <b>Incid. PC</b> = casos de PC (último diagnóstico de cada palma, sin casos en recuperación ni dados de alta) ÷ palmas totales del lote (existencia 0 y 1).</div>`+t.html+`<div style="margin-top:10px"><button class="btn mini" id="xLot">⬇ CSV lotes</button></div>
+      <h3>Marcación por lote</h3><div class="tenue" style="margin-bottom:4px;font-size:12.5px">Cada tramo: entrada al lote, inicio de la marcación (botón o voz), fin (botón, voz, 90 s fuera del lote o fin de la jornada) y minutos desde la entrada.</div>${htmlMarcacion(filasMarcacion(JORF).sort((a,b)=>a.orden-b.orden),true)}
+      <h3>Transitabilidad</h3>${htmlTransit(filasTransit(JORF).sort((a,b)=>a.orden-b.orden),true)}
+      <h3>Acumulado por línea</h3>${htmlAcumulado(acumuladoDe(JORF))}
+      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn mini" id="xMk">⬇ CSV marcación</button><button class="btn mini" id="xAcu">⬇ CSV acumulado por línea</button></div>`;
+    $('#xMk').onclick=()=>csv(`marcacion_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['fecha','usuario','evaluador','lote','entrada','inicio','fin','min','como_inicio','como_fin'],filasMarcacion(JORF).sort((a,b)=>a.orden-b.orden));
+    $('#xAcu').onclick=()=>csv(`acumulado_lineas_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['lote','linea','palmas','existentes','diagnosticos','enfermedades','estados','jornadas'],acumuladoDe(JORF));
     $('#xLot').onclick=()=>csv(`lotes_${$('#fDesde').value}_${$('#fHasta').value}.csv`,['lote','tipo','jornadas','operarios','palmas','distintas','total_lote','avance','ha','diag','enfermas','pc','incid_pc','paradas','min_par'],resumenLotes());
   }else if(TAB==='secuencias'){
     const filas=filasSecuencias();

@@ -51,7 +51,7 @@ with sync_playwright() as p:
       return out;}""")
     v = list(dic.values())
     check('Dictado: «deficiencia de boro» (no «deficiencias»)', v[0]['n1'] == ['DEFICIENCIA DE BORO'] and any('gancho' in x for x in v[0]['sint']), v[0])
-    check('Dictado: «espacio vacío»', v[1]['n1'] == ['ESPACIO VACÍO'] and v[1]['tra'] == ['Transitable'], v[1])
+    check('Dictado: «espacio vacío» (sin transitabilidad en el formulario: es por lote)', v[1]['n1'] == ['ESPACIO VACÍO'] and v[1]['tra'] == [], v[1])
     check('Dictado: «yarumo en palma»', v[2]['n1'] == ['YARUMO'] and v[2]['n2'] == ['YARUMO EN PALMA'], v[2])
     check('Sin errores ni alertas', not errores, errores[:3])
     # Visor: nombre y color
