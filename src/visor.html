@@ -884,7 +884,7 @@ function abrirDetalle(j){
       <div><b>Despl. inicial:</b> ${minHM(j.tiempos.min_desplazamiento_inicial)}</div><div><b>Despl. entre lotes:</b> ${minHM(j.tiempos.min_desplazamiento_entre_lotes)}</div>
       <div><b>Despl. final:</b> ${minHM(j.tiempos.min_desplazamiento_final)}</div><div><b>Efectivo en lotes:</b> ${minHM(j.tiempos.min_efectivo_labor)}</div>`:''}
       ${j.header&&j.header.bateria_inicio_pct!=null&&j.header.bateria_fin_pct!=null?`<div><b>Batería:</b> ${num(j.header.bateria_inicio_pct)} % → ${num(j.header.bateria_fin_pct)} %${j.header.bateria_cargo?' (se cargó)':j.header.bateria_pct_hora!=null?' · '+num(j.header.bateria_pct_hora,1)+' %/h':''}</div>`:''}
-      <div><b>Método:</b> ${j.metodo==='calle_entre_lineas'?'Por calle':j.metodo==='marcacion'?'Marcación ('+num((j.header||{}).buffer_marcacion_m||4.5,1)+' m)':'Buffer'}</div><div>${j.comp?`<b>Buffer ${esc(j.comp.buffer_m)} m:</b> ${num(j.comp.palmas_visitadas)} palmas`:''}</div></div>
+      <div><b>Método:</b> ${j.metodo==='calle_entre_lineas'?'Por calle':j.metodo==='marcacion'?'Marcación ('+num((j.header||{}).buffer_marcacion_m||8,1)+' m)':'Buffer'}</div><div>${j.comp?`<b>Buffer ${esc(j.comp.buffer_m)} m:</b> ${num(j.comp.palmas_visitadas)} palmas`:''}</div></div>
     ${bloqueCortes(j)}
     ${conT?`<div class="play"><div class="play-res"><span>Inicio <b>${esc(j.hora_inicio||hhmm(j.inicio))}</b></span><span>Fin <b>${esc(j.hora_fin||hhmm(j.fin))}</b></span><span>Ha <b>${num(j.ha,2)}</b></span><span>T. efectivo <b>${efecJ(j,sq)}</b></span></div>
       <div class="fila"><button class="btn mini prim" id="pBt">▶</button><input type="range" id="pRg" min="0" max="1000" value="0"><span class="reloj" id="pRel">${esc(hhmm(tr.t[0]))}</span></div>

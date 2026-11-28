@@ -16,7 +16,7 @@ const esMarcacionJ=j=>!!j&&j.metodoVisita==='marcacion'&&!(typeof esLaborRuta===
 function marcaDe(j,vivo){
   if(!j||j.metodoVisita!=='marcacion')return null;const m=j.marcacion||(j.marcacion={tramos:[]});
   const fin=j.fin?Date.parse(j.fin):null;
-  return {tramos:vivo?m.tramos:m.tramos.map(t=>({...t,fin:t.fin??fin})),buf:Number(j.bufferMarcacion)||4.5};}
+  return {tramos:vivo?m.tramos:m.tramos.map(t=>({...t,fin:t.fin??fin})),buf:Number(j.bufferMarcacion)||8};}
 function loteProg(lat,lng){const l=loteDe(lat,lng);if(!l||!S.jornada)return '';return S.jornada.seleccion.some(x=>String(x.lote)===l)?l:'';}
 async function necesitaMarca(l){try{if(!CARTO.lotes[l])return false;const g=await indiceVisita(l);return g.tipo!=='terraza';}catch(e){return false;}}
 const tramoAbierto=j=>{const t=j&&j.marcacion&&j.marcacion.tramos;if(!t)return null;for(let i=t.length-1;i>=0;i--)if(t[i].fin==null)return t[i];return null;};
@@ -137,7 +137,7 @@ function mkPintar(){
       <div class="mk-op">${TRANSITS.map((x,i)=>`<button type="button" class="t${i}" data-v="${esc(x)}">${esc(x)}</button>`).join('')}</div>`;
     c.querySelectorAll('button[data-v]').forEach(x=>x.onclick=()=>mkTransit(x.dataset.v));
   }else{
-    c.innerHTML=`<h2>Marcación obligatoria</h2><p>Entró al lote <span class="mk-lote">${esc(l)}</span> a las ${hhmm(tr.ini)}. Inicie la marcación: cuenta desde la entrada, todas las palmas a ${String(Number(j.bufferMarcacion)||4.5).replace('.',',')} m o menos de su recorrido.</p>
+    c.innerHTML=`<h2>Marcación obligatoria</h2><p>Entró al lote <span class="mk-lote">${esc(l)}</span> a las ${hhmm(tr.ini)}. Inicie la marcación: cuenta desde la entrada las palmas de las dos líneas de la calle donde camina, a ${String(Number(j.bufferMarcacion)||8).replace('.',',')} m o menos.</p>
       <div class="mk-op"><button type="button" class="mk-marcar" id="mkMarcar">▶ MARCAR</button></div><p style="margin:10px 0 0;font-size:12.5px">También puede decir <b>«marcar»</b> (con la voz activada).</p>`;
     $('#mkMarcar').onclick=()=>mkIniciar('boton');
   }
