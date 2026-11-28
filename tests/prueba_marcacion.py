@@ -1,6 +1,6 @@
 """Marcación por lote, transitabilidad por lote y cierre de la jornada por pasos (datos sintéticos, sin cartografía real).
 · Al entrar al lote programado (3 puntos dentro) se pregunta la transitabilidad (una vez) y luego la marcación obligatoria.
-· Sin «Todavía no»: si cierran la ventana vuelve a salir. ▶ MARCAR cuenta desde la entrada (solo las dos líneas de la calle, a <= 8 m).
+· Sin «Todavía no»: si cierran la ventana vuelve a salir. ▶ MARCAR cuenta desde la entrada (solo las dos líneas de la calle, a <= 10 m).
 · Fin a los 90 s fuera del lote, con la voz o al finalizar la jornada; al volver a entrar pide marcar otra vez.
 · Finalizar: confirmación dentro de la App, pasos con tiempo límite, errores registrados, acumulado por línea y por etiqueta.
 · Volumen sostenido 10 s (APK): finaliza sin confirmación."""
@@ -38,9 +38,9 @@ with sync_playwright() as p:
     pg.evaluate("""([P,G])=>{document.querySelector('#login').hidden=true;SES={u:'sa',nombre:'Super Prueba',rol:'superadmin'};
       window.__P={ZZ01:P};leerChunk=async l=>__P[l]||[];CARTO.lotes={ZZ01:{n:P.length}};
       G.features.forEach(f=>f.properties._lote=f.properties.Lote);S.lotes=G;cajasLotes();IDXV.clear();LFEAT.clear();LMET.clear();KX=0;
-      hablar=()=>{};S.cfg.metodoVisita='marcacion';S.cfg.bufferMarcacion=8;}""", [pal, LOTE])
+      hablar=()=>{};S.cfg.metodoVisita='marcacion';S.cfg.bufferMarcacion=10;}""", [pal, LOTE])
     pg.evaluate("async()=>{await iniciarJornada([{lote:'ZZ01'}],'Super Prueba');}"); time.sleep(1)
-    check('Jornada nueva con el método de marcación (8 m)', pg.evaluate("[S.jornada.metodoVisita,S.jornada.bufferMarcacion]") == ['marcacion', 8])
+    check('Jornada nueva con el método de marcación (10 m)', pg.evaluate("[S.jornada.metodoVisita,S.jornada.bufferMarcacion]") == ['marcacion', 10])
     T = {'t': int(time.time() * 1000) - 9 * 60000}
     def punto(x, y):
         lng, lat = ll(x, y); T['t'] += 4000
@@ -76,7 +76,7 @@ with sync_playwright() as p:
         punto(SL + 0.1, y)
     r = pg.evaluate("(()=>{const g=IDXV.get('ZZ01');return [1,2,3].map(n=>g.lineas.get(n).pal.filter(q=>VIS.set.has(q.id)).length);})()")
     check('Corrido sobre la línea 2: sigue contando las dos líneas de su calle (2 y 3)', r[1] == NP and r[2] == NP, r)
-    check('…y no cuenta la línea 1 de la otra calle aunque quede a menos de 8 m', r[0] == 0, r)
+    check('…y no cuenta la línea 1 de la otra calle aunque quede a menos de 10 m', r[0] == 0, r)
     # sale del lote y camina 100 s por fuera (vía)
     for k in range(28):
         punto(xc + k * 1.2, ymax + 12)
@@ -118,7 +118,7 @@ with sync_playwright() as p:
     mk = h.get('marcacion') or []
     check('Reporte: tramos con lote, horas, minutos y cómo inició/terminó', len(mk) == 2 and mk[0]['lote'] == 'ZZ01' and mk[0]['inicio'] == 'boton' and mk[0]['fin_modo'] == 'salida' and mk[0]['minutos'] > 0 and mk[1]['inicio'] == 'voz' and mk[1]['fin_modo'] == 'voz' and mk[0]['hora_entrada'], mk)
     check('Reporte: transitabilidad por lote con hora de entrada', h['transitabilidad_lotes'][0]['transitabilidad'] == 'Poco transitable' and h['transitabilidad_lotes'][0]['hora_entrada'])
-    check('Reporte: acumulado por línea y errores del cierre', len(h['acumulado_lineas']) >= 2 and h['errores_cierre'] and h['metodo'] == 'marcacion' and h['buffer_marcacion_m'] == 8)
+    check('Reporte: acumulado por línea y errores del cierre', len(h['acumulado_lineas']) >= 2 and h['errores_cierre'] and h['metodo'] == 'marcacion' and h['buffer_marcacion_m'] == 10)
     check('Tiempo límite por paso', pg.evaluate("conLimite(new Promise(()=>{}),300).then(()=>'no',e=>e.message)").startswith('tiempo límite'))
     # Volumen sostenido 10 s (APK): finaliza sin confirmación
     pg.evaluate("cerrarHoja()")

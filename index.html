@@ -1034,7 +1034,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
   <div class="tit">SANIDAD VEGETAL<small>CENSO FITOSANITARIO GEORREFERENCIADO</small></div>
   <div class="carga"><i></i></div>
   <div id="splashMsg">Iniciando…</div>
-  <div id="splashVer">VERSIÓN 20261128:1003</div>
+  <div id="splashVer">VERSIÓN 20261128:1113</div>
 </div>
 
 <div id="login" hidden>
@@ -1049,7 +1049,7 @@ input[type=range]{flex:1;accent-color:var(--acento);height:28px}
     <p class="tenue" id="lgMsg"></p>
   </form>
   <p id="lgRed"></p>
-  <div id="lgVer2">VERSIÓN 20261128:1003</div>
+  <div id="lgVer2">VERSIÓN 20261128:1113</div>
   <button type="button" class="btn" id="lgAct" style="margin-top:4px;font-size:13px;padding:7px 12px">⟳ BUSCAR ACTUALIZACIÓN</button>
   <button type="button" class="btn" id="lgInstalar" hidden>📲 INSTALAR EN ESTE CELULAR</button>
 </div>
@@ -1243,7 +1243,7 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
    Censo fitosanitario georreferenciado sin conexión, con jornadas,
    registro del recorrido y sincronización con GitHub.
    ===================================================================== */
-const VERSION='20261128:1003';
+const VERSION='20261128:1113';
 /* Ejecutándose dentro de la APK de Android (Capacitor) o en el navegador. */
 const NATIVO=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 /* APK sin puente nativo (copia guardada antigua): con internet se recarga una vez para recibirlo. */
@@ -1426,7 +1426,7 @@ const S={
   lotes:null,palmas:null,idx:new Map(),registros:[],ultimo:new Map(),hechos:new Map(),marcadores:new Map(),
   gps:null,seguir:false,jornada:null,plan:[],planAbierto:false,planModo:'nueva',
   cfg:{evaluador:'',dispositivo:'',base:'dron',urlPropia:'teselas/{z}/{x}/{y}.png',zmaxPropia:20,
-    umbralVoz:2,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:5,bufferTerraza:8,radioSel:20,metodoVisita:'marcacion',bufferMarcacion:8,paramVer:9,paradaRadio:20,paradaMin:5,soloWifi:false,esperaSync:2,jornadaActiva:null,
+    umbralVoz:2,precisionVoz:15,velocidadVoz:1,precisionTrack:30,densidad:115,bufferVisita:5,bufferTerraza:8,radioSel:20,metodoVisita:'marcacion',bufferMarcacion:10,paramVer:10,paradaRadio:20,paradaMin:5,soloWifi:false,esperaSync:2,jornadaActiva:null,
     gh:{owner:'jjbuila',repo:'Sanidad-datos',rama:'main',token:''}}
 };
 let CARTO={version:'',lotes:{}};
@@ -2153,7 +2153,7 @@ const esMarcacionJ=j=>!!j&&j.metodoVisita==='marcacion'&&!(typeof esLaborRuta===
 function marcaDe(j,vivo){
   if(!j||j.metodoVisita!=='marcacion')return null;const m=j.marcacion||(j.marcacion={tramos:[]});
   const fin=j.fin?Date.parse(j.fin):null;
-  return {tramos:vivo?m.tramos:m.tramos.map(t=>({...t,fin:t.fin??fin})),buf:Number(j.bufferMarcacion)||8};}
+  return {tramos:vivo?m.tramos:m.tramos.map(t=>({...t,fin:t.fin??fin})),buf:Number(j.bufferMarcacion)||10};}
 function loteProg(lat,lng){const l=loteDe(lat,lng);if(!l||!S.jornada)return '';return S.jornada.seleccion.some(x=>String(x.lote)===l)?l:'';}
 async function necesitaMarca(l){try{if(!CARTO.lotes[l])return false;const g=await indiceVisita(l);return g.tipo!=='terraza';}catch(e){return false;}}
 const tramoAbierto=j=>{const t=j&&j.marcacion&&j.marcacion.tramos;if(!t)return null;for(let i=t.length-1;i>=0;i--)if(t[i].fin==null)return t[i];return null;};
@@ -2274,7 +2274,7 @@ function mkPintar(){
       <div class="mk-op">${TRANSITS.map((x,i)=>`<button type="button" class="t${i}" data-v="${esc(x)}">${esc(x)}</button>`).join('')}</div>`;
     c.querySelectorAll('button[data-v]').forEach(x=>x.onclick=()=>mkTransit(x.dataset.v));
   }else{
-    c.innerHTML=`<h2>Marcación obligatoria</h2><p>Entró al lote <span class="mk-lote">${esc(l)}</span> a las ${hhmm(tr.ini)}. Inicie la marcación: cuenta desde la entrada las palmas de las dos líneas de la calle donde camina, a ${String(Number(j.bufferMarcacion)||8).replace('.',',')} m o menos.</p>
+    c.innerHTML=`<h2>Marcación obligatoria</h2><p>Entró al lote <span class="mk-lote">${esc(l)}</span> a las ${hhmm(tr.ini)}. Inicie la marcación: cuenta desde la entrada las palmas de las dos líneas de la calle donde camina, a ${String(Number(j.bufferMarcacion)||10).replace('.',',')} m o menos.</p>
       <div class="mk-op"><button type="button" class="mk-marcar" id="mkMarcar">▶ MARCAR</button></div><p style="margin:10px 0 0;font-size:12.5px">También puede decir <b>«marcar»</b> (con la voz activada).</p>`;
     $('#mkMarcar').onclick=()=>mkIniciar('boton');
   }
@@ -2430,7 +2430,7 @@ function idJornada(){const d=new Date();return `${d.getFullYear()}${pad(d.getMon
 async function iniciarJornada(sel,evaluador){
   {const m=motivoNoIniciar();if(m){avisarFueraPlantacion(m);return;}}
   const j={id:idJornada(),inicio:new Date().toISOString(),fin:null,evaluador,usuario:SES?SES.u:'',dispositivo:S.cfg.dispositivo,seleccion:sel,estado:'activa',
-    km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,modo_programacion:modoProgDe(MPROG_APP.c,'censo'),densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||5,bufferTerraza:Number(S.cfg.bufferTerraza)||8,metodoVisita:S.cfg.metodoVisita||'marcacion',bufferMarcacion:Number(S.cfg.bufferMarcacion)||8,marcacion:{tramos:[]},transit:{},paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
+    km:0,sync:'pendiente',version_app:VERSION,carto_version:CARTO.version,modo_programacion:modoProgDe(MPROG_APP.c,'censo'),densidad:Number(S.cfg.densidad)||115,buffer:Number(S.cfg.bufferVisita)||5,bufferTerraza:Number(S.cfg.bufferTerraza)||8,metodoVisita:S.cfg.metodoVisita||'marcacion',bufferMarcacion:Number(S.cfg.bufferMarcacion)||10,marcacion:{tramos:[]},transit:{},paradaRadio:Number(S.cfg.paradaRadio)||20,paradaMin:Number(S.cfg.paradaMin)||5};
   await dbPut('jornadas',j);S.jornada=j;S.cfg.jornadaActiva=j.id;S.cfg.evaluador=evaluador;await guardarCfg();
   TRACK.ultimo=null;TRACK.n=0;TRACK.pts=[];prepararTrack([]);VIS=nuevoEstadoVisita(j.densidad,j.buffer,j.metodoVisita,j.bufferTerraza,marcaDe(j,true));PAR.lista=[];capaParadas.clearLayers();
   await cargarPalmasJornada();iniciarGPS();pantallaEncendida(true);actualizarJornadaUI();dibujarLotes();encuadrar(sel.map(s=>s.lote));
@@ -2636,7 +2636,7 @@ async function indiceVisita(l){
 const RUN_MIN=6,RUN_LARGO=22,RUN_VIVA=90000,RUN_ABIERTA=600000,REGLA_EX=0.8; // RUN_LARGO: metros que el operario avanza A LO LARGO de la calle
 function nuevoEstadoVisita(densidad,buffer,metodo,bufTer,marca){return {set:new Set(),lotes:new Map(),densidad:Number(densidad)||115,buffer:Number(buffer)||5,bufTer:Number(bufTer)||Number(buffer)||5,metodo:metodo||'calle',maxLat:6,ult:null,
   runs:new Map(),prov:new Set(),abiertas:new Map(),conf:[],linEx:new Map(),regla:new Set(),grids:new Map(),
-  tramos:marca&&marca.tramos||[],bufMarca:Number(marca&&marca.buf)||8,pend:new Map()};}
+  tramos:marca&&marca.tramos||[],bufMarca:Number(marca&&marca.buf)||10,pend:new Map()};}
 /* ---------- Método «marcación» (lotes con líneas) ----------
    Al entrar a un lote programado (3 puntos GPS seguidos dentro del polígono) se abre un tramo de marcación; el operario lo inicia
    con ▶ MARCAR (o diciendo «marcar»). Mientras el tramo está marcado cuentan todas las palmas del lote a <= buffer de marcación
@@ -4527,7 +4527,7 @@ async function abrirConfig(){
     <h3>Cálculo de hectáreas recorridas</h3>
     <div class="fila"><div><label class="campo">Densidad (palmas/ha)</label><input type="number" id="cDens" min="50" max="250" value="${esc(S.cfg.densidad)}"></div>
       <div><label class="campo">Buffer terrazas (m)</label><input type="number" id="cBufT" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferTerraza??8)}"></div></div>
-    <div class="fila"><div><label class="campo">Buffer: método buffer y comparativo (m)</label><input type="number" id="cBuf" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferVisita)}"></div><div><label class="campo">Buffer de marcación (m)</label><input type="number" id="cBufM" min="2" max="12" step="0.1" value="${esc(S.cfg.bufferMarcacion??8)}"></div></div>
+    <div class="fila"><div><label class="campo">Buffer: método buffer y comparativo (m)</label><input type="number" id="cBuf" min="2" max="30" step="0.5" value="${esc(S.cfg.bufferVisita)}"></div><div><label class="campo">Buffer de marcación (m)</label><input type="number" id="cBufM" min="2" max="12" step="0.1" value="${esc(S.cfg.bufferMarcacion??10)}"></div></div>
     <label class="campo">Método de cálculo de palmas visitadas</label>
     <select id="cMet"><option value="marcacion" ${S.cfg.metodoVisita==='marcacion'||!S.cfg.metodoVisita?'selected':''}>Marcación por lote (▶ MARCAR al entrar; las dos líneas de la calle a ≤ buffer de marcación) — recomendado</option><option value="calle" ${S.cfg.metodoVisita==='calle'?'selected':''}>Por calle (dos líneas a la altura del operario)</option><option value="buffer" ${S.cfg.metodoVisita==='buffer'?'selected':''}>Buffer alrededor del recorrido</option></select>
     <label class="campo">Radio para elegir la palma a diagnosticar (m)</label><input type="number" id="cRad" min="10" max="200" value="${esc(S.cfg.radioSel)}">
@@ -4555,7 +4555,7 @@ async function abrirConfig(){
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn;};
   on('#cSalir',cerrarSesion);
   $('#cOk').onclick=async()=>{
-    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||5;S.cfg.bufferTerraza=Number($('#cBufT').value)||8;S.cfg.bufferMarcacion=Number($('#cBufM').value)||8;S.cfg.metodoVisita=$('#cMet').value;S.cfg.radioSel=Number($('#cRad').value)||20;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
+    if(adm){S.cfg.soloWifi=$('#cWifi').checked;S.cfg.densidad=Number($('#cDens').value)||115;S.cfg.bufferVisita=Number($('#cBuf').value)||5;S.cfg.bufferTerraza=Number($('#cBufT').value)||8;S.cfg.bufferMarcacion=Number($('#cBufM').value)||10;S.cfg.metodoVisita=$('#cMet').value;S.cfg.radioSel=Number($('#cRad').value)||20;S.cfg.paradaRadio=Number($('#cPRad').value)||20;S.cfg.paradaMin=Number($('#cPMin').value)||5;}
     S.cfg.base='dron';S.cfg.vias=$('#cVias').checked;mostrarVias(S.cfg.vias);
     S.cfg.umbralVoz=Number($('#cUmbral').value)||2;S.cfg.precisionVoz=Number($('#cPrec').value)||15;S.cfg.velocidadVoz=Number($('#cVel').value)||1;S.cfg.precisionTrack=Number($('#cPTrack').value)||30;
     await guardarCfg();ponerBase();estadoSync();cerrarHoja();toast('Configuración guardada.');programarSync(1500);};
@@ -6148,7 +6148,7 @@ window.addEventListener('online',()=>cargarHojaVida().catch(()=>{}));
     if((c.v.paramVer||1)<2){S.cfg.bufferVisita=5;S.cfg.umbralVoz=2;S.cfg.radioSel=50;}
     if((c.v.paramVer||1)<3){S.cfg.metodoVisita='calle';}
     if((c.v.paramVer||1)<8){S.cfg.metodoVisita='marcacion';S.cfg.paramVer=pv;}
-    if((c.v.paramVer||1)<9){S.cfg.bufferMarcacion=8;S.cfg.paramVer=pv;} // 4,5 m quedaba corto: solo contaba una línea de la calle
+    if((c.v.paramVer||1)<10){S.cfg.bufferMarcacion=10;S.cfg.paramVer=pv;} // lotes lineales: 10 m (4,5 m quedaba corto; solo cuentan las dos líneas de la calle)
     if((c.v.paramVer||1)<4){if(!c.v.base||c.v.base==='esri')S.cfg.base='dron';}
     if((c.v.paramVer||1)<5){S.cfg.soloWifi=false;S.cfg.paramVer=pv;}
     if((c.v.paramVer||1)<6){S.cfg.bufferTerraza=8;S.cfg.paramVer=pv;}
